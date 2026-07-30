@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import "./PageLayout.css";
-import PageHeader from "../ui/PageHeader";
+import Workspace from "../ui/Workspace";
 
 interface PageLayoutProps {
   title: string;
@@ -21,34 +21,20 @@ export default function PageLayout({
 }: PageLayoutProps) {
   return (
     <div className="page-layout">
-
-      <PageHeader
+      <Workspace
         title={title}
-        subtitle={subtitle ?? ""}
-      />
-
-      {summary && (
-        <div className="page-summary">
-          {summary}
-        </div>
-      )}
-
-      {actions && (
-        <div className="page-actions">
-          {actions}
-        </div>
-      )}
-
-      <div className="page-content">
+        subtitle={subtitle}
+        summary={summary}
+        actions={actions}
+      >
         {children}
-      </div>
 
-      {footer && (
-        <div className="page-footer">
-          {footer}
-        </div>
-      )}
-
+        {footer && (
+          <div className="page-footer">
+            {footer}
+          </div>
+        )}
+      </Workspace>
     </div>
   );
 }

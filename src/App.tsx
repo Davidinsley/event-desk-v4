@@ -7,7 +7,7 @@ import NewEvent from "./components/NewEvent";
 import Competition from "./components/Competition";
 import Players from "./components/Players";
 
-function App() {
+export default function App() {
   const [currentPage, setCurrentPage] = useState("dashboard");
 
   const eventOpen = currentPage !== "dashboard";
@@ -65,7 +65,7 @@ function App() {
       )}
 
       <main className="main">
-        <div className="workspace">
+        <div className="app-workspace">
           {currentPage === "dashboard" && (
             <Dashboard
               onNewEvent={() => setCurrentPage("new")}
@@ -87,5 +87,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
