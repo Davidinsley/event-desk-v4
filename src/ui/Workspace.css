@@ -7,7 +7,7 @@
 
 .workspace-header {
     text-align: center;
-    margin-bottom: 36px;
+    margin-bottom: 24px;
 }
 
 .workspace-header h1 {
@@ -17,14 +17,14 @@
     font-weight: 800;
     line-height: 1.1;
 
-    color: #1e4f9b;   /* Ramsdale Blue */
+    color: #1e4f9b;
 }
 
 .workspace-subtitle {
-    margin-top: 14px;
+    margin-top: 12px;
 
     font-size: 1.45rem;
-    line-height: 1.5;
+    line-height: 1.45;
 
     color: #65748b;
 
@@ -33,13 +33,23 @@
     margin-right: auto;
 }
 
+/* Dashboard Area */
+
+.workspace-summary,
+.workspace-actions {
+    display: flex;
+    justify-content: center;
+}
+
 .workspace-summary {
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
 .workspace-actions {
-    margin-bottom: 32px;
+    margin-bottom: 28px;
 }
+
+/* Main Working Area */
 
 .workspace-content {
     flex: 1;

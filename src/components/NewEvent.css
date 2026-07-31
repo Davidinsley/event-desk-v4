@@ -1,0 +1,84 @@
+/* ======================================================
+   EVENT DETAILS PAGE
+====================================================== */
+
+.event-details {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+}
+
+.field label {
+    margin-bottom: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #4a4a4a;
+}
+
+.field input,
+.field select {
+    height: 46px;
+    padding: 0 14px;
+
+    font-size: 16px;
+
+    border: 1px solid #cfd7df;
+    border-radius: 10px;
+
+    background: #ffffff;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.field input:focus,
+.field select:focus {
+    outline: none;
+
+    border-color: #5da9e9;
+
+    box-shadow: 0 0 0 3px rgba(93, 169, 233, 0.15);
+}
+
+.button-bar {
+    display: flex;
+    justify-content: flex-end;
+
+    margin-top: 36px;
+}
+
+.primary-button {
+    background: #4d9fe8;
+    color: #ffffff;
+
+    border: none;
+    border-radius: 10px;
+
+    padding: 14px 34px;
+
+    font-size: 17px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: background 0.2s ease;
+}
+
+.primary-button:hover {
+    background: #2f86d6;
+}

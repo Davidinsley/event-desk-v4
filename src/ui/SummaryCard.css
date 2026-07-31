@@ -1,50 +1,61 @@
 .summary-card {
-    width: 170px;
-    height: 110px;
+    width: 180px;
+    height: 112px;
+
+    background: #ffffff;
+    border: 1px solid #dbe6f3;
+    border-radius: 16px;
 
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
 
-    background: #ffffff;
+    text-align: center;
 
-    border: 1px solid #d8e3ef;
-    border-radius: 14px;
+    padding: 12px;
+    box-sizing: border-box;
 
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 
     transition: all 0.2s ease;
 }
 
 .summary-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.10);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.10);
 }
 
 .summary-card span {
     font-size: 0.9rem;
-    color: #66758c;
-    margin-bottom: 10px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 8px;
 }
 
 .summary-card strong {
     font-size: 2rem;
-    font-weight: 700;
-    color: #1b5fa8;
     line-height: 1;
+    font-weight: 700;
+    color: #1f5fbf;
 }
 
-/* Future variants */
-
-.summary-card.success {
-    border-color: #6fbf73;
+.summary-card small {
+    margin-top: 4px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #3f4d63;
+    line-height: 1.1;
 }
 
-.summary-card.warning {
-    border-color: #e5b84c;
+.summary-card.success strong {
+    color: #2e7d32;
 }
 
-.summary-card.danger {
-    border-color: #d96b6b;
+.summary-card.warning strong {
+    color: #f57c00;
+}
+
+.summary-card.danger strong {
+    color: #c62828;
 }
