@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { Player } from "./types/Player";
+import type { Event } from "./types/Event";
+
 import "./App.css";
 import logo from "./assets/Emblem.png";
 
@@ -8,10 +10,23 @@ import NewEvent from "./components/NewEvent";
 import Competition from "./components/Competition";
 import Players from "./components/Players";
 import HandicapUpdate from "./components/HandicapUpdate";
+import FieldManagement from "./components/FieldManagement";
+import Catering from "./components/Catering";
+import Posters from "./components/Posters";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [players, setPlayers] = useState<Player[]>([]);
+
+  const [event, setEvent] = useState<Event>({
+    eventNumber: "0001",
+    eventName: "Monday Club Home & Away Championship",
+    eventDate: "",
+    venue: "Ramsdale Park Golf Club",
+    competition: "Pairs Championship",
+    entryFee: 15,
+    playerLimit: 76,
+  });
 
   const eventOpen = currentPage !== "dashboard";
 
@@ -57,15 +72,34 @@ export default function App() {
             </li>
 
             <li
-  className={currentPage === "handicap" ? "active" : ""}
-  onClick={() => setCurrentPage("handicap")}
->
-  🏌️ Handicap Update
-</li>
-            <li>📋 Field Management</li>
-            <li>🍽 Catering</li>
+              className={currentPage === "handicap" ? "active" : ""}
+              onClick={() => setCurrentPage("handicap")}
+            >
+              🏌️ Handicap Update
+            </li>
+
+            <li
+              className={currentPage === "field" ? "active" : ""}
+              onClick={() => setCurrentPage("field")}
+            >
+              📋 Field Management
+            </li>
+
+            <li
+              className={currentPage === "catering" ? "active" : ""}
+              onClick={() => setCurrentPage("catering")}
+            >
+              🍽 Catering
+            </li>
+
+            <li
+              className={currentPage === "posters" ? "active" : ""}
+              onClick={() => setCurrentPage("posters")}
+            >
+              🎨 Posters
+            </li>
+
             <li>❤️ Charity</li>
-            <li>🎨 Posters</li>
             <li>📖 Booklets</li>
             <li>✅ Review & Publish</li>
           </ul>
@@ -74,23 +108,53 @@ export default function App() {
 
       <main className="main">
         <div className="app-workspace">
+
           {currentPage === "dashboard" && (
             <Dashboard
               onNewEvent={() => setCurrentPage("new")}
             />
           )}
 
-          {currentPage === "new" && <NewEvent />}
+          {currentPage === "new" && (
+            <NewEvent
+              event={event}
+              setEvent={setEvent}
+            />
+          )}
 
-          {currentPage === "competition" && <Competition />}
+          {currentPage === "competition" && (
+            <Competition />
+          )}
 
-         {currentPage === "players" && (
-  <Players
-    players={players}
-    setPlayers={setPlayers}
-  />
-)}
-          {currentPage === "handicap" && <HandicapUpdate />}
+          {currentPage === "players" && (
+            <Players
+              players={players}
+              setPlayers={setPlayers}
+            />
+          )}
+
+          {currentPage === "handicap" && (
+            <HandicapUpdate
+              players={players}
+            />
+          )}
+
+          {currentPage === "field" && (
+            <FieldManagement
+              players={players}
+            />
+          )}
+
+          {currentPage === "catering" && (
+            <Catering
+              players={players}
+            />
+          )}
+
+          {currentPage === "posters" && (
+            <Posters />
+          )}
+
         </div>
       </main>
 

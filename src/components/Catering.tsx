@@ -1,67 +1,63 @@
 import "./NewEvent.css";
 
+import type { Player } from "../types/Player";
+
 import PageLayout from "../layout/PageLayout";
 import SummaryCard from "../ui/SummaryCard";
 import ActionTile from "../ui/ActionTile";
 
-import type { Player } from "../types/Player";
-
 import {
-  RefreshCw,
-  Lock,
-  Download,
+  UtensilsCrossed,
   Printer,
-  Users,
+  Download,
+  RefreshCw,
+  FileText,
 } from "lucide-react";
 
-interface HandicapUpdateProps {
+interface CateringProps {
   players: Player[];
 }
 
-export default function HandicapUpdate({
+export default function Catering({
   players,
-}: HandicapUpdateProps) {
-  const averageHI =
-    players.length === 0
-      ? "0.0"
-      : (
-          players.reduce(
-            (sum, player) => sum + player.handicapIndex,
-            0
-          ) / players.length
-        ).toFixed(1);
+}: CateringProps) {
+
+  const meals = players.length;
 
   const summary = (
     <div className="page-summary">
+
       <SummaryCard
-        title="Players"
-        value={players.length}
+        title="Meals"
+        value={meals.toString()}
       />
 
       <SummaryCard
-        title="Updated"
+        title="Vegetarian"
+        value="0"
+      />
+
+      <SummaryCard
+        title="Special Diet"
         value="0"
       />
 
       <SummaryCard
         title="Outstanding"
-        value={players.length}
+        value="0"
       />
 
       <SummaryCard
-        title="Locked"
-        value="No"
+        title="Estimated Cost"
+        value="£0"
       />
 
-      <SummaryCard
-        title="Average HI"
-        value={averageHI}
-      />
     </div>
   );
 
   const actions = (
     <div className="page-actions">
+
       <ActionTile
         icon={RefreshCw}
         title="Refresh"
@@ -69,13 +65,13 @@ export default function HandicapUpdate({
       />
 
       <ActionTile
-        icon={Users}
-        title="Import Players"
+        icon={UtensilsCrossed}
+        title="Meal Choices"
       />
 
       <ActionTile
-        icon={Lock}
-        title="Lock Handicaps"
+        icon={FileText}
+        title="Kitchen Report"
       />
 
       <ActionTile
@@ -87,17 +83,19 @@ export default function HandicapUpdate({
         icon={Download}
         title="Export"
       />
+
     </div>
   );
 
   return (
     <PageLayout
-      title="Handicap Update"
-      subtitle="Review and update player handicap indexes before locking the competition."
+      title="Catering"
+      subtitle="Manage player meals, dietary requirements and catering reports."
       summary={summary}
       actions={actions}
-      footer="Handicaps remain editable until they are locked."
+      footer="Catering management."
     >
+
       <div className="players-table">
 
         <table>
@@ -106,9 +104,8 @@ export default function HandicapUpdate({
 
             <tr>
               <th>Player</th>
-              <th>Current HI</th>
-              <th>Course Hcp</th>
-              <th>Playing Hcp</th>
+              <th>Meal</th>
+              <th>Dietary</th>
               <th>Status</th>
             </tr>
 
@@ -121,10 +118,14 @@ export default function HandicapUpdate({
               <tr>
 
                 <td
-                  colSpan={5}
+                  colSpan={4}
                   className="empty-table"
                 >
                   No players available.
+
+                  <br />
+
+                  Add players before selecting meals.
 
                 </td>
 
@@ -140,11 +141,9 @@ export default function HandicapUpdate({
                     {player.firstName} {player.lastName}
                   </td>
 
-                  <td>{player.handicapIndex.toFixed(1)}</td>
+                  <td>Not Selected</td>
 
-                  <td>-</td>
-
-                  <td>-</td>
+                  <td>None</td>
 
                   <td>Pending</td>
 
@@ -159,6 +158,7 @@ export default function HandicapUpdate({
         </table>
 
       </div>
+
     </PageLayout>
   );
 }

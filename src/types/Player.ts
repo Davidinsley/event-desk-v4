@@ -2,7 +2,7 @@
  * ============================================================
  * EVENT DESK
  * Player Master Data Model
- * Version 1.0
+ * Version 2.0
  * ============================================================
  */
 
@@ -21,4 +21,28 @@ export interface Player {
   paid: boolean;
 
   notes: string;
+
+  // -----------------------------
+  // Event Assignment
+  // -----------------------------
+
+  team?: number;
+
+  teeTime?: string;
+
+  startingHole?: number;
+
+  // -----------------------------
+  // Event Status
+  // -----------------------------
+
+  checkedIn?: boolean;
+
+  withdrawn?: boolean;
+
+  // -----------------------------
+  // Administration
+  // -----------------------------
+
+  locked?: boolean;
 }

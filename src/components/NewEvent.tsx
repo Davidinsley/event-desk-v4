@@ -1,5 +1,7 @@
 import "./NewEvent.css";
 
+import type { Event } from "../types/Event";
+
 import PageLayout from "../layout/PageLayout";
 import SummaryCard from "../ui/SummaryCard";
 import ActionTile from "../ui/ActionTile";
@@ -13,18 +15,33 @@ import {
   Trash2,
 } from "lucide-react";
 
-export default function NewEvent() {
+interface NewEventProps {
+  event: Event;
+  setEvent: React.Dispatch<React.SetStateAction<Event>>;
+}
+
+export default function NewEvent({
+  event,
+  setEvent,
+}: NewEventProps) {
+
   const summary = (
     <div className="players-summary">
-      <SummaryCard title="Event No." value="0001" />
+      <SummaryCard title="Event No." value={event.eventNumber} />
       <SummaryCard title="Status" value="Draft" />
       <SummaryCard
         title="Venue"
         value="Ramsdale"
         subValue="Park GC"
       />
-      <SummaryCard title="Players" value="0 / 76" />
-      <SummaryCard title="Entry Fee" value="£15" />
+      <SummaryCard
+        title="Players"
+        value={`0 / ${event.playerLimit}`}
+      />
+      <SummaryCard
+        title="Entry Fee"
+        value={`£${event.entryFee}`}
+      />
     </div>
   );
 
@@ -48,72 +65,105 @@ export default function NewEvent() {
       footer="Complete the event details before moving on to Competition Setup."
     >
       <div className="event-details">
+
         <div className="form-grid">
+
           <div className="field full-width">
             <label>Event Name</label>
+
             <input
               type="text"
-              placeholder="Monday Club Home & Away Championship"
+              value={event.eventName}
+              onChange={(e) =>
+                setEvent({
+                  ...event,
+                  eventName: e.target.value,
+                })
+              }
             />
+
           </div>
 
           <div className="field">
             <label>Event Date</label>
-            <input type="date" />
+
+            <input
+              type="text"
+              value={event.eventDate}
+              onChange={(e) =>
+                setEvent({
+                  ...event,
+                  eventDate: e.target.value,
+                })
+              }
+            />
+
           </div>
 
           <div className="field">
             <label>Venue</label>
+
             <input
               type="text"
-              placeholder="Ramsdale Park Golf Club"
+              value={event.venue}
+              onChange={(e) =>
+                setEvent({
+                  ...event,
+                  venue: e.target.value,
+                })
+              }
             />
+
           </div>
 
           <div className="field">
-            <label>Organiser</label>
-            <input
-              type="text"
-              placeholder="Special Events Organiser"
-            />
-          </div>
+            <label>Competition</label>
 
-          <div className="field">
-            <label>Competition Type</label>
             <input
               type="text"
-              placeholder="Pairs Championship"
+              value={event.competition}
+              onChange={(e) =>
+                setEvent({
+                  ...event,
+                  competition: e.target.value,
+                })
+              }
             />
-          </div>
 
-          <div className="field">
-            <label>Competition Format</label>
-            <input
-              type="text"
-              placeholder="Betterball Stableford"
-            />
           </div>
 
           <div className="field">
             <label>Entry Fee</label>
+
             <input
-              type="text"
-              placeholder="£15.00"
+              type="number"
+              value={event.entryFee}
+              onChange={(e) =>
+                setEvent({
+                  ...event,
+                  entryFee: Number(e.target.value),
+                })
+              }
             />
+
           </div>
 
           <div className="field">
             <label>Maximum Players</label>
+
             <input
               type="number"
-              placeholder="76"
+              value={event.playerLimit}
+              onChange={(e) =>
+                setEvent({
+                  ...event,
+                  playerLimit: Number(e.target.value),
+                })
+              }
             />
+
           </div>
 
-          <div className="field">
-            <label>First Tee Time</label>
-            <input type="time" />
-          </div>
         </div>
 
         <div className="button-bar">
@@ -121,6 +171,7 @@ export default function NewEvent() {
             Save Event Details
           </button>
         </div>
+
       </div>
     </PageLayout>
   );

@@ -17,8 +17,15 @@ import {
   Trash2,
 } from "lucide-react";
 
-export default function Players() {
-  const [players, setPlayers] = useState<Player[]>([]);
+interface PlayersProps {
+  players: Player[];
+  setPlayers: React.Dispatch<React.SetStateAction<Player[]>>;
+}
+
+export default function Players({
+  players,
+  setPlayers,
+}: PlayersProps) {
   const [showAddPlayer, setShowAddPlayer] = useState(false);
 
   // --------------------------------------------------
