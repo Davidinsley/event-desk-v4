@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Player } from "./types/Player";
 import "./App.css";
 import logo from "./assets/Emblem.png";
 
@@ -6,9 +7,11 @@ import Dashboard from "./components/Dashboard";
 import NewEvent from "./components/NewEvent";
 import Competition from "./components/Competition";
 import Players from "./components/Players";
+import HandicapUpdate from "./components/HandicapUpdate";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState("dashboard");
+  const [players, setPlayers] = useState<Player[]>([]);
 
   const eventOpen = currentPage !== "dashboard";
 
@@ -53,7 +56,12 @@ export default function App() {
               👥 Players
             </li>
 
-            <li>🏌️ Handicap Update</li>
+            <li
+  className={currentPage === "handicap" ? "active" : ""}
+  onClick={() => setCurrentPage("handicap")}
+>
+  🏌️ Handicap Update
+</li>
             <li>📋 Field Management</li>
             <li>🍽 Catering</li>
             <li>❤️ Charity</li>
@@ -76,7 +84,13 @@ export default function App() {
 
           {currentPage === "competition" && <Competition />}
 
-          {currentPage === "players" && <Players />}
+         {currentPage === "players" && (
+  <Players
+    players={players}
+    setPlayers={setPlayers}
+  />
+)}
+          {currentPage === "handicap" && <HandicapUpdate />}
         </div>
       </main>
 
