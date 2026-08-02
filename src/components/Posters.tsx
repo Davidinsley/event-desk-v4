@@ -1,4 +1,6 @@
 import { useState } from "react";
+import type { Event } from "../types/Event";
+
 import "./Posters.css";
 
 import PageLayout from "../layout/PageLayout";
@@ -11,6 +13,11 @@ import {
   Printer,
   Download,
 } from "lucide-react";
+
+interface PostersProps {
+  event: Event;
+  onPreview: () => void;
+}
 
 const templates = [
   {
@@ -39,7 +46,7 @@ const templates = [
   },
   {
     title: "Stableford",
-    description: "Individual stableford",
+    description: "Individual Stableford",
   },
   {
     title: "Custom Poster",
@@ -47,7 +54,10 @@ const templates = [
   },
 ];
 
-export default function Posters() {
+export default function Posters({
+  event,
+  onPreview,
+}: PostersProps) {
 
   const [selected, setSelected] = useState(templates[0]);
 
@@ -55,9 +65,16 @@ export default function Posters() {
     <div className="page-summary">
 
       <SummaryCard title="Templates" value="8" />
-      <SummaryCard title="Selected" value={selected.title} />
+
+      <SummaryCard
+        title="Poster Template"
+        value={selected.title}
+      />
+
       <SummaryCard title="Preview" value="Live" />
-      <SummaryCard title="Exports" value="0" />
+
+      <SummaryCard title="Size" value="A4" />
+
       <SummaryCard title="Status" value="Draft" />
 
     </div>
@@ -75,6 +92,7 @@ export default function Posters() {
       <ActionTile
         icon={Eye}
         title="Preview"
+        onClick={onPreview}
       />
 
       <ActionTile
@@ -94,7 +112,7 @@ export default function Posters() {
 
     <PageLayout
       title="Poster Studio"
-      subtitle="Professional event poster generator."
+      subtitle="Design, preview and publish professional event posters."
       summary={summary}
       actions={actions}
       footer="Poster Studio"
@@ -132,13 +150,9 @@ export default function Posters() {
 
             <div className="poster-header">
 
-              <h1>
-                Ramsdale Seniors
-              </h1>
+              <h1>Ramsdale Seniors</h1>
 
-              <h2>
-                {selected.title}
-              </h2>
+              <h2>{event.eventName}</h2>
 
             </div>
 
@@ -150,21 +164,22 @@ export default function Posters() {
 
             <div className="poster-info">
 
-              <h3>
-                Live Poster Preview
-              </h3>
+              <h3>{event.competition}</h3>
 
               <p>
-
-                This is now a genuine poster canvas.
-
+                <strong>Date:</strong> {event.eventDate || "Not Set"}
               </p>
 
               <p>
+                <strong>Venue:</strong> {event.venue}
+              </p>
 
-                Next we replace this placeholder with
-                the real Ramsdale poster layout.
+              <p>
+                <strong>Entry Fee:</strong> £{event.entryFee}
+              </p>
 
+              <p>
+                <strong>Player Limit:</strong> {event.playerLimit}
               </p>
 
             </div>

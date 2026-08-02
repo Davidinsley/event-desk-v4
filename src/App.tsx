@@ -1,9 +1,10 @@
 import { useState } from "react";
-import type { Player } from "./types/Player";
-import type { Event } from "./types/Event";
 
 import "./App.css";
 import logo from "./assets/Emblem.png";
+
+import type { Player } from "./types/Player";
+import type { Event } from "./types/Event";
 
 import Dashboard from "./components/Dashboard";
 import NewEvent from "./components/NewEvent";
@@ -13,9 +14,11 @@ import HandicapUpdate from "./components/HandicapUpdate";
 import FieldManagement from "./components/FieldManagement";
 import Catering from "./components/Catering";
 import Posters from "./components/Posters";
+import PosterPreview from "./components/PosterPreview";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState("dashboard");
+
   const [players, setPlayers] = useState<Player[]>([]);
 
   const [event, setEvent] = useState<Event>({
@@ -152,7 +155,17 @@ export default function App() {
           )}
 
           {currentPage === "posters" && (
-            <Posters />
+            <Posters
+              event={event}
+              onPreview={() => setCurrentPage("posterPreview")}
+            />
+          )}
+
+          {currentPage === "posterPreview" && (
+            <PosterPreview
+              event={event}
+              onBack={() => setCurrentPage("posters")}
+            />
           )}
 
         </div>

@@ -25,6 +25,9 @@ export default function NewEvent({
   setEvent,
 }: NewEventProps) {
 
+  console.log("NEW EVENT COMPONENT");
+  console.log("Current Event:", event.eventName);
+
   const summary = (
     <div className="players-summary">
       <SummaryCard title="Event No." value={event.eventNumber} />
@@ -74,12 +77,17 @@ export default function NewEvent({
             <input
               type="text"
               value={event.eventName}
-              onChange={(e) =>
+              onChange={(e) => {
+
+                console.log("EVENT NAME CHANGED");
+                console.log("Typed:", e.target.value);
+
                 setEvent({
                   ...event,
                   eventName: e.target.value,
-                })
-              }
+                });
+
+              }}
             />
 
           </div>

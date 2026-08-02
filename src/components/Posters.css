@@ -5,6 +5,8 @@
   align-items: start;
 }
 
+/* ---------- TEMPLATE LIBRARY ---------- */
+
 .poster-library {
   display: flex;
   flex-direction: column;
@@ -17,7 +19,7 @@
   border: 2px solid #dfe6f1;
   background: #ffffff;
   cursor: pointer;
-  transition: .2s;
+  transition: 0.2s;
 }
 
 .poster-card:hover {
@@ -31,37 +33,64 @@
 }
 
 .poster-card h4 {
-  margin: 0 0 6px 0;
+  margin: 0 0 6px;
 }
 
 .poster-card p {
   margin: 0;
   color: #666;
-  font-size: .9rem;
+  font-size: 0.9rem;
 }
+
+/* ---------- PREVIEW WORKSPACE ---------- */
 
 .poster-preview {
+
   background: #edf1f7;
+
   border-radius: 18px;
-  padding: 30px;
+
+  padding: 20px;
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  min-height: calc(100vh - 360px);
+
 }
 
+/* ---------- A4 POSTER ---------- */
+
 .poster-page {
-  width: 100%;
-  max-width: 760px;
-  aspect-ratio: 0.707;
-  margin: auto;
-  background: white;
+
+  width: min(100%, 700px);
+
+  aspect-ratio: 210 / 297;
+
+  background: #ffffff;
+
   border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,.18);
+
+  box-shadow: 0 15px 40px rgba(0,0,0,.22);
+
+  display: flex;
+
+  flex-direction: column;
+
   overflow: hidden;
+
 }
+
+/* ---------- HEADER ---------- */
 
 .poster-header {
   background: #163f88;
   color: white;
-  padding: 28px;
   text-align: center;
+  padding: 30px;
 }
 
 .poster-header h1 {
@@ -70,33 +99,56 @@
 }
 
 .poster-header h2 {
-  margin-top: 10px;
-  font-size: 1.1rem;
+  margin-top: 12px;
+  font-size: 1.15rem;
   font-weight: 400;
 }
+
+/* ---------- IMAGE ---------- */
 
 .poster-image {
   height: 260px;
   background: #d9e4f7;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
-  font-size: 1.2rem;
+
+  color: #5a6c86;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
+/* ---------- CONTENT ---------- */
+
 .poster-info {
-  padding: 30px;
+
+  flex: 1;
+
+  padding: 30px 35px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
 }
 
 .poster-info h3 {
-  margin-top: 0;
+  margin: 0 0 12px;
 }
 
+.poster-info p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* ---------- FOOTER ---------- */
+
 .poster-footer {
-  margin-top: auto;
   background: #163f88;
   color: white;
-  padding: 18px;
   text-align: center;
+  padding: 18px;
+  font-weight: 600;
 }
