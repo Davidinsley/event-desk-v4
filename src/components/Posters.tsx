@@ -18,7 +18,7 @@ import {
 
 interface PostersProps {
   event: Event;
-  onPreview: () => void;
+ onPreview: (posterId: string) => void;
   onAttach: (posterId: string) => void;
 }
 
@@ -119,10 +119,10 @@ const fileInputRef = useRef<HTMLInputElement>(null);
   };
 
   const handleAttach = () => {
-    if (!selectedPosterId) return;
+  if (!selectedPoster) return;
 
-    onAttach(selectedPosterId);
-  };
+  onAttach(selectedPoster.id);
+};
 
   const summary = (
     <div className="page-summary">
@@ -163,7 +163,7 @@ const fileInputRef = useRef<HTMLInputElement>(null);
         title="Preview"
         onClick={() => {
           if (selectedPoster) {
-            onPreview();
+           onPreview(selectedPoster.id);
           }
         }}
       />

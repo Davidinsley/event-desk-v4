@@ -30,8 +30,10 @@ export default function App() {
     entryFee: 15,
     playerLimit: 76,
   });
+const [attachedPosterId, setAttachedPosterId] =
+  useState<string | null>(null);
 
-const [attachedPosterId, setAttachedPosterId] = useState<string | null>(null);
+const [previewPosterId, setPreviewPosterId] = useState<string | null>(null);
   const eventOpen =
     currentPage !== "dashboard" &&
     currentPage !== "posterPreview";
@@ -187,9 +189,12 @@ const [attachedPosterId, setAttachedPosterId] = useState<string | null>(null);
           )}
 
           {currentPage === "posters" && (
-            <Posters
+           <Posters
   event={event}
-  onPreview={() => setCurrentPage("posterPreview")}
+  onPreview={(posterId) => {
+    setPreviewPosterId(posterId);
+    setCurrentPage("posterPreview");
+  }}
   onAttach={(posterId) => {
     setAttachedPosterId(posterId);
     setCurrentPage("new");
@@ -199,12 +204,11 @@ const [attachedPosterId, setAttachedPosterId] = useState<string | null>(null);
 
           {currentPage === "posterPreview" && (
             <PosterPreview
-              event={event}
-              onBack={() =>
-                setCurrentPage("posters")
-              }
-            />
-          )}
+  event={event}
+  posterId={previewPosterId}
+  onBack={() => setCurrentPage("posters")}
+/>
+)}
 
         </div>
 

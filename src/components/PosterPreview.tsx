@@ -17,11 +17,13 @@ import {
 
 interface PosterPreviewProps {
   event: Event;
+  posterId: string | null;
   onBack: () => void;
 }
 
 export default function PosterPreview({
   event,
+  posterId,
   onBack,
 }: PosterPreviewProps) {
 
@@ -38,7 +40,13 @@ export default function PosterPreview({
   const zoomOut = () => {
     setZoom((current) => Math.max(current - 10, 50));
   };
+const posters = JSON.parse(
+  localStorage.getItem("poster-library") ?? "[]"
+);
 
+const selectedPoster = posters.find(
+  (poster: any) => poster.id === posterId
+);
   //--------------------------------------------------
   // Summary Cards
   //--------------------------------------------------
@@ -120,8 +128,20 @@ export default function PosterPreview({
               </div>
 
               <div className="poster-image">
-                Event Image
-              </div>
+  {selectedPoster ? (
+    <img
+      src={selectedPoster.thumbnail}
+      alt={selectedPoster.name}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+      }}
+    />
+  ) : (
+    <div>No poster selected</div>
+  )}
+</div>
 
               <div className="poster-body">
 
