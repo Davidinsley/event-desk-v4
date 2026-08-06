@@ -31,40 +31,101 @@ interface PosterItem {
   image: string;
 }
 
+const STORAGE_KEY = "posterLibrary";
 
 export default function Posters({
   event,
   onPreview,
   onAttach,
 }: PostersProps) {
-  const [posters, setPosters] = useState<PosterItem[]>([]);
+  const [posters, setPosters] = useState<PosterItem[]>(() => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+});
+
+const [selectedPosterId, setSelectedPosterId] =
+  useState<string | null>(null);
 
 const fileInputRef = useRef<HTMLInputElement>(null);
 
-const handleUploadClick = () => {
-  fileInputRef.current?.click();
-};
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(posters)
+      );
+    } catch (err) {
+      console.error("Failed to save poster library", err);
+    }
+  }, [posters]);
 
-useEffect(() => {
-  localStorage.setItem(
-    "posterLibrary",
-    JSON.stringify(posters)
-  );
-}, [posters]);
+  const selectedPoster =
+    posters.find((p) => p.id === selectedPosterId) ?? null;
 
+  const attachedCount = posters.filter(
+    (p) => p.attachedEvent !== "Not Attached"
+  ).length;
 
-useEffect(() => {
-  const saved = localStorage.getItem("posterLibrary");
+  const unattachedCount = posters.filter(
+    (p) => p.attachedEvent === "Not Attached"
+  ).length;
 
-  if (saved) {
-    setPosters(JSON.parse(saved));
-  }
-}, []);
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
 
+  const handleFileSelected = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const newPoster: PosterItem = {
+        id: crypto.randomUUID(),
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        fileType:
+          file.name.split(".").pop()?.toUpperCase() ?? "",
+        dateAdded: new Date().toLocaleDateString("en-GB"),
+        attachedEvent: "Not Attached",
+        image: reader.result as string,
+      };
+
+      setPosters((current) => [...current, newPoster]);
+
+      setSelectedPosterId(newPoster.id);
+    };
+
+    reader.readAsDataURL(file);
+
+    e.target.value = "";
+  };
+
+  const handleDelete = () => {
+    if (!selectedPosterId) return;
+
+    setPosters((current) =>
+      current.filter((p) => p.id !== selectedPosterId)
+    );
+
+    setSelectedPosterId(null);
+  };
+
+  const handleAttach = () => {
+    if (!selectedPosterId) return;
+
+    onAttach(selectedPosterId);
+  };
 
   const summary = (
     <div className="page-summary">
-
       <SummaryCard
         title="Total Posters"
         value={String(posters.length)}
@@ -72,27 +133,18 @@ useEffect(() => {
 
       <SummaryCard
         title="Attached"
-        value={String(
-          posters.filter(
-            (p) => p.attachedEvent !== "Not Attached"
-          ).length
-        )}
+        value={String(attachedCount)}
       />
 
       <SummaryCard
         title="Unattached"
-        value={String(
-          posters.filter(
-            (p) => p.attachedEvent === "Not Attached"
-          ).length
-        )}
+        value={String(unattachedCount)}
       />
 
       <SummaryCard
         title="Storage"
         value={`${posters.length} Files`}
       />
-
     </div>
   );
 
@@ -100,31 +152,27 @@ useEffect(() => {
     <div className="page-actions">
 
       <ActionTile
-  icon={Upload}
-  title="Import"
-  primary
-  onClick={handleUploadClick}
-/>
+        icon={Upload}
+        title="Import"
+        primary
+        onClick={handleUploadClick}
+      />
 
       <ActionTile
         icon={Eye}
         title="Preview"
-        onClick={onPreview}
+        onClick={() => {
+          if (selectedPoster) {
+            onPreview();
+          }
+        }}
       />
 
       <ActionTile
-  icon={Link}
-  title="Attach"
-  onClick={() => {
-    const unattached = posters.find(
-      (p) => p.attachedEvent === "Not Attached"
-    );
-
-    if (unattached) {
-      onAttach(unattached.id);
-    }
-  }}
-/>
+        icon={Link}
+        title="Attach"
+        onClick={handleAttach}
+      />
 
       <ActionTile
         icon={Download}
@@ -139,13 +187,12 @@ useEffect(() => {
       <ActionTile
         icon={Trash2}
         title="Delete"
+        onClick={handleDelete}
       />
 
     </div>
   );
-
-  return (
-
+   return (
     <PageLayout
       title="Poster Library"
       subtitle="Store, organise and attach posters to your events."
@@ -153,52 +200,36 @@ useEffect(() => {
       actions={actions}
       footer="Poster Library"
     >
-
       <input
-  ref={fileInputRef}
-  type="file"
-  accept=".png,.jpg,.jpeg,.pdf"
-  style={{ display: "none" }}
-  onChange={(event) => {
-    const file = event.target.files?.[0];
-
-   if (file) {
-  const newPoster: PosterItem = {
-  id: Date.now().toString(),
-  title: file.name.replace(/\.[^/.]+$/, ""),
-  image: URL.createObjectURL(file),
-  fileType: file.name.split(".").pop()?.toUpperCase() ?? "",
-  dateAdded: new Date().toLocaleDateString("en-GB"),
-  attachedEvent: "Not Attached",
-};
-
-
-  setPosters((current) => [...current, newPoster]);
-}
-  }}
-/>
+        ref={fileInputRef}
+        type="file"
+        accept=".png,.jpg,.jpeg,.pdf"
+        style={{ display: "none" }}
+        onChange={handleFileSelected}
+      />
 
       <div className="poster-library-page">
-
         <div className="poster-library-list">
 
-            {posters.map((poster) => (
-
+          {posters.map((poster) => (
             <div
               key={poster.id}
-              className="poster-card"
+              className={
+                selectedPosterId === poster.id
+                  ? "poster-card selected"
+                  : "poster-card"
+              }
+              onClick={() => setSelectedPosterId(poster.id)}
             >
-
               <div className="poster-thumbnail">
-  <img
-    src={poster.image}
-    alt={poster.title}
-    className="poster-image"
-  />
-</div>
+                <img
+                  src={poster.image}
+                  alt={poster.title}
+                  className="poster-image"
+                />
+              </div>
 
               <div className="poster-details">
-
                 <h3>{poster.title}</h3>
 
                 <p>
@@ -213,19 +244,24 @@ useEffect(() => {
                   <strong>Attached Event:</strong>{" "}
                   {poster.attachedEvent}
                 </p>
-
               </div>
-
             </div>
-
           ))}
 
+          {posters.length === 0 && (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px",
+                color: "#666",
+              }}
+            >
+              No posters have been imported yet.
+            </div>
+          )}
+
         </div>
-
       </div>
-
     </PageLayout>
-
   );
-
 }
