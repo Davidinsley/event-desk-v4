@@ -31,11 +31,23 @@ export default function App() {
     playerLimit: 76,
   });
 
-  const eventOpen = currentPage !== "dashboard";
+const [attachedPosterId, setAttachedPosterId] = useState<string | null>(null);
+  const eventOpen =
+    currentPage !== "dashboard" &&
+    currentPage !== "posterPreview";
+
+  const appMode =
+    currentPage === "posterPreview"
+      ? "preview-mode"
+      : eventOpen
+      ? "event-mode"
+      : "dashboard-mode";
 
   return (
-    <div className={`app ${eventOpen ? "event-mode" : "dashboard-mode"}`}>
+    <div className={`app ${appMode}`}>
+
       <header className="header">
+
         <img
           src={logo}
           alt="Ramsdale Park Golf Club"
@@ -43,16 +55,23 @@ export default function App() {
         />
 
         <div className="header-title">
+
           <h1>Ramsdale Seniors Event Desk</h1>
+
           <p>Special Events Management</p>
+
         </div>
+
       </header>
 
       {eventOpen && (
+
         <aside className="sidebar">
+
           <h3>EVENT SETUP</h3>
 
           <ul>
+
             <li
               className={currentPage === "new" ? "active" : ""}
               onClick={() => setCurrentPage("new")}
@@ -103,13 +122,24 @@ export default function App() {
             </li>
 
             <li>❤️ Charity</li>
-            <li>📖 Booklets</li>
-            <li>✅ Review & Publish</li>
-          </ul>
-        </aside>
-      )}
 
-      <main className="main">
+            <li>📖 Booklets</li>
+
+            <li>✅ Review & Publish</li>
+
+          </ul>
+
+        </aside>
+
+      )}
+      <main
+        className={
+          currentPage === "posterPreview"
+            ? "preview-main"
+            : "main"
+        }
+      >
+
         <div className="app-workspace">
 
           {currentPage === "dashboard" && (
@@ -120,9 +150,11 @@ export default function App() {
 
           {currentPage === "new" && (
             <NewEvent
-              event={event}
-              setEvent={setEvent}
-            />
+  event={event}
+  setEvent={setEvent}
+  attachedPosterId={attachedPosterId}
+  onAttachPoster={() => setCurrentPage("posters")}
+/>
           )}
 
           {currentPage === "competition" && (
@@ -156,25 +188,37 @@ export default function App() {
 
           {currentPage === "posters" && (
             <Posters
-              event={event}
-              onPreview={() => setCurrentPage("posterPreview")}
-            />
+  event={event}
+  onPreview={() => setCurrentPage("posterPreview")}
+  onAttach={(posterId) => {
+    setAttachedPosterId(posterId);
+    setCurrentPage("new");
+  }}
+/>
           )}
 
           {currentPage === "posterPreview" && (
             <PosterPreview
               event={event}
-              onBack={() => setCurrentPage("posters")}
+              onBack={() =>
+                setCurrentPage("posters")
+              }
             />
           )}
 
         </div>
+
       </main>
 
       <footer className="status">
+
         <span>Status: Ready</span>
+
         <span>Version 1.0</span>
+
       </footer>
+
     </div>
+
   );
 }

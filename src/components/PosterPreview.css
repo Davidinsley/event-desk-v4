@@ -1,137 +1,429 @@
-.preview-screen {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #edf2f8;
+/*=========================================================
+  PosterPreview.css
+  Event Desk
+  Document Viewer v1.0
+  Complete Replacement
+==========================================================*/
+
+
+/*=========================================================
+  DOCUMENT VIEWER
+==========================================================*/
+
+.preview-viewer {
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+
+    min-height: 0;
 }
 
-.preview-toolbar {
-  height: 72px;
-  background: white;
-  border-bottom: 1px solid #d7dfe9;
 
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/*=========================================================
+  DOCUMENT VIEWER WINDOW
+==========================================================*/
 
-  padding: 0 24px;
+.document-viewer {
+
+    flex: 1;
+
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+
+    overflow: auto;
+
+    padding: 32px;
+
+    background: #d8dde2;
+
+    border: 1px solid #c0c7cf;
+    border-radius: 18px;
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.45),
+        0 8px 24px rgba(0,0,0,0.08);
+
 }
 
-.toolbar-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1f3f83;
+
+/*=========================================================
+  DOCUMENT CANVAS
+==========================================================*/
+
+.preview-canvas {
+
+    width: 100%;
+
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+
+    padding-top: 24px;
+    padding-bottom: 60px;
+
 }
 
-.toolbar-actions {
-  display: flex;
-  gap: 12px;
-}
 
-.toolbar-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  padding: 10px 16px;
-
-  border: 1px solid #d9e3ef;
-  border-radius: 10px;
-
-  background: white;
-
-  cursor: pointer;
-
-  transition: .2s;
-}
-
-.toolbar-button:hover {
-  background: #eef5ff;
-  border-color: #2d67c7;
-}
-
-.preview-workspace {
-  flex: 1;
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  padding: 40px;
-
-  overflow: auto;
-}
+/*=========================================================
+  A4 DOCUMENT
+==========================================================*/
 
 .poster-sheet {
-  width: 760px;
-  aspect-ratio: 0.707;
 
-  background: white;
+    width: min(794px, 100%);
 
-  border-radius: 14px;
+    background: #ffffff;
 
-  overflow: hidden;
+    border-radius: 8px;
 
-  box-shadow: 0 20px 45px rgba(0,0,0,.20);
+    overflow: hidden;
 
-  display: flex;
-  flex-direction: column;
+    transform-origin: top center;
+
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.16),
+        0 18px 42px rgba(0,0,0,0.18),
+        0 32px 72px rgba(0,0,0,0.12);
+
 }
 
+
+/*=========================================================
+  POSTER HEADER
+==========================================================*/
+
 .poster-header {
-  background: #173f88;
-  color: white;
 
-  text-align: center;
+    background: #234c97;
 
-  padding: 36px;
+    color: white;
+
+    text-align: center;
+
+    padding: 42px;
+
 }
 
 .poster-header h1 {
-  margin: 0;
-  font-size: 2.3rem;
+
+    margin: 0;
+
+    font-size: 3.2rem;
+
+    font-weight: 700;
+
 }
 
 .poster-header h2 {
-  margin-top: 12px;
-  font-weight: 400;
+
+    margin-top: 12px;
+
+    font-size: 1.5rem;
+
+    font-weight: 400;
+
 }
+
+/*=========================================================
+  POSTER IMAGE
+==========================================================*/
 
 .poster-image {
-  height: 280px;
 
-  background: #dbe7fa;
+    height: 340px;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 
-  font-size: 1.3rem;
-  color: #5b6473;
+    background: #dbe8fb;
+
+    color: #666666;
+
+    font-size: 2rem;
+    font-weight: 600;
+
 }
 
+
+/*=========================================================
+  POSTER CONTENT
+==========================================================*/
+
 .poster-body {
-  padding: 36px;
-  flex: 1;
+
+    padding: 42px;
+
+    background: #ffffff;
+
 }
 
 .poster-body h3 {
-  margin-top: 0;
-  color: #173f88;
+
+    margin: 0 0 28px;
+
+    color: #234c97;
+
+    font-size: 2rem;
+
+    font-weight: 700;
+
 }
 
 .poster-body p {
-  margin: 12px 0;
-  font-size: 1.05rem;
+
+    margin: 18px 0;
+
+    color: #333333;
+
+    font-size: 1.35rem;
+
+    line-height: 1.7;
+
 }
 
+.poster-body strong {
+
+    color: #234c97;
+
+}
+
+
+/*=========================================================
+  POSTER FOOTER
+==========================================================*/
+
 .poster-footer {
-  background: #173f88;
-  color: white;
 
-  text-align: center;
+    margin-top: 42px;
 
-  padding: 20px;
+    padding: 22px;
 
-  font-weight: 600;
+    background: #234c97;
+
+    color: white;
+
+    text-align: center;
+
+    font-size: 1rem;
+
+    font-weight: 600;
+
+}
+
+
+/*=========================================================
+  DOCUMENT STATES
+==========================================================*/
+
+.poster-sheet:hover {
+
+    box-shadow:
+        0 4px 10px rgba(0,0,0,0.18),
+        0 22px 50px rgba(0,0,0,0.20),
+        0 36px 82px rgba(0,0,0,0.14);
+
+}
+
+
+/*=========================================================
+  SCROLLBAR
+==========================================================*/
+
+.document-viewer::-webkit-scrollbar {
+
+    width: 12px;
+
+}
+
+.document-viewer::-webkit-scrollbar-track {
+
+    background: #d8dde2;
+
+    border-radius: 8px;
+
+}
+
+.document-viewer::-webkit-scrollbar-thumb {
+
+    background: #a8b2bc;
+
+    border-radius: 8px;
+
+}
+
+.document-viewer::-webkit-scrollbar-thumb:hover {
+
+    background: #8d98a3;
+
+}
+
+/*=========================================================
+  RESPONSIVE LAYOUT
+==========================================================*/
+
+@media (max-width: 1200px) {
+
+    .document-viewer {
+
+        padding: 24px;
+
+    }
+
+    .preview-canvas {
+
+        padding-top: 20px;
+        padding-bottom: 40px;
+
+    }
+
+}
+
+
+@media (max-width: 900px) {
+
+    .document-viewer {
+
+        padding: 18px;
+
+    }
+
+    .poster-sheet {
+
+        width: 100%;
+
+    }
+
+    .poster-header {
+
+        padding: 32px;
+
+    }
+
+    .poster-header h1 {
+
+        font-size: 2.6rem;
+
+    }
+
+    .poster-header h2 {
+
+        font-size: 1.3rem;
+
+    }
+
+    .poster-body {
+
+        padding: 30px;
+
+    }
+
+    .poster-body h3 {
+
+        font-size: 1.7rem;
+
+    }
+
+    .poster-body p {
+
+        font-size: 1.15rem;
+
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .document-viewer {
+
+        padding: 12px;
+
+    }
+
+    .preview-canvas {
+
+        padding-top: 12px;
+        padding-bottom: 24px;
+
+    }
+
+    .poster-header {
+
+        padding: 24px;
+
+    }
+
+    .poster-header h1 {
+
+        font-size: 2.1rem;
+
+    }
+
+    .poster-header h2 {
+
+        font-size: 1.1rem;
+
+    }
+
+    .poster-image {
+
+        height: 220px;
+
+        font-size: 1.5rem;
+
+    }
+
+    .poster-body {
+
+        padding: 22px;
+
+    }
+
+    .poster-body h3 {
+
+        font-size: 1.4rem;
+
+    }
+
+    .poster-body p {
+
+        font-size: 1rem;
+
+        line-height: 1.6;
+
+    }
+
+    .poster-footer {
+
+        margin-top: 28px;
+
+        padding: 18px;
+
+        font-size: 0.95rem;
+
+    }
+
+}
+
+
+/*=========================================================
+  FUTURE ZOOM SUPPORT
+
+  Sprint 5B will use transform: scale()
+  on .poster-sheet without changing
+  the Document Viewer layout.
+
+==========================================================*/
+
+.poster-sheet {
+
+    will-change: transform;
+
 }

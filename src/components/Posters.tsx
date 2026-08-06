@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Event } from "../types/Event";
 
 import "./Posters.css";
@@ -8,74 +8,90 @@ import SummaryCard from "../ui/SummaryCard";
 import ActionTile from "../ui/ActionTile";
 
 import {
-  Wand2,
+  Upload,
   Eye,
-  Printer,
+  Link,
   Download,
+  Replace,
+  Trash2,
 } from "lucide-react";
 
 interface PostersProps {
   event: Event;
   onPreview: () => void;
+  onAttach: (posterId: string) => void;
 }
 
-const templates = [
-  {
-    title: "Mixed Open",
-    description: "Mixed competition poster",
-  },
-  {
-    title: "Away Day",
-    description: "Away day event",
-  },
-  {
-    title: "Texas Scramble",
-    description: "Team scramble format",
-  },
-  {
-    title: "Betterball",
-    description: "Pairs competition",
-  },
-  {
-    title: "Charity Day",
-    description: "Charity fundraiser",
-  },
-  {
-    title: "Championship",
-    description: "Club championship",
-  },
-  {
-    title: "Stableford",
-    description: "Individual Stableford",
-  },
-  {
-    title: "Custom Poster",
-    description: "Blank template",
-  },
-];
+interface PosterItem {
+  id: string;
+  title: string;
+  fileType: string;
+  dateAdded: string;
+  attachedEvent: string;
+  image: string;
+}
+
 
 export default function Posters({
   event,
   onPreview,
+  onAttach,
 }: PostersProps) {
+  const [posters, setPosters] = useState<PosterItem[]>([]);
 
-  const [selected, setSelected] = useState(templates[0]);
+const fileInputRef = useRef<HTMLInputElement>(null);
+
+const handleUploadClick = () => {
+  fileInputRef.current?.click();
+};
+
+useEffect(() => {
+  localStorage.setItem(
+    "posterLibrary",
+    JSON.stringify(posters)
+  );
+}, [posters]);
+
+
+useEffect(() => {
+  const saved = localStorage.getItem("posterLibrary");
+
+  if (saved) {
+    setPosters(JSON.parse(saved));
+  }
+}, []);
+
 
   const summary = (
     <div className="page-summary">
 
-      <SummaryCard title="Templates" value="8" />
-
       <SummaryCard
-        title="Poster Template"
-        value={selected.title}
+        title="Total Posters"
+        value={String(posters.length)}
       />
 
-      <SummaryCard title="Preview" value="Live" />
+      <SummaryCard
+        title="Attached"
+        value={String(
+          posters.filter(
+            (p) => p.attachedEvent !== "Not Attached"
+          ).length
+        )}
+      />
 
-      <SummaryCard title="Size" value="A4" />
+      <SummaryCard
+        title="Unattached"
+        value={String(
+          posters.filter(
+            (p) => p.attachedEvent === "Not Attached"
+          ).length
+        )}
+      />
 
-      <SummaryCard title="Status" value="Draft" />
+      <SummaryCard
+        title="Storage"
+        value={`${posters.length} Files`}
+      />
 
     </div>
   );
@@ -84,10 +100,11 @@ export default function Posters({
     <div className="page-actions">
 
       <ActionTile
-        icon={Wand2}
-        title="Generate"
-        primary
-      />
+  icon={Upload}
+  title="Import"
+  primary
+  onClick={handleUploadClick}
+/>
 
       <ActionTile
         icon={Eye}
@@ -96,13 +113,32 @@ export default function Posters({
       />
 
       <ActionTile
-        icon={Printer}
-        title="Print"
-      />
+  icon={Link}
+  title="Attach"
+  onClick={() => {
+    const unattached = posters.find(
+      (p) => p.attachedEvent === "Not Attached"
+    );
+
+    if (unattached) {
+      onAttach(unattached.id);
+    }
+  }}
+/>
 
       <ActionTile
         icon={Download}
         title="Export"
+      />
+
+      <ActionTile
+        icon={Replace}
+        title="Replace"
+      />
+
+      <ActionTile
+        icon={Trash2}
+        title="Delete"
       />
 
     </div>
@@ -111,86 +147,78 @@ export default function Posters({
   return (
 
     <PageLayout
-      title="Poster Studio"
-      subtitle="Design, preview and publish professional event posters."
+      title="Poster Library"
+      subtitle="Store, organise and attach posters to your events."
       summary={summary}
       actions={actions}
-      footer="Poster Studio"
+      footer="Poster Library"
     >
 
-      <div className="poster-studio">
+      <input
+  ref={fileInputRef}
+  type="file"
+  accept=".png,.jpg,.jpeg,.pdf"
+  style={{ display: "none" }}
+  onChange={(event) => {
+    const file = event.target.files?.[0];
 
-        <div className="poster-library">
+   if (file) {
+  const newPoster: PosterItem = {
+  id: Date.now().toString(),
+  title: file.name.replace(/\.[^/.]+$/, ""),
+  image: URL.createObjectURL(file),
+  fileType: file.name.split(".").pop()?.toUpperCase() ?? "",
+  dateAdded: new Date().toLocaleDateString("en-GB"),
+  attachedEvent: "Not Attached",
+};
 
-          {templates.map((template) => (
+
+  setPosters((current) => [...current, newPoster]);
+}
+  }}
+/>
+
+      <div className="poster-library-page">
+
+        <div className="poster-library-list">
+
+            {posters.map((poster) => (
 
             <div
-              key={template.title}
-              className={
-                selected.title === template.title
-                  ? "poster-card active"
-                  : "poster-card"
-              }
-              onClick={() => setSelected(template)}
+              key={poster.id}
+              className="poster-card"
             >
 
-              <h4>{template.title}</h4>
+              <div className="poster-thumbnail">
+  <img
+    src={poster.image}
+    alt={poster.title}
+    className="poster-image"
+  />
+</div>
 
-              <p>{template.description}</p>
+              <div className="poster-details">
+
+                <h3>{poster.title}</h3>
+
+                <p>
+                  <strong>File Type:</strong> {poster.fileType}
+                </p>
+
+                <p>
+                  <strong>Date Added:</strong> {poster.dateAdded}
+                </p>
+
+                <p>
+                  <strong>Attached Event:</strong>{" "}
+                  {poster.attachedEvent}
+                </p>
+
+              </div>
 
             </div>
 
           ))}
-
-        </div>
-
-        <div className="poster-preview">
-
-          <div className="poster-page">
-
-            <div className="poster-header">
-
-              <h1>Ramsdale Seniors</h1>
-
-              <h2>{event.eventName}</h2>
-
-            </div>
-
-            <div className="poster-image">
-
-              Event Image
-
-            </div>
-
-            <div className="poster-info">
-
-              <h3>{event.competition}</h3>
-
-              <p>
-                <strong>Date:</strong> {event.eventDate || "Not Set"}
-              </p>
-
-              <p>
-                <strong>Venue:</strong> {event.venue}
-              </p>
-
-              <p>
-                <strong>Entry Fee:</strong> £{event.entryFee}
-              </p>
-
-              <p>
-                <strong>Player Limit:</strong> {event.playerLimit}
-              </p>
-
-            </div>
-
-            <div className="poster-footer">
-
-              Ramsdale Seniors Event Desk
-
-            </div>
-
-          </div>
 
         </div>
 

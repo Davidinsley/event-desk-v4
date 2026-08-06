@@ -1,11 +1,16 @@
+import { useState } from "react";
+import type { Event } from "../types/Event";
+
 import "./PosterPreview.css";
 
-import type { Event } from "../types/Event";
+import PageLayout from "../layout/PageLayout";
+import SummaryCard from "../ui/SummaryCard";
+import ActionTile from "../ui/ActionTile";
 
 import {
   ArrowLeft,
-  ZoomIn,
   ZoomOut,
+  ZoomIn,
   Printer,
   Download,
 } from "lucide-react";
@@ -20,100 +25,141 @@ export default function PosterPreview({
   onBack,
 }: PosterPreviewProps) {
 
-  return (
+  //--------------------------------------------------
+  // Zoom State
+  //--------------------------------------------------
 
-    <div className="preview-screen">
+  const [zoom, setZoom] = useState(100);
 
-      <header className="preview-toolbar">
+  const zoomIn = () => {
+    setZoom((current) => Math.min(current + 10, 200));
+  };
 
-        <button
-          className="toolbar-button"
-          onClick={onBack}
-        >
-          <ArrowLeft size={18} />
-          Back to Poster Studio
-        </button>
+  const zoomOut = () => {
+    setZoom((current) => Math.max(current - 10, 50));
+  };
 
-        <div className="toolbar-title">
-          Poster Preview
-        </div>
+  //--------------------------------------------------
+  // Summary Cards
+  //--------------------------------------------------
 
-        <div className="toolbar-actions">
-
-          <button className="toolbar-button">
-            <ZoomOut size={18} />
-          </button>
-
-          <button className="toolbar-button">
-            <ZoomIn size={18} />
-          </button>
-
-          <button className="toolbar-button">
-            <Printer size={18} />
-            Print
-          </button>
-
-          <button className="toolbar-button">
-            <Download size={18} />
-            Export
-          </button>
-
-        </div>
-
-      </header>
-
-      <main className="preview-workspace">
-
-        <div className="poster-sheet">
-
-          <div className="poster-header">
-
-            <h1>Ramsdale Seniors</h1>
-
-            <h2>{event.eventName}</h2>
-
-          </div>
-
-          <div className="poster-image">
-
-            Event Image
-
-          </div>
-
-          <div className="poster-body">
-
-            <h3>{event.competition}</h3>
-
-            <p>
-              <strong>Date:</strong> {event.eventDate || "Not Set"}
-            </p>
-
-            <p>
-              <strong>Venue:</strong> {event.venue}
-            </p>
-
-            <p>
-              <strong>Entry Fee:</strong> £{event.entryFee}
-            </p>
-
-            <p>
-              <strong>Maximum Players:</strong> {event.playerLimit}
-            </p>
-
-          </div>
-
-          <div className="poster-footer">
-
-            Ramsdale Seniors Event Desk
-
-          </div>
-
-        </div>
-
-      </main>
-
+  const summary = (
+    <div className="page-summary">
+      <SummaryCard title="Template" value="Current" />
+      <SummaryCard title="Preview" value="A4" />
+      <SummaryCard title="Zoom" value={`${zoom}%`} />
+      <SummaryCard title="Status" value="Draft" />
     </div>
-
   );
 
+  //--------------------------------------------------
+  // Action Tiles
+  //--------------------------------------------------
+
+  const actions = (
+    <div className="page-actions">
+
+      <ActionTile
+        icon={ArrowLeft}
+        title="Posters"
+        onClick={onBack}
+      />
+
+      <ActionTile
+        icon={ZoomOut}
+        title="Zoom Out"
+        onClick={zoomOut}
+      />
+
+      <ActionTile
+        icon={ZoomIn}
+        title="Zoom In"
+        onClick={zoomIn}
+      />
+
+      <ActionTile
+        icon={Printer}
+        title="Print"
+      />
+
+      <ActionTile
+        icon={Download}
+        title="Export"
+      />
+
+    </div>
+  );
+
+   return (
+    <PageLayout
+      title="Poster Preview"
+      subtitle="Review your poster before printing or publishing."
+      summary={summary}
+      actions={actions}
+      footer="Poster Preview"
+    >
+      <div className="preview-viewer">
+
+        <div className="document-viewer">
+
+          <div className="preview-canvas">
+
+            <div
+              className="poster-sheet"
+              style={{
+                transform: `scale(${zoom / 100})`,
+              }}
+            >
+
+              <div className="poster-header">
+
+                <h1>Ramsdale Seniors</h1>
+
+                <h2>{event.eventName}</h2>
+
+              </div>
+
+              <div className="poster-image">
+                Event Image
+              </div>
+
+              <div className="poster-body">
+
+                <h3>{event.competition}</h3>
+
+                <p>
+                  <strong>Date:</strong>{" "}
+                  {event.eventDate || "Not Set"}
+                </p>
+
+                <p>
+                  <strong>Venue:</strong>{" "}
+                  {event.venue}
+                </p>
+
+                <p>
+                  <strong>Entry Fee:</strong> £{event.entryFee}
+                </p>
+
+                <p>
+                  <strong>Player Limit:</strong>{" "}
+                  {event.playerLimit}
+                </p>
+
+              </div>
+
+              <div className="poster-footer">
+                Ramsdale Seniors Event Desk
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </PageLayout>
+  );
 }
