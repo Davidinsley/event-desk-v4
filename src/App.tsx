@@ -192,9 +192,14 @@ const [previewPosterId, setPreviewPosterId] = useState<string | null>(null);
            <Posters
   event={event}
   onPreview={(posterId) => {
+    console.log("Preview clicked:", posterId);
+
     setPreviewPosterId(posterId);
+
+    console.log("Changing page...");
+
     setCurrentPage("posterPreview");
-  }}
+}}
   onAttach={(posterId) => {
     setAttachedPosterId(posterId);
     setCurrentPage("new");

@@ -41,12 +41,17 @@ export default function PosterPreview({
     setZoom((current) => Math.max(current - 10, 50));
   };
 const posters = JSON.parse(
-  localStorage.getItem("poster-library") ?? "[]"
+  localStorage.getItem("posterLibrary") ?? "[]"
 );
+
+console.log("Preview posterId:", posterId);
+console.log("Library:", posters);
 
 const selectedPoster = posters.find(
   (poster: any) => poster.id === posterId
 );
+
+console.log("Selected:", selectedPoster);
   //--------------------------------------------------
   // Summary Cards
   //--------------------------------------------------
@@ -119,66 +124,35 @@ const selectedPoster = posters.find(
               }}
             >
 
-              <div className="poster-header">
+      {selectedPoster ? (
+          <img
+  src={selectedPoster.image}
+  alt={selectedPoster.title}
+  style={{
+    width: "100%",
+    display: "block",
+  }}
+/>
+        ) : (
+          <div
+            style={{
+              padding: "4rem",
+              textAlign: "center",
+              color: "#666",
+            }}
+          >
+            No poster selected
+          </div>
+        )}      
 
-                <h1>Ramsdale Seniors</h1>
-
-                <h2>{event.eventName}</h2>
-
-              </div>
-
-              <div className="poster-image">
-  {selectedPoster ? (
-    <img
-      src={selectedPoster.thumbnail}
-      alt={selectedPoster.name}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "contain",
-      }}
-    />
-  ) : (
-    <div>No poster selected</div>
-  )}
-</div>
-
-              <div className="poster-body">
-
-                <h3>{event.competition}</h3>
-
-                <p>
-                  <strong>Date:</strong>{" "}
-                  {event.eventDate || "Not Set"}
-                </p>
-
-                <p>
-                  <strong>Venue:</strong>{" "}
-                  {event.venue}
-                </p>
-
-                <p>
-                  <strong>Entry Fee:</strong> £{event.entryFee}
-                </p>
-
-                <p>
-                  <strong>Player Limit:</strong>{" "}
-                  {event.playerLimit}
-                </p>
-
-              </div>
-
-              <div className="poster-footer">
-                Ramsdale Seniors Event Desk
-              </div>
-
-            </div>
 
           </div>
 
         </div>
 
       </div>
+
+    </div>
 
     </PageLayout>
   );

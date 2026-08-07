@@ -219,7 +219,10 @@ const fileInputRef = useRef<HTMLInputElement>(null);
                   ? "poster-card selected"
                   : "poster-card"
               }
-              onClick={() => setSelectedPosterId(poster.id)}
+             onClick={() => {
+    console.log("CARD CLICKED", poster.id);
+    setSelectedPosterId(poster.id);
+}}
             >
               <div className="poster-thumbnail">
                 <img
