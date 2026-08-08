@@ -180,12 +180,35 @@ export default function PosterPreview({
         onClick={handlePrint}
       />
 
-      <ActionTile
+       <ActionTile
         icon={Download}
         title="Export"
+        onClick={async () => {
+          if (!selectedPoster?.image) return;
+
+          try {
+            const response = await fetch(selectedPoster.image);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `${selectedPoster.title}.png`;
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            console.error("Poster export failed:", error);
+          }
+        }}
       />
+   
     </div>
   );
+
 
   //--------------------------------------------------
   // Render

@@ -18,7 +18,7 @@ import {
 
 interface PostersProps {
   event: Event;
- onPreview: (posterId: string) => void;
+  onPreview: (posterId: string) => void;
   onAttach: (posterId: string) => void;
 }
 
@@ -39,18 +39,20 @@ export default function Posters({
   onAttach,
 }: PostersProps) {
   const [posters, setPosters] = useState<PosterItem[]>(() => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-});
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
-const [selectedPosterId, setSelectedPosterId] =
-  useState<string | null>(null);
+  const [selectedPosterId, setSelectedPosterId] =
+    useState<string | null>(null);
 
-const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isReplacing, setIsReplacing] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     try {
@@ -75,6 +77,14 @@ const fileInputRef = useRef<HTMLInputElement>(null);
   ).length;
 
   const handleUploadClick = () => {
+    setIsReplacing(false);
+    fileInputRef.current?.click();
+  };
+
+  const handleReplaceClick = () => {
+    if (!selectedPoster) return;
+
+    setIsReplacing(true);
     fileInputRef.current?.click();
   };
 
@@ -83,24 +93,58 @@ const fileInputRef = useRef<HTMLInputElement>(null);
   ) => {
     const file = e.target.files?.[0];
 
-    if (!file) return;
+    if (!file) {
+      setIsReplacing(false);
+      return;
+    }
 
     const reader = new FileReader();
 
     reader.onload = () => {
-      const newPoster: PosterItem = {
-        id: crypto.randomUUID(),
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        fileType:
-          file.name.split(".").pop()?.toUpperCase() ?? "",
-        dateAdded: new Date().toLocaleDateString("en-GB"),
-        attachedEvent: "Not Attached",
-        image: reader.result as string,
-      };
+      const image = reader.result as string;
 
-      setPosters((current) => [...current, newPoster]);
+      if (isReplacing && selectedPosterId) {
+        setPosters((current) =>
+          current.map((poster) =>
+            poster.id === selectedPosterId
+              ? {
+                  ...poster,
+                  fileType:
+                    file.name
+                      .split(".")
+                      .pop()
+                      ?.toUpperCase() ?? "",
+                  dateAdded:
+                    new Date().toLocaleDateString("en-GB"),
+                  image,
+                }
+              : poster
+          )
+        );
 
-      setSelectedPosterId(newPoster.id);
+        setIsReplacing(false);
+      } else {
+        const newPoster: PosterItem = {
+          id: crypto.randomUUID(),
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          fileType:
+            file.name
+              .split(".")
+              .pop()
+              ?.toUpperCase() ?? "",
+          dateAdded:
+            new Date().toLocaleDateString("en-GB"),
+          attachedEvent: "Not Attached",
+          image,
+        };
+
+        setPosters((current) => [
+          ...current,
+          newPoster,
+        ]);
+
+        setSelectedPosterId(newPoster.id);
+      }
     };
 
     reader.readAsDataURL(file);
@@ -112,17 +156,19 @@ const fileInputRef = useRef<HTMLInputElement>(null);
     if (!selectedPosterId) return;
 
     setPosters((current) =>
-      current.filter((p) => p.id !== selectedPosterId)
+      current.filter(
+        (p) => p.id !== selectedPosterId
+      )
     );
 
     setSelectedPosterId(null);
   };
 
   const handleAttach = () => {
-  if (!selectedPoster) return;
+    if (!selectedPoster) return;
 
-  onAttach(selectedPoster.id);
-};
+    onAttach(selectedPoster.id);
+  };
 
   const summary = (
     <div className="page-summary">
@@ -150,7 +196,6 @@ const fileInputRef = useRef<HTMLInputElement>(null);
 
   const actions = (
     <div className="page-actions">
-
       <ActionTile
         icon={Upload}
         title="Import"
@@ -163,7 +208,7 @@ const fileInputRef = useRef<HTMLInputElement>(null);
         title="Preview"
         onClick={() => {
           if (selectedPoster) {
-           onPreview(selectedPoster.id);
+            onPreview(selectedPoster.id);
           }
         }}
       />
@@ -182,6 +227,7 @@ const fileInputRef = useRef<HTMLInputElement>(null);
       <ActionTile
         icon={Replace}
         title="Replace"
+        onClick={handleReplaceClick}
       />
 
       <ActionTile
@@ -189,10 +235,10 @@ const fileInputRef = useRef<HTMLInputElement>(null);
         title="Delete"
         onClick={handleDelete}
       />
-
     </div>
   );
-   return (
+
+  return (
     <PageLayout
       title="Poster Library"
       subtitle="Store, organise and attach posters to your events."
@@ -219,10 +265,13 @@ const fileInputRef = useRef<HTMLInputElement>(null);
                   ? "poster-card selected"
                   : "poster-card"
               }
-             onClick={() => {
-    console.log("CARD CLICKED", poster.id);
-    setSelectedPosterId(poster.id);
-}}
+              onClick={() => {
+                console.log(
+                  "CARD CLICKED",
+                  poster.id
+                );
+                setSelectedPosterId(poster.id);
+              }}
             >
               <div className="poster-thumbnail">
                 <img
@@ -236,11 +285,13 @@ const fileInputRef = useRef<HTMLInputElement>(null);
                 <h3>{poster.title}</h3>
 
                 <p>
-                  <strong>File Type:</strong> {poster.fileType}
+                  <strong>File Type:</strong>{" "}
+                  {poster.fileType}
                 </p>
 
                 <p>
-                  <strong>Date Added:</strong> {poster.dateAdded}
+                  <strong>Date Added:</strong>{" "}
+                  {poster.dateAdded}
                 </p>
 
                 <p>
