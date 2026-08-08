@@ -20,13 +20,15 @@ interface NewEventProps {
   setEvent: React.Dispatch<React.SetStateAction<Event>>;
   attachedPosterId: string | null;
   onAttachPoster: () => void;
+  onDeleteEvent: () => void;
+  canDelete: boolean;
 }
 
 export default function NewEvent({
   event,
   setEvent,
-  attachedPosterId,
-  onAttachPoster,
+  onDeleteEvent,
+  canDelete,
 }: NewEventProps) {
 
   console.log("NEW EVENT COMPONENT");
@@ -59,13 +61,15 @@ export default function NewEvent({
       <ActionTile icon={Copy} title="Duplicate" />
       <ActionTile icon={ClipboardList} title="Checklist" />
       <ActionTile icon={Eye} title="Preview" />
-      <ActionTile icon={Trash2} title="Delete" />
+      {canDelete && (
+        <ActionTile
+          icon={Trash2}
+          title="Delete"
+          onClick={onDeleteEvent}
+        />
+      )}
     </div>
   );
-
-  const handleAttachPoster = () => {
-  window.location.hash = "#posters";
-};
 
   return (
     <PageLayout
@@ -177,38 +181,6 @@ export default function NewEvent({
                 })
               }
             />
-            <div className="event-poster-section">
-
-          <h2>Event Poster</h2>
-
-          <div className="poster-drop-zone">
-
-            <div className="poster-preview-placeholder">
-  🖼️
-</div>
-
-<h3>
-  {attachedPosterId
-    ? `Poster Attached (${attachedPosterId})`
-    : "No Poster Attached"}
-</h3>
-
-<p>
-  {attachedPosterId
-    ? "This poster is linked to this event."
-    : "Attach a poster from the Poster Library."}
-</p>
-
-            <button
-  type="button"
-  onClick={onAttachPoster}
->
-  Attach Existing Poster
-</button>
-
-          </div>
-
-        </div>
 
           </div>
 

@@ -37,10 +37,6 @@ body,
     "status status";
 }
 
-/* ======================================================
-   HEADER
-====================================================== */
-
 .header {
   grid-area: header;
   display: flex;
@@ -76,10 +72,6 @@ body,
   font-size: 18px;
   color: #555;
 }
-
-/* ======================================================
-   SIDEBAR
-====================================================== */
 
 .sidebar {
   grid-area: nav;
@@ -125,24 +117,34 @@ body,
   padding-left: 19px;
 }
 
-/* ======================================================
-   MAIN WORKSPACE
-====================================================== */
-
+/* MAIN PAGE SCROLL CONTAINER */
 .main {
   grid-area: main;
   background: #f5f8fb;
   padding: 24px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 
+/* Never create a second scroll container here. */
+.app-workspace {
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+/* Compatibility for any component using .workspace. */
 .workspace {
-  height: 100%;
+  width: 100%;
+  height: auto;
+  min-height: 100%;
   background: white;
   border: 1px solid #d8d8d8;
   border-radius: 20px;
   padding: 30px;
-  overflow: auto;
+  overflow: visible;
   box-shadow: 0 8px 24px rgba(0,0,0,.05);
 }
 
@@ -151,10 +153,6 @@ body,
   font-size: 38px;
   font-weight: 500;
 }
-
-/* ======================================================
-   DASHBOARD
-====================================================== */
 
 .dashboard-grid {
   max-width: 1100px;
@@ -196,10 +194,6 @@ body,
   font-size: 22px;
   color: #505050;
 }
-
-/* ======================================================
-   EVENT DETAILS
-====================================================== */
 
 .event-details {
   max-width: 1000px;
@@ -264,8 +258,19 @@ body,
   transition: .2s;
 }
 
+.field textarea {
+  padding: 12px 14px;
+  font-size: 16px;
+  border: 1px solid #cfd7df;
+  border-radius: 10px;
+  background: white;
+  resize: vertical;
+  font-family: inherit;
+}
+
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   outline: none;
   border-color: #5da9e9;
   box-shadow: 0 0 0 3px rgba(93,169,233,.15);
@@ -292,10 +297,6 @@ body,
   background: #2f86d6;
 }
 
-/* ======================================================
-   STATUS BAR
-====================================================== */
-
 .status {
   grid-area: status;
   display: flex;
@@ -307,9 +308,6 @@ body,
   color: #666;
   font-size: 13px;
 }
-/* ======================================================
-   PREVIEW MODE
-====================================================== */
 
 .preview-mode {
   grid-template-columns: 1fr;
@@ -323,11 +321,6 @@ body,
   grid-area: main;
   background: #dde5ef;
   padding: 0;
-  overflow: hidden;
-}
-
-.app-workspace {
-  width: 100%;
-  height: 100%;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
