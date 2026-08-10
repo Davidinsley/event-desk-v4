@@ -18,6 +18,7 @@ import {
 
 interface PostersProps {
   event: Event;
+  attachedPosterId: string | null;
   onPreview: (posterId: string) => void;
   onAttach: (posterId: string) => void;
 }
@@ -35,6 +36,7 @@ const STORAGE_KEY = "posterLibrary";
 
 export default function Posters({
   event,
+  attachedPosterId,
   onPreview,
   onAttach,
 }: PostersProps) {
@@ -167,6 +169,47 @@ export default function Posters({
   const handleAttach = () => {
     if (!selectedPoster) return;
 
+    const eventLabel =
+      event.eventName.trim() ||
+      `Event ${event.eventNumber}`;
+
+    const updatedPosters = posters.map((poster) => {
+      if (poster.id === selectedPoster.id) {
+        return {
+          ...poster,
+          attachedEvent: eventLabel,
+        };
+      }
+
+      if (
+        attachedPosterId &&
+        poster.id === attachedPosterId
+      ) {
+        return {
+          ...poster,
+          attachedEvent: "Not Attached",
+        };
+      }
+
+      return poster;
+    });
+
+    // Persist the library change immediately. The Posters page
+    // unmounts when we return to Event Details, so relying only
+    // on the useEffect below could lose the attachment update.
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(updatedPosters)
+      );
+    } catch (err) {
+      console.error(
+        "Failed to save poster attachment",
+        err
+      );
+    }
+
+    setPosters(updatedPosters);
     onAttach(selectedPoster.id);
   };
 

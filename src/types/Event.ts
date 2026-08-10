@@ -1,5 +1,4 @@
 export interface Event {
-
   eventNumber: string;
 
   eventName: string;
@@ -14,4 +13,15 @@ export interface Event {
 
   playerLimit: number;
 
+  competitionCategory: string;
+
+  competitionFormat: string;
+
+  competitionRounds: number;
+
+  handicapAllowance: number;
+
+  teeColour: string;
+
+  competitionRules: string;
 }

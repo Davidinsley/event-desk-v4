@@ -1,3 +1,5 @@
+// NewEvent.tsx
+
 import "./NewEvent.css";
 
 import type { Event } from "../types/Event";
@@ -27,26 +29,34 @@ interface NewEventProps {
 export default function NewEvent({
   event,
   setEvent,
+  attachedPosterId,
+  onAttachPoster,
   onDeleteEvent,
   canDelete,
 }: NewEventProps) {
-
-  console.log("NEW EVENT COMPONENT");
-  console.log("Current Event:", event.eventName);
-
   const summary = (
     <div className="players-summary">
-      <SummaryCard title="Event No." value={event.eventNumber} />
-      <SummaryCard title="Status" value="Draft" />
+      <SummaryCard
+        title="Event No."
+        value={event.eventNumber}
+      />
+
+      <SummaryCard
+        title="Status"
+        value="Draft"
+      />
+
       <SummaryCard
         title="Venue"
         value="Ramsdale"
         subValue="Park GC"
       />
+
       <SummaryCard
         title="Players"
         value={`0 / ${event.playerLimit}`}
       />
+
       <SummaryCard
         title="Entry Fee"
         value={`£${event.entryFee}`}
@@ -56,11 +66,32 @@ export default function NewEvent({
 
   const actions = (
     <div className="players-actions">
-      <ActionTile icon={Save} title="Save" primary />
-      <ActionTile icon={FolderOpen} title="Template" />
-      <ActionTile icon={Copy} title="Duplicate" />
-      <ActionTile icon={ClipboardList} title="Checklist" />
-      <ActionTile icon={Eye} title="Preview" />
+      <ActionTile
+        icon={Save}
+        title="Save"
+        primary
+      />
+
+      <ActionTile
+        icon={FolderOpen}
+        title="Template"
+      />
+
+      <ActionTile
+        icon={Copy}
+        title="Duplicate"
+      />
+
+      <ActionTile
+        icon={ClipboardList}
+        title="Checklist"
+      />
+
+      <ActionTile
+        icon={Eye}
+        title="Preview"
+      />
+
       {canDelete && (
         <ActionTile
           icon={Trash2}
@@ -89,19 +120,13 @@ export default function NewEvent({
             <input
               type="text"
               value={event.eventName}
-              onChange={(e) => {
-
-                console.log("EVENT NAME CHANGED");
-                console.log("Typed:", e.target.value);
-
+              onChange={(e) =>
                 setEvent({
                   ...event,
                   eventName: e.target.value,
-                });
-
-              }}
+                })
+              }
             />
-
           </div>
 
           <div className="field">
@@ -110,6 +135,7 @@ export default function NewEvent({
             <input
               type="text"
               value={event.eventDate}
+              placeholder="DD/MM/YYYY"
               onChange={(e) =>
                 setEvent({
                   ...event,
@@ -118,6 +144,9 @@ export default function NewEvent({
               }
             />
 
+            <div className="field-help">
+              Please enter the date as DD/MM/YYYY
+            </div>
           </div>
 
           <div className="field">
@@ -133,7 +162,6 @@ export default function NewEvent({
                 })
               }
             />
-
           </div>
 
           <div className="field">
@@ -149,7 +177,6 @@ export default function NewEvent({
                 })
               }
             />
-
           </div>
 
           <div className="field">
@@ -165,7 +192,6 @@ export default function NewEvent({
                 })
               }
             />
-
           </div>
 
           <div className="field">
@@ -181,15 +207,84 @@ export default function NewEvent({
                 })
               }
             />
-
           </div>
 
         </div>
 
-        <div className="button-bar">
-          <button className="primary-button">
-            Save Event Details
-          </button>
+        <div className="event-poster-section">
+
+          <h2>Event Poster</h2>
+
+          <div
+            className="poster-attachment-box"
+            style={{
+              minHeight: "260px",
+              border: "2px dashed #cfe0f5",
+              borderRadius: "14px",
+              background: "#f8fbff",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              padding: "30px",
+              marginTop: "12px",
+            }}
+          >
+
+            <div
+              style={{
+                width: "96px",
+                height: "96px",
+                borderRadius: "10px",
+                background: "#eef5fd",
+                border: "1px solid #d7e6f7",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "42px",
+                marginBottom: "18px",
+              }}
+            >
+              🖼️
+            </div>
+
+            <h3
+              style={{
+                margin: "0 0 8px 0",
+                color: "#225ca8",
+                fontSize: "21px",
+              }}
+            >
+              {attachedPosterId
+                ? "Poster Attached"
+                : "No Poster Attached"}
+            </h3>
+
+            <p
+              style={{
+                margin: "0 0 20px 0",
+                color: "#666",
+                fontSize: "15px",
+              }}
+            >
+              {attachedPosterId
+                ? "An event poster is attached to this event."
+                : "You can attach an event poster from the Poster Library."}
+            </p>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={onAttachPoster}
+            >
+              {attachedPosterId
+                ? "Change Poster"
+                : "Attach Poster"}
+            </button>
+
+          </div>
+
         </div>
 
       </div>

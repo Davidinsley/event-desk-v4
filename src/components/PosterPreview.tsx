@@ -21,6 +21,17 @@ interface PosterPreviewProps {
   onBack: () => void;
 }
 
+interface PosterItem {
+  id: string;
+  title: string;
+  fileType: string;
+  dateAdded: string;
+  attachedEvent: string;
+  image: string;
+}
+
+const STORAGE_KEY = "posterLibrary";
+
 export default function PosterPreview({
   event,
   posterId,
@@ -42,14 +53,21 @@ export default function PosterPreview({
 
   //--------------------------------------------------
   // Poster Lookup
+  // IMPORTANT: this must use the same storage key and
+  // image property as the Poster Library.
   //--------------------------------------------------
 
-  const posters = JSON.parse(
-    localStorage.getItem("posterLibrary") ?? "[]"
-  );
+  let posters: PosterItem[] = [];
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    posters = stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error("Failed to load poster library for preview", error);
+  }
 
   const selectedPoster = posters.find(
-    (poster: any) => poster.id === posterId
+    (poster) => poster.id === posterId
   );
 
   //--------------------------------------------------
@@ -68,9 +86,8 @@ export default function PosterPreview({
       <html>
         <head>
           <title>${selectedPoster.title}</title>
-
           <style>
-             @page {
+            @page {
               size: A4 portrait;
               margin: 0;
             }
@@ -102,7 +119,6 @@ export default function PosterPreview({
             }
           </style>
         </head>
-
         <body>
           <div class="print-page">
             <img
@@ -137,6 +153,22 @@ export default function PosterPreview({
 
     printImage.src = selectedPoster.image;
   };
+
+  //--------------------------------------------------
+  // Export
+  //--------------------------------------------------
+
+  const handleExport = () => {
+    if (!selectedPoster) return;
+
+    const link = document.createElement("a");
+    link.href = selectedPoster.image;
+    link.download = `${selectedPoster.title}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   //--------------------------------------------------
   // Summary Cards
   //--------------------------------------------------
@@ -180,35 +212,13 @@ export default function PosterPreview({
         onClick={handlePrint}
       />
 
-       <ActionTile
+      <ActionTile
         icon={Download}
         title="Export"
-        onClick={async () => {
-          if (!selectedPoster?.image) return;
-
-          try {
-            const response = await fetch(selectedPoster.image);
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `${selectedPoster.title}.png`;
-
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            URL.revokeObjectURL(url);
-          } catch (error) {
-            console.error("Poster export failed:", error);
-          }
-        }}
+        onClick={handleExport}
       />
-   
     </div>
   );
-
 
   //--------------------------------------------------
   // Render
