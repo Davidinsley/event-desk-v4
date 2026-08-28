@@ -1,3 +1,9 @@
+/*=========================================================
+  SummaryCard.css
+  Ramsdale Seniors Event Desk
+  Revision: Venue Card Wrapping Fix
+==========================================================*/
+
 .summary-card {
     width: 180px;
     height: 112px;
@@ -16,37 +22,102 @@
     padding: 12px;
     box-sizing: border-box;
 
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 
     transition: all 0.2s ease;
 }
 
 .summary-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.10);
+
+    box-shadow:
+        0 6px 16px rgba(0, 0, 0, 0.10);
 }
+
+
+/*=========================================================
+  CARD TITLE
+==========================================================*/
 
 .summary-card span {
     font-size: 0.9rem;
+
     font-weight: 600;
+
     color: #6b7280;
+
     margin-bottom: 8px;
 }
 
+
+/*=========================================================
+  CARD VALUE
+==========================================================*/
+
 .summary-card strong {
     font-size: 2rem;
+
     line-height: 1;
+
     font-weight: 700;
+
     color: #1f5fbf;
 }
 
+
+/*=========================================================
+  SECONDARY VALUE
+==========================================================*/
+
 .summary-card small {
     margin-top: 4px;
+
     font-size: 0.95rem;
+
     font-weight: 600;
+
     color: #3f4d63;
+
     line-height: 1.1;
 }
+
+
+/*=========================================================
+  VENUE CARD
+==========================================================*/
+
+.summary-card.venue strong {
+    width: 100%;
+
+    font-size: 1.15rem;
+
+    line-height: 1.1;
+
+    white-space: normal;
+
+    overflow-wrap: break-word;
+
+    word-break: normal;
+}
+
+.summary-card.venue small {
+    width: 100%;
+
+    font-size: 1rem;
+
+    line-height: 1.1;
+
+    white-space: normal;
+
+    overflow-wrap: break-word;
+
+    word-break: normal;
+}
+
+
+/*=========================================================
+  STATUS VARIANTS
+==========================================================*/
 
 .summary-card.success strong {
     color: #2e7d32;

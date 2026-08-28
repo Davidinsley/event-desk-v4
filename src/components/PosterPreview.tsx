@@ -1,5 +1,4 @@
 import { useState } from "react";
-import type { Event } from "../types/Event";
 
 import "./PosterPreview.css";
 
@@ -16,7 +15,6 @@ import {
 } from "lucide-react";
 
 interface PosterPreviewProps {
-  event: Event;
   posterId: string | null;
   onBack: () => void;
 }
@@ -33,7 +31,6 @@ interface PosterItem {
 const STORAGE_KEY = "posterLibrary";
 
 export default function PosterPreview({
-  event,
   posterId,
   onBack,
 }: PosterPreviewProps) {
@@ -63,7 +60,10 @@ export default function PosterPreview({
     const stored = localStorage.getItem(STORAGE_KEY);
     posters = stored ? JSON.parse(stored) : [];
   } catch (error) {
-    console.error("Failed to load poster library for preview", error);
+    console.error(
+      "Failed to load poster library for preview",
+      error
+    );
   }
 
   const selectedPoster = posters.find(

@@ -1,3 +1,11 @@
+// Event.ts
+
+export type EventStatus =
+  | "draft"
+  | "confirmed"
+  | "published"
+  | "archived";
+
 export interface Event {
   eventNumber: string;
 
@@ -24,4 +32,6 @@ export interface Event {
   teeColour: string;
 
   competitionRules: string;
+
+  status?: EventStatus;
 }

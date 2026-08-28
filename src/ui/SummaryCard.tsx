@@ -1,10 +1,19 @@
+// SummaryCard.tsx
+// Revision: Restore Muted Status Variant
+
 import "./SummaryCard.css";
 
 type SummaryCardProps = {
     title: string;
     value: string | number;
     subValue?: string;
-    variant?: "default" | "success" | "warning" | "danger";
+    variant?:
+        | "default"
+        | "success"
+        | "warning"
+        | "danger"
+        | "venue"
+        | "muted";
 };
 
 function SummaryCard({

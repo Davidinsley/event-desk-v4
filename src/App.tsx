@@ -39,6 +39,12 @@ const defaultEvent: Event = {
   competition: "Pairs Championship",
   entryFee: 15,
   playerLimit: 76,
+  competitionCategory: "",
+  competitionFormat: "",
+  competitionRounds: 1,
+  handicapAllowance: 100,
+  teeColour: "Yellow",
+  competitionRules: "",
 };
 
 interface PublishedSnapshot {
@@ -760,6 +766,12 @@ export default function App() {
       competition: "",
       entryFee: 15,
       playerLimit: 76,
+      competitionCategory: "",
+      competitionFormat: "",
+      competitionRounds: 1,
+      handicapAllowance: 100,
+      teeColour: "Yellow",
+      competitionRules: "",
     };
 
     const newRecord = createEventRecord(newEvent);
@@ -956,7 +968,7 @@ export default function App() {
               boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
             }}
           >
-            📋 Event Desk
+            ← Event Desk — Select Event
           </button>
         )}
 
@@ -1360,8 +1372,11 @@ export default function App() {
           )}
 
           {currentPage === "competition" && (
-              <Competition />
-            )}
+            <Competition
+              event={event}
+              setEvent={setEvent}
+            />
+          )}
 
           {currentPage === "players" && (
               <Players
@@ -1391,6 +1406,7 @@ export default function App() {
           {currentPage === "posters" && (
             <Posters
               event={event}
+              attachedPosterId={attachedPosterId}
               onPreview={(posterId) => {
 
                 setPreviewPosterId(
@@ -1423,7 +1439,6 @@ export default function App() {
           {currentPage ===
             "posterPreview" && (
             <PosterPreview
-              event={event}
               posterId={previewPosterId}
               onBack={() =>
                 setCurrentPage(
