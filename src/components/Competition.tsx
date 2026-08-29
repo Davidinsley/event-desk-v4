@@ -1,7 +1,11 @@
+// Competition.tsx
+
 import { useState } from "react";
-import type { Event } from "../types/Event";
+import type { Dispatch, SetStateAction } from "react";
 
 import "./NewEvent.css";
+
+import type { Event } from "../types/Event";
 
 import PageLayout from "../layout/PageLayout";
 import SummaryCard from "../ui/SummaryCard";
@@ -17,14 +21,14 @@ import {
 
 interface CompetitionProps {
   event: Event;
-  setEvent: React.Dispatch<React.SetStateAction<Event>>;
+  setEvent: Dispatch<SetStateAction<Event>>;
 }
 
 export default function Competition({
   event,
   setEvent,
 }: CompetitionProps) {
-  const [saved, setSaved] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
 
   const updateEvent = (changes: Partial<Event>) => {
     setEvent((current) => ({
@@ -32,47 +36,52 @@ export default function Competition({
       ...changes,
     }));
 
-    setSaved(false);
+    setShowSaved(false);
   };
 
   const handleSave = () => {
-    setSaved(true);
+    setShowSaved(true);
+
+    window.setTimeout(() => {
+      setShowSaved(false);
+    }, 2000);
   };
 
   const summary = (
     <div className="page-summary">
       <SummaryCard
         title="Format"
-        value={event.competitionFormat || "Not set"}
+        value={event.competitionFormat || "—"}
       />
 
       <SummaryCard
         title="Rounds"
-        value={String(event.competitionRounds)}
+        value={String(event.competitionRounds || 1)}
       />
 
       <SummaryCard
         title="Tee"
-        value={event.teeColour}
+        value={event.teeColour || "—"}
       />
 
       <SummaryCard
         title="Allowance"
-        value={`${event.handicapAllowance}%`}
+        value={`${event.handicapAllowance ?? 100}%`}
       />
 
       <SummaryCard
         title="Status"
-        value={saved ? "Saved" : "Draft"}
+        value="Draft"
       />
     </div>
   );
 
   const actions = (
     <div className="page-actions">
+
       <ActionTile
         icon={Save}
-        title="Save"
+        title={showSaved ? "Saved" : "Save"}
         primary
         onClick={handleSave}
       />
@@ -80,22 +89,31 @@ export default function Competition({
       <ActionTile
         icon={FolderOpen}
         title="Template"
+        subtitle="FD"
+        disabled
       />
 
       <ActionTile
         icon={Copy}
         title="Duplicate"
+        subtitle="FD"
+        disabled
       />
 
       <ActionTile
         icon={ClipboardList}
         title="Rules"
+        subtitle="FD"
+        disabled
       />
 
       <ActionTile
         icon={Eye}
         title="Preview"
+        subtitle="FD"
+        disabled
       />
+
     </div>
   );
 
@@ -120,6 +138,7 @@ export default function Competition({
               id="competitionName"
               type="text"
               value={event.competition}
+              placeholder="e.g. Home & Away Pairs Championship"
               onChange={(e) =>
                 updateEvent({
                   competition: e.target.value,
@@ -143,19 +162,15 @@ export default function Competition({
               }
             >
               <option value="">Select...</option>
-
               <option value="Individual">
                 Individual
               </option>
-
               <option value="Pairs">
                 Pairs
               </option>
-
               <option value="Team">
                 Team
               </option>
-
               <option value="Mixed">
                 Mixed
               </option>
@@ -197,6 +212,10 @@ export default function Competition({
               <option value="Greensomes">
                 Greensomes
               </option>
+
+              <option value="4BBB">
+                4BBB
+              </option>
             </select>
           </div>
 
@@ -212,7 +231,10 @@ export default function Competition({
               value={event.competitionRounds}
               onChange={(e) =>
                 updateEvent({
-                  competitionRounds: Number(e.target.value),
+                  competitionRounds: Math.max(
+                    1,
+                    Number(e.target.value)
+                  ),
                 })
               }
             />
@@ -231,7 +253,13 @@ export default function Competition({
               value={event.handicapAllowance}
               onChange={(e) =>
                 updateEvent({
-                  handicapAllowance: Number(e.target.value),
+                  handicapAllowance: Math.min(
+                    100,
+                    Math.max(
+                      0,
+                      Number(e.target.value)
+                    )
+                  ),
                 })
               }
             />
@@ -287,6 +315,18 @@ export default function Competition({
             />
           </div>
 
+        </div>
+
+        <div className="button-bar">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={handleSave}
+          >
+            {showSaved
+              ? "Competition Details Saved"
+              : "Save Competition Details"}
+          </button>
         </div>
 
       </div>

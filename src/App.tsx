@@ -187,19 +187,88 @@ export default function App() {
         const savedId =
           localStorage.getItem(ACTIVE_EVENT_ID_KEY);
 
-        if (savedId) {
+        if (
+          savedId &&
+          eventRecords.some((record) => record.id === savedId)
+        ) {
           return savedId;
         }
       } catch {
-        // Fall through to the first event.
+        // Fall through to the first available event.
       }
 
-      const records = loadInitialEventRecords();
-      return records[0]?.id ?? defaultEvent.eventNumber;
+      return (
+        eventRecords[0]?.id ??
+        defaultEvent.eventNumber
+      );
     });
+
+  const activeEventRecord =
+    eventRecords.find(
+      (record) => record.id === activeEventId
+    );
+
+  /*
+   * SINGLE-SOURCE PLAYER UPDATE
+   *
+   * Players are part of the active EventRecord. Every player change
+   * therefore updates React state AND the persisted event record
+   * immediately. This removes the previous dependency on multiple
+   * competing effects/legacy player storage.
+   */
+  const handlePlayersChange: React.Dispatch<
+    React.SetStateAction<Player[]>
+  > = (update) => {
+    const nextPlayers =
+      typeof update === "function"
+        ? update(players)
+        : update;
+
+    const nextRecords = eventRecords.map((record) =>
+      record.id === activeEventId
+        ? { ...record, players: nextPlayers }
+        : record
+    );
+
+    setPlayers(nextPlayers);
+    setEventRecords(nextRecords);
+
+    try {
+      localStorage.setItem(
+        EVENT_RECORDS_KEY,
+        JSON.stringify(nextRecords)
+      );
+      localStorage.setItem(
+        PLAYERS_KEY,
+        JSON.stringify(nextPlayers)
+      );
+      localStorage.setItem(
+        ACTIVE_EVENT_ID_KEY,
+        activeEventId
+      );
+    } catch (error) {
+      console.error(
+        "Failed to persist player changes",
+        error
+      );
+    }
+  };
+
+  /*
+   * LOAD THE ACTIVE EVENT FROM ITS EVENT RECORD.
+   *
+   * Event Desk stores each event, including its players,
+   * as one record. On refresh we must restore the active
+   * event from that record rather than loading an older
+   * copy from the legacy global player/event keys.
+   */
 
   const [players, setPlayers] =
     useState<Player[]>(() => {
+      if (activeEventRecord) {
+        return activeEventRecord.players ?? [];
+      }
+
       try {
         const savedPlayers =
           localStorage.getItem(PLAYERS_KEY);
@@ -219,6 +288,10 @@ export default function App() {
 
   const [event, setEvent] =
     useState<Event>(() => {
+      if (activeEventRecord) {
+        return activeEventRecord.event;
+      }
+
       try {
         const savedEvent =
           localStorage.getItem(EVENT_KEY);
@@ -238,6 +311,10 @@ export default function App() {
 
   const [attachedPosterId, setAttachedPosterId] =
     useState<string | null>(() => {
+      if (activeEventRecord) {
+        return activeEventRecord.attachedPosterId;
+      }
+
       try {
         return localStorage.getItem(POSTER_KEY);
       } catch {
@@ -250,6 +327,10 @@ export default function App() {
 
   const [published, setPublished] =
     useState(() => {
+      if (activeEventRecord) {
+        return activeEventRecord.published;
+      }
+
       try {
         return (
           localStorage.getItem(
@@ -263,6 +344,10 @@ export default function App() {
 
   const [publishedSnapshot, setPublishedSnapshot] =
     useState<PublishedSnapshot | null>(() => {
+      if (activeEventRecord) {
+        return activeEventRecord.publishedSnapshot;
+      }
+
       try {
         const savedSnapshot =
           localStorage.getItem(
@@ -284,6 +369,10 @@ export default function App() {
 
   const [publicationMeta, setPublicationMeta] =
     useState<PublicationMeta>(() => {
+      if (activeEventRecord) {
+        return activeEventRecord.publicationMeta;
+      }
+
       try {
         const savedMeta =
           localStorage.getItem(
@@ -315,6 +404,10 @@ export default function App() {
 
   const [archived, setArchived] =
     useState(() => {
+      if (activeEventRecord) {
+        return activeEventRecord.archived;
+      }
+
       try {
         return (
           localStorage.getItem(
@@ -327,20 +420,26 @@ export default function App() {
     });
 
   /*
-   * SAVE THE EVENT COLLECTION
+   * SAVE EVENT COLLECTION STRUCTURE
    *
-   * Event Desk keeps each event as its own record.
-   * Archiving one event therefore never replaces the
-   * event that is created next.
+   * Player changes are persisted immediately by handlePlayersChange.
+   * This effect is therefore limited to structural event changes and
+   * event selection. It never writes player data from a potentially
+   * stale render.
    */
 
   useEffect(() => {
     try {
-      localStorage.setItem(
-        EVENT_RECORDS_KEY,
-        JSON.stringify(eventRecords)
+      const persistedRecords = eventRecords.map((record) =>
+        record.id === activeEventId
+          ? { ...record, event, attachedPosterId, published, publishedSnapshot, publicationMeta, archived }
+          : record
       );
 
+      localStorage.setItem(
+        EVENT_RECORDS_KEY,
+        JSON.stringify(persistedRecords)
+      );
       localStorage.setItem(
         ACTIVE_EVENT_ID_KEY,
         activeEventId
@@ -351,33 +450,10 @@ export default function App() {
         error
       );
     }
-  }, [eventRecords, activeEventId]);
-
-  /*
-   * KEEP THE ACTIVE EVENT RECORD UP TO DATE
-   */
-
-  useEffect(() => {
-    setEventRecords((records) =>
-      records.map((record) =>
-        record.id === activeEventId
-          ? {
-              ...record,
-              event,
-              players,
-              attachedPosterId,
-              published,
-              publishedSnapshot,
-              publicationMeta,
-              archived,
-            }
-          : record
-      )
-    );
   }, [
+    eventRecords,
     activeEventId,
     event,
-    players,
     attachedPosterId,
     published,
     publishedSnapshot,
@@ -968,7 +1044,7 @@ export default function App() {
               boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
             }}
           >
-            ← Event Desk — Select Event
+            📋 Event Desk
           </button>
         )}
 
@@ -1381,7 +1457,7 @@ export default function App() {
           {currentPage === "players" && (
               <Players
                 players={players}
-                setPlayers={setPlayers}
+                setPlayers={handlePlayersChange}
               />
             )}
 
