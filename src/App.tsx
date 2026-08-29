@@ -79,6 +79,7 @@ interface EventRecord {
 
 const EVENT_RECORDS_KEY = "eventDeskEventRecords";
 const ACTIVE_EVENT_ID_KEY = "eventDeskActiveEventId";
+const CURRENT_WORKING_EVENT_ID_KEY = "eventDeskCurrentWorkingEventId";
 
 const createEventRecord = (event: Event): EventRecord => ({
   id: event.eventNumber,
@@ -104,7 +105,33 @@ const loadInitialEventRecords = (): EventRecord[] => {
       const parsed = JSON.parse(savedRecords);
 
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        /* Validate persisted archive flags so a stale/invalid flag cannot
+           lock a newly created or recently opened event. */
+        const today = new Date();
+
+        return parsed.map((record) => {
+          if (!record?.archived) return record;
+
+          const eventDate = record.event?.eventDate
+            ? new Date(`${record.event.eventDate}T00:00:00`)
+            : null;
+
+          if (
+            !record.published ||
+            !record.publishedSnapshot ||
+            !record.archivedAt ||
+            !eventDate ||
+            Number.isNaN(eventDate.getTime())
+          ) {
+            return { ...record, archived: false, archivedAt: null };
+          }
+
+          eventDate.setDate(eventDate.getDate() + 5);
+
+          return today >= eventDate
+            ? record
+            : { ...record, archived: false, archivedAt: null };
+        });
       }
     }
 
@@ -200,6 +227,38 @@ export default function App() {
       return (
         eventRecords[0]?.id ??
         defaultEvent.eventNumber
+      );
+    });
+
+  /*
+   * CURRENT WORKING EVENT
+   *
+   * This is deliberately separate from activeEventId. Opening an archived
+   * event for reference may change activeEventId, but it must not change the
+   * event that Continue Event considers to be the current working event.
+   */
+  const [currentWorkingEventId, setCurrentWorkingEventId] =
+    useState<string | null>(() => {
+      try {
+        const savedId = localStorage.getItem(
+          CURRENT_WORKING_EVENT_ID_KEY
+        );
+
+        if (
+          savedId &&
+          eventRecords.some(
+            (record) => record.id === savedId && !record.archived
+          )
+        ) {
+          return savedId;
+        }
+      } catch {
+        // Fall through to the first non-archived event.
+      }
+
+      return (
+        eventRecords.find((record) => !record.archived)?.id ??
+        null
       );
     });
 
@@ -444,6 +503,17 @@ export default function App() {
         ACTIVE_EVENT_ID_KEY,
         activeEventId
       );
+
+      if (currentWorkingEventId) {
+        localStorage.setItem(
+          CURRENT_WORKING_EVENT_ID_KEY,
+          currentWorkingEventId
+        );
+      } else {
+        localStorage.removeItem(
+          CURRENT_WORKING_EVENT_ID_KEY
+        );
+      }
     } catch (error) {
       console.error(
         "Failed to save event collection",
@@ -453,6 +523,7 @@ export default function App() {
   }, [
     eventRecords,
     activeEventId,
+    currentWorkingEventId,
     event,
     attachedPosterId,
     published,
@@ -777,6 +848,17 @@ export default function App() {
 
       setArchived(true);
 
+      if (currentWorkingEventId === activeEventId) {
+        const nextWorkingRecord = eventRecords.find(
+          (record) =>
+            record.id !== activeEventId && !record.archived
+        );
+
+        setCurrentWorkingEventId(
+          nextWorkingRecord?.id ?? null
+        );
+      }
+
       setCurrentPage(
         "reviewPublish"
       );
@@ -833,6 +915,43 @@ export default function App() {
     setCurrentPage("eventManager");
   };
 
+  /*
+   * CONTINUE CURRENT EVENT
+   *
+   * Resume the current working event. This is deliberately separate from
+   * activeEventId because opening an archived event for reference must not
+   * change what Continue Event considers to be the working event.
+   *
+   * It also never creates a new event or increases the event number.
+   */
+  const handleContinueEvent = () => {
+    const record = eventRecords.find(
+      (item) =>
+        item.id === currentWorkingEventId && !item.archived
+    );
+
+    if (!record) {
+      handleOpenEventManager();
+      return;
+    }
+
+    setActiveEventId(record.id);
+
+    if (!record.archived) {
+      setCurrentWorkingEventId(record.id);
+    }
+
+    setEvent(record.event);
+    setPlayers(record.players);
+    setAttachedPosterId(record.attachedPosterId);
+    setPreviewPosterId(null);
+    setPublished(record.published);
+    setPublishedSnapshot(record.publishedSnapshot);
+    setPublicationMeta(record.publicationMeta);
+    setArchived(false);
+    setCurrentPage("new");
+  };
+
   const handleNewEvent = () => {
     const newEvent: Event = {
       eventNumber: getNextEventNumber(),
@@ -862,6 +981,7 @@ export default function App() {
     ]);
 
     setActiveEventId(newRecord.id);
+    setCurrentWorkingEventId(newRecord.id);
     setEvent(newEvent);
     setPlayers([]);
     setAttachedPosterId(null);
@@ -874,20 +994,30 @@ export default function App() {
       lastPublishedAt: null,
     });
     setArchived(false);
+
+    // A new event must never inherit the legacy single-event archive marker.
+    try {
+      localStorage.removeItem(ARCHIVED_EVENT_KEY);
+    } catch (error) {
+      console.error("Failed to clear legacy archive marker", error);
+    }
+
     setCurrentPage("new");
   };
 
   const handleDeleteEvent = (record: EventRecord) => {
-    // Archived events are permanent historical records and cannot be deleted.
-    // Published events must also remain available; deletion is intentionally
-    // limited to draft events so the Event Desk cannot accidentally remove
-    // an official event record.
-    if (record.archived || record.published) {
-      return;
-    }
+    // Events can be deleted from Event Manager when they are no longer wanted.
+    // This is particularly useful during initial setup and testing, where
+    // unwanted published/test events may otherwise be impossible to remove.
+    // Deletion is always confirmed and is permanent.
+    const eventState = record.archived
+      ? "archived"
+      : record.published
+      ? "published"
+      : "draft";
 
     const confirmed = window.confirm(
-      `Delete Event ${record.event.eventNumber}?\n\nThis will permanently remove this draft event. This action cannot be undone.`
+      `Delete Event ${record.event.eventNumber}?\n\nThis will permanently remove this ${eventState} event and all of its stored player/event data. This action cannot be undone.`
     );
 
     if (!confirmed) {
@@ -908,10 +1038,31 @@ export default function App() {
 
     setEventRecords(remainingRecords);
 
+    if (record.id === currentWorkingEventId) {
+      const nextWorkingRecord = remainingRecords.find(
+        (item) => !item.archived
+      );
+      setCurrentWorkingEventId(
+        nextWorkingRecord?.id ?? null
+      );
+    }
+
     if (record.id === activeEventId) {
       const nextRecord = remainingRecords[0];
 
       setActiveEventId(nextRecord.id);
+
+      if (!nextRecord.archived) {
+        setCurrentWorkingEventId(nextRecord.id);
+      } else {
+        const nextWorkingRecord = remainingRecords.find(
+          (item) => !item.archived
+        );
+        setCurrentWorkingEventId(
+          nextWorkingRecord?.id ?? null
+        );
+      }
+
       setEvent(nextRecord.event);
       setPlayers(nextRecord.players);
       setAttachedPosterId(nextRecord.attachedPosterId);
@@ -1109,7 +1260,7 @@ export default function App() {
                 handleNavigate("handicap")
               }
             >
-              🏌️ Handicap Update
+              🏌️ Field & Draw
             </li>
 
             <li
@@ -1391,25 +1542,23 @@ export default function App() {
                             {record.archived ? "View" : "Open"}
                           </button>
 
-                          {!record.archived && !record.published && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteEvent(record)}
-                              title="Delete this draft event"
-                              aria-label={`Delete Event ${record.event.eventNumber}`}
-                              style={{
-                                border: "1px solid #d6dee8",
-                                borderRadius: "9px",
-                                padding: "9px 11px",
-                                background: "white",
-                                color: "#b42318",
-                                fontWeight: 700,
-                                cursor: "pointer",
-                              }}
-                            >
-                              🗑 Delete
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEvent(record)}
+                            title="Permanently delete this event"
+                            aria-label={`Delete Event ${record.event.eventNumber}`}
+                            style={{
+                              border: "1px solid #d6dee8",
+                              borderRadius: "9px",
+                              padding: "9px 11px",
+                              background: "white",
+                              color: "#b42318",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            🗑 Delete
+                          </button>
                         </div>
                       </div>
                     );
@@ -1421,12 +1570,14 @@ export default function App() {
           {currentPage === "dashboard" && (
             <Dashboard
               onNewEvent={handleNewEvent}
+              onContinueEvent={handleContinueEvent}
             />
           )}
 
           {currentPage === "new" && (
             <NewEvent
               event={event}
+              players={players}
               setEvent={setEvent}
               attachedPosterId={
                 attachedPosterId
@@ -1464,6 +1615,7 @@ export default function App() {
           {currentPage === "handicap" && (
               <HandicapUpdate
                 players={players}
+                setPlayers={handlePlayersChange}
               />
             )}
 

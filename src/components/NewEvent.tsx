@@ -16,6 +16,7 @@ import type {
 
 } from "../types/Event";
 
+import type { Player } from "../types/Player";
 import PageLayout from "../layout/PageLayout";
 
 import SummaryCard from "../ui/SummaryCard";
@@ -39,6 +40,8 @@ interface NewEventProps {
   event: Event;
 
   setEvent: React.Dispatch<React.SetStateAction<Event>>;
+
+  players: Player[];
 
   attachedPosterId: string | null;
 
@@ -273,6 +276,8 @@ export default function NewEvent({
   event,
 
   setEvent,
+
+  players,
 
   attachedPosterId,
 
@@ -1660,7 +1665,7 @@ export default function NewEvent({
 
         title="Players"
 
-        value={`0 / ${event.playerLimit}`}
+        value={`${players.length} / ${event.playerLimit}`}
 
       />
 
