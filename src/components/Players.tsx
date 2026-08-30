@@ -1,6 +1,6 @@
 // Players.tsx
 // Event Desk - Players Management
-// Revision: CSV + Excel + Start List Import
+// Revision: CSV + Excel + Start List Import + Tee Time / Group Preservation + Optional Handicap + Optional Home Club + PDF Export
 
 import { useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -17,7 +17,6 @@ import {
   FileSpreadsheet,
   FileUp,
   Flag,
-  Clipboard,
   Download,
   Trash2,
 } from "lucide-react";
@@ -29,20 +28,11 @@ interface PlayersProps {
 
 type CsvRow = Record<string, string>;
 
-function parseHandicapIndex(value: string | number | undefined): number {
-  const text = String(value ?? "").trim();
-  if (text === "") return 0;
-
-  const numeric = Number(text);
-  if (!Number.isFinite(numeric)) return 0;
-
-  // Golf notation: +2.0 is a genuine plus handicap.
-  // Store it internally as -2.0 so arithmetic can distinguish
-  // it from an ordinary 2.0 handicap.
-  return text.startsWith("+")
-    ? -Math.abs(numeric)
-    : numeric;
-}
+type DisplayPlayer = Player & {
+  teeTime?: string;
+  group?: string;
+  homeClub?: string;
+};
 
 export default function Players({
   players,
@@ -69,9 +59,6 @@ export default function Players({
   const [handicapIndex, setHandicapIndex] =
     useState("");
 
-  const [status, setStatus] =
-    useState<"Registered" | "Waiting">("Registered");
-
   const [source, setSource] =
     useState<
       "Manual" | "CSV" | "Excel" | "Start List"
@@ -88,7 +75,7 @@ export default function Players({
     (p) => p.status === "Registered"
   ).length;
 
-  const waitingPlayers = players.filter(
+  const reservesPlayers = players.filter(
     (p) => p.status === "Waiting"
   ).length;
 
@@ -107,7 +94,6 @@ export default function Players({
     setFirstName("");
     setLastName("");
     setHandicapIndex("");
-    setStatus("Registered");
     setSource("Manual");
     setPaid(false);
     setNotes("");
@@ -248,30 +234,6 @@ export default function Players({
       : "Registered";
   }
 
-  function findPlayerHeaderRowIndex(rows: string[][]): number {
-    return rows.findIndex((row) => {
-      const headers = row.map(normaliseHeader);
-
-      const hasFirstName = headers.some((header) =>
-        [
-          "firstname",
-          "forename",
-          "givenname",
-        ].includes(header)
-      );
-
-      const hasLastName = headers.some((header) =>
-        [
-          "lastname",
-          "surname",
-          "familyname",
-        ].includes(header)
-      );
-
-      return hasFirstName && hasLastName;
-    });
-  }
-
   function convertPlayerRows(
     rows: string[][],
     importedSource: "CSV" | "Excel"
@@ -313,9 +275,7 @@ export default function Players({
       lastNameIndex === -1
     ) {
       throw new Error(
-        importedSource === "Excel"
-          ? "The Excel worksheet must contain First Name and Last Name columns."
-          : "The CSV must contain First Name and Last Name columns."
+        "The CSV must contain First Name and Last Name columns."
       );
     }
 
@@ -360,8 +320,13 @@ export default function Players({
           "HI",
         ]);
 
+      const parsedHandicap =
+        Number(handicapText);
+
       const handicapIndex =
-        parseHandicapIndex(handicapText);
+        Number.isFinite(parsedHandicap)
+          ? parsedHandicap
+          : 0;
 
       const statusValue =
         getCsvValue(row, [
@@ -376,7 +341,6 @@ export default function Players({
       const notesValue =
         getCsvValue(row, [
           "Notes",
-          "Source Notes",
         ]);
 
       importedPlayers.push({
@@ -445,7 +409,10 @@ export default function Players({
 
         setPlayers((current) => [
           ...current,
-          ...importedPlayers,
+          ...applyCapacityToNewPlayers(
+            current,
+            importedPlayers
+          ),
         ]);
 
         if (skipped > 0) {
@@ -539,25 +506,10 @@ export default function Players({
           }
         );
 
-        const headerRowIndex =
-          findPlayerHeaderRowIndex(rows);
-
-        if (headerRowIndex === -1) {
-          throw new Error(
-            "The Excel worksheet must contain First Name and Last Name columns."
-          );
-        }
-
-        // External Excel files often contain a title, event name,
-        // logo area or other formatted rows above the actual headers.
-        // Start the player conversion at the detected header row rather
-        // than assuming the first worksheet row contains column names.
-        const playerRows = rows.slice(headerRowIndex);
-
         const {
           players: importedPlayers,
           skipped,
-        } = convertPlayerRows(playerRows, "Excel");
+        } = convertPlayerRows(rows, "Excel");
 
         if (importedPlayers.length === 0) {
           alert(
@@ -571,7 +523,10 @@ export default function Players({
 
         setPlayers((current) => [
           ...current,
-          ...importedPlayers,
+          ...applyCapacityToNewPlayers(
+            current,
+            importedPlayers
+          ),
         ]);
 
         if (skipped > 0) {
@@ -642,7 +597,7 @@ export default function Players({
     }
 
     const parts = name
-      .split(/\\s+/)
+      .split(/\s+/)
       .map((part) => part.trim())
       .filter(Boolean);
 
@@ -733,6 +688,28 @@ export default function Players({
           );
         }
 
+        const teeTimeIndex = headers.findIndex(
+          (header) =>
+            [
+              "teetime",
+              "starttime",
+              "start",
+              "time",
+            ].includes(header)
+        );
+
+        const groupIndex = headers.findIndex(
+          (header) =>
+            [
+              "group",
+              "groupnumber",
+              "groupno",
+              "fourball",
+              "fourballnumber",
+              "fourballno",
+            ].includes(header)
+        );
+
         const handicapIndex = headers.findIndex(
           (header) =>
             [
@@ -743,13 +720,25 @@ export default function Players({
             ].includes(header)
         );
 
+        const homeClubIndex = headers.findIndex(
+          (header) =>
+            [
+              "homeclub",
+              "club",
+              "golfclub",
+              "homegolfclub",
+            ].includes(header)
+        );
+
         const notesIndex = headers.findIndex(
           (header) =>
             ["notes", "note"].includes(header)
         );
 
-        const importedPlayers: Player[] = [];
+        const importedPlayers: DisplayPlayer[] = [];
         let skipped = 0;
+        let lastTeeTime = "";
+        let derivedGroupNumber = 0;
 
         rows.slice(1).forEach((row) => {
           const playerName = String(
@@ -791,12 +780,50 @@ export default function Players({
               ? parsedHandicap
               : 0;
 
+          // Home Club is optional. A blank or missing column is valid and
+          // must never cause the Start List import to fail.
+          const homeClub =
+            homeClubIndex === -1
+              ? ""
+              : String(
+                  row[homeClubIndex] ?? ""
+                ).trim();
+
           const importedNotes =
             notesIndex === -1
               ? ""
               : String(
                   row[notesIndex] ?? ""
                 ).trim();
+
+          const teeTime =
+            teeTimeIndex === -1
+              ? ""
+              : String(
+                  row[teeTimeIndex] ?? ""
+                ).trim();
+
+          let group =
+            groupIndex === -1
+              ? ""
+              : String(
+                  row[groupIndex] ?? ""
+                ).trim();
+
+          // Prefer the explicit group from the Start Sheet. If it is not
+          // supplied, use tee-time changes to identify each four-ball/group.
+          // If neither is present, fall back to groups of four in file order.
+          if (group === "" && teeTime !== "") {
+            if (teeTime !== lastTeeTime) {
+              derivedGroupNumber += 1;
+              lastTeeTime = teeTime;
+            }
+            group = String(derivedGroupNumber);
+          } else if (group === "") {
+            group = String(
+              Math.floor(importedPlayers.length / 4) + 1
+            );
+          }
 
           importedPlayers.push({
             id: crypto.randomUUID(),
@@ -808,6 +835,9 @@ export default function Players({
             source: "Start List",
             paid: false,
             notes: importedNotes,
+            teeTime,
+            group,
+            homeClub,
           });
         });
 
@@ -820,18 +850,83 @@ export default function Players({
           return;
         }
 
-        setPlayers((current) => [
-          ...current,
-          ...importedPlayers,
-        ]);
+        // Merge the Start List into the existing player register rather
+        // than appending a second copy of every player. Matching is by
+        // first name + last name, ignoring case and surrounding spaces.
+        // This preserves existing registration/payment data while adding
+        // the Start List fields (Tee Time, Group and Home Club).
+        let updatedCount = 0;
+        let addedCount = 0;
+
+        setPlayers((current) => {
+          const next = [...current];
+
+          importedPlayers.forEach((imported) => {
+            const importedFirst = imported.firstName
+              .trim()
+              .toLowerCase();
+            const importedLast = imported.lastName
+              .trim()
+              .toLowerCase();
+
+            const existingIndex = next.findIndex(
+              (player) =>
+                player.firstName.trim().toLowerCase() ===
+                  importedFirst &&
+                player.lastName.trim().toLowerCase() ===
+                  importedLast
+            );
+
+            if (existingIndex === -1) {
+              const registeredCount = next.filter(
+                (player) => player.status === "Registered"
+              ).length;
+
+              next.push({
+                ...imported,
+                status:
+                  registeredCount < EVENT_CAPACITY
+                    ? "Registered"
+                    : "Waiting",
+              });
+
+              addedCount += 1;
+              return;
+            }
+
+            const existing = next[existingIndex];
+
+            const updatedPlayer: DisplayPlayer = {
+              ...existing,
+              handicapIndex:
+                handicapIndex === -1
+                  ? existing.handicapIndex
+                  : imported.handicapIndex,
+              source: "Start List",
+              notes:
+                imported.notes.trim() !== ""
+                  ? imported.notes
+                  : existing.notes,
+              teeTime: imported.teeTime,
+              group: imported.group,
+              homeClub: imported.homeClub,
+            };
+
+            next[existingIndex] = updatedPlayer as Player;
+
+            updatedCount += 1;
+          });
+
+          return next;
+        });
 
         if (skipped > 0) {
           alert(
-            `${importedPlayers.length} player(s) imported successfully from the Start List.\\n\\n${skipped} row(s) were skipped because they did not contain a complete player name.`
+            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added from the Start List.\n\n${skipped} row(s) were skipped because they did not contain a complete player name.`
           );
         } else {
           alert(
-            `${importedPlayers.length} player(s) imported successfully from the Start List.`
+            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added from the Start List.`
           );
         }
       } catch (error) {
@@ -862,6 +957,49 @@ export default function Players({
   }
 
   // --------------------------------------------------
+  // Registration / Reserves Rules
+  // --------------------------------------------------
+
+  const EVENT_CAPACITY = 76;
+
+  function reservePositionForPlayer(
+    playerId: string
+  ): number | null {
+    const reserveIds = players
+      .filter((player) => player.status === "Waiting")
+      .map((player) => player.id);
+
+    const index = reserveIds.indexOf(playerId);
+
+    return index === -1 ? null : index + 1;
+  }
+
+  function applyCapacityToNewPlayers(
+    current: Player[],
+    incoming: Player[]
+  ): Player[] {
+    let registeredCount = current.filter(
+      (player) => player.status === "Registered"
+    ).length;
+
+    return incoming.map((player) => {
+      const nextStatus =
+        registeredCount < EVENT_CAPACITY
+          ? "Registered"
+          : "Waiting";
+
+      if (nextStatus === "Registered") {
+        registeredCount += 1;
+      }
+
+      return {
+        ...player,
+        status: nextStatus,
+      };
+    });
+  }
+
+  // --------------------------------------------------
   // Add Player
   // --------------------------------------------------
 
@@ -883,9 +1021,14 @@ export default function Players({
       lastName: lastName.trim(),
 
       handicapIndex:
-        parseHandicapIndex(handicapIndex),
+        Number(handicapIndex) || 0,
 
-      status,
+      // Registration status is automatic. If all 76 places are
+      // occupied, the new player joins the bottom of the Reserves list.
+      status:
+        registeredPlayers < EVENT_CAPACITY
+          ? "Registered"
+          : "Waiting",
 
       source,
 
@@ -907,42 +1050,267 @@ export default function Players({
   // --------------------------------------------------
 
   function deletePlayer(id: string) {
-    if (
-      !window.confirm(
-        "Delete this player?"
-      )
-    ) {
+    const player = players.find(
+      (item) => item.id === id
+    );
+
+    if (!player) {
       return;
     }
 
-    setPlayers((current) =>
-      current.filter(
-        (player) => player.id !== id
-      )
-    );
+    const isRegistered =
+      player.status === "Registered";
+
+    const message = isRegistered
+      ? "Withdraw this registered player? If a Reserve is waiting, the first Reserve will automatically take this place."
+      : "Remove this player from the Reserves list?";
+
+    if (!window.confirm(message)) {
+      return;
+    }
+
+    setPlayers((current) => {
+      const remaining = current.filter(
+        (item) => item.id !== id
+      );
+
+      if (!isRegistered) {
+        return remaining;
+      }
+
+      const reserveIndex = remaining.findIndex(
+        (item) => item.status === "Waiting"
+      );
+
+      if (reserveIndex === -1) {
+        return remaining;
+      }
+
+      const promoted = remaining[reserveIndex];
+
+      if (!promoted) {
+        return remaining;
+      }
+
+      remaining[reserveIndex] = {
+        ...promoted,
+        status: "Registered",
+      };
+
+      return remaining;
+    });
   }
 
   // --------------------------------------------------
-  // Clear All Players
+  // Export / Print PDF
   // --------------------------------------------------
 
-  function clearAllPlayers() {
+  function escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function handleExport() {
     if (players.length === 0) {
+      alert("There are no players to export.");
       return;
     }
 
-    const confirmed = window.confirm(
-      `Clear all ${players.length} players from this event?\n\n` +
-        "This removes the players currently entered in this event only. " +
-        "It does not delete members from any master/member database.\n\n" +
-        "This action cannot be undone."
+    const printablePlayers = players.map((player) => {
+      const startListPlayer = player as DisplayPlayer;
+      return {
+        teeTime: startListPlayer.teeTime || "",
+        group: startListPlayer.group || "",
+        name: `${player.firstName} ${player.lastName}`.trim(),
+        homeClub: startListPlayer.homeClub || "",
+        handicap: player.handicapIndex.toFixed(1),
+        status:
+          player.status === "Waiting"
+            ? `Reserves #${reservePositionForPlayer(player.id) ?? ""}`
+            : "Registered",
+      };
+    });
+
+    const groupedRows = printablePlayers
+      .map((player, index) => {
+        const previous = printablePlayers[index - 1];
+        const newGroup =
+          index === 0 ||
+          player.group !== previous.group ||
+          player.teeTime !== previous.teeTime;
+
+        return `
+          <tr class="${newGroup ? "group-start" : ""}">
+            <td>${newGroup ? escapeHtml(player.teeTime) : ""}</td>
+            <td>${newGroup ? escapeHtml(player.group) : ""}</td>
+            <td>${escapeHtml(player.name)}</td>
+            <td>${escapeHtml(player.homeClub)}</td>
+            <td class="handicap">${escapeHtml(player.handicap)}</td>
+            <td>${escapeHtml(player.status)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const exportWindow = window.open(
+      "",
+      "_blank",
+      "width=900,height=700"
     );
 
-    if (!confirmed) {
+    if (!exportWindow) {
+      alert(
+        "The export window could not be opened. Please allow pop-ups for Event Desk and try again."
+      );
       return;
     }
 
-    setPlayers([]);
+    exportWindow.document.open();
+    exportWindow.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Event Desk - Players Start List</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 14mm;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #1f2937;
+      background: #ffffff;
+      font-size: 11pt;
+    }
+
+    .document {
+      width: 100%;
+      max-width: 180mm;
+      margin: 0 auto;
+    }
+
+    .header {
+      border-bottom: 2px solid #dbe6f3;
+      padding-bottom: 8mm;
+      margin-bottom: 6mm;
+    }
+
+    h1 {
+      margin: 0 0 2mm;
+      font-size: 22pt;
+      line-height: 1.1;
+      color: #1f5fbf;
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 11pt;
+      color: #6b7280;
+    }
+
+    .summary {
+      display: flex;
+      gap: 10mm;
+      margin: 0 0 6mm;
+      font-size: 10pt;
+      color: #4b5563;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th {
+      text-align: left;
+      padding: 3mm 2.5mm;
+      background: #eef5fc;
+      border-bottom: 1px solid #cfdbea;
+      font-size: 9.5pt;
+      color: #3f4d63;
+    }
+
+    td {
+      padding: 2.8mm 2.5mm;
+      border-bottom: 1px solid #e5e7eb;
+      vertical-align: middle;
+    }
+
+    th:nth-child(1), td:nth-child(1) { width: 16%; }
+    th:nth-child(2), td:nth-child(2) { width: 10%; }
+    th:nth-child(3), td:nth-child(3) { width: 25%; }
+    th:nth-child(4), td:nth-child(4) { width: 25%; }
+    th:nth-child(5), td:nth-child(5) { width: 9%; }
+    th:nth-child(6), td:nth-child(6) { width: 15%; }
+
+    .handicap { text-align: center; }
+
+    .group-start td {
+      border-top: 2px solid #b8cbe0;
+    }
+
+    .footer {
+      margin-top: 7mm;
+      padding-top: 3mm;
+      border-top: 1px solid #dbe6f3;
+      font-size: 9pt;
+      color: #6b7280;
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+      .document { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="document">
+    <header class="header">
+      <h1>Players / Start List</h1>
+      <p class="subtitle">Event Desk — Player Reference</p>
+    </header>
+
+    <div class="summary">
+      <span><strong>Registered:</strong> ${registeredPlayers}</span>
+      <span><strong>Reserves:</strong> ${reservesPlayers}</span>
+      <span><strong>Total:</strong> ${players.length}</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Tee Time</th>
+          <th>Group</th>
+          <th>Player</th>
+          <th>Home Club</th>
+          <th>HI</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>${groupedRows}</tbody>
+    </table>
+
+    <footer class="footer">
+      Event Desk — exported for printing or electronic distribution
+    </footer>
+  </main>
+
+  <div class="no-print" style="position:fixed;right:20px;top:20px;">
+    <button onclick="window.print()" style="padding:10px 16px;font-size:14px;cursor:pointer;">Print / Save as PDF</button>
+  </div>
+</body>
+</html>`);
+    exportWindow.document.close();
+    exportWindow.focus();
   }
 
   // --------------------------------------------------
@@ -957,8 +1325,8 @@ export default function Players({
       />
 
       <SummaryCard
-        title="Waiting"
-        value={waitingPlayers}
+        title="Reserves"
+        value={reservesPlayers}
       />
 
       <SummaryCard
@@ -1015,21 +1383,9 @@ export default function Players({
       />
 
       <ActionTile
-        icon={Clipboard}
-        title="Paste"
-      />
-
-      <ActionTile
         icon={Download}
         title="Export"
-      />
-
-      <ActionTile
-        icon={Trash2}
-        subtitle="Clear"
-        title="All Players"
-        onClick={clearAllPlayers}
-        disabled={players.length === 0}
+        onClick={handleExport}
       />
     </div>
   );
@@ -1060,7 +1416,7 @@ export default function Players({
         id="start-list-file-input"
         ref={startListInputRef}
         type="file"
-        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+        accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
         onChange={handleStartListFileChange}
         style={{ display: "none" }}
       />
@@ -1070,13 +1426,15 @@ export default function Players({
         subtitle="Manage player registrations, imports, payments and event participants."
         summary={summary}
         actions={actions}
-        footer={`${registeredPlayers} Registered • ${waitingPlayers} Waiting • ${players.length} Total`}
+        footer={`${registeredPlayers} Registered • ${reservesPlayers} Reserves • ${players.length} Total`}
       >
         <div className="players-table">
           <table>
             <thead>
               <tr>
                 <th>Status</th>
+                <th>Tee Time</th>
+                <th>Group</th>
                 <th>Name</th>
                 <th>HI</th>
                 <th>Paid</th>
@@ -1104,21 +1462,35 @@ export default function Players({
                   </td>
                 </tr>
               ) : (
-                players.map((player) => (
-                  <tr key={player.id}>
-                    <td>
-                      {player.status}
-                    </td>
+                players.map((player) => {
+                  const startListPlayer =
+                    player as DisplayPlayer;
+
+                  return (
+                    <tr key={player.id}>
+                      <td>
+                        {player.status === "Waiting"
+                          ? `Reserves #${reservePositionForPlayer(player.id) ?? ""}`
+                          : "Registered"}
+                      </td>
+
+                      <td>
+                        {startListPlayer.teeTime || ""}
+                      </td>
+
+                      <td>
+                        {startListPlayer.group || ""}
+                      </td>
+
+                      <td>
+                        {player.firstName}{" "}
+                        {player.lastName}
+                      </td>
 
                     <td>
-                      {player.firstName}{" "}
-                      {player.lastName}
-                    </td>
-
-                    <td>
-                      {player.handicapIndex < 0
-                        ? `+${Math.abs(player.handicapIndex).toFixed(1)}`
-                        : player.handicapIndex.toFixed(1)}
+                      {player.handicapIndex.toFixed(
+                        1
+                      )}
                     </td>
 
                     <td>
@@ -1131,12 +1503,12 @@ export default function Players({
                       {player.source}
                     </td>
 
-                    <td>
-                      {player.notes}
-                    </td>
+                      <td>
+                        {player.notes}
+                      </td>
 
-                    <td>
-                      <button
+                      <td>
+                        <button
                         className="icon-button"
                         title="Delete Player"
                         onClick={() =>
@@ -1146,10 +1518,11 @@ export default function Players({
                         }
                       >
                         <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -1211,27 +1584,22 @@ export default function Players({
 
               <div>
                 <label>
-                  Status
+                  Registration Status
                 </label>
 
-                <select
-                  value={status}
-                  onChange={(e) =>
-                    setStatus(
-                      e.target.value as
-                        | "Registered"
-                        | "Waiting"
-                    )
-                  }
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    border: "1px solid #dbe6f3",
+                    borderRadius: "8px",
+                    background: "#f7faff",
+                    color: "#374151",
+                  }}
                 >
-                  <option>
-                    Registered
-                  </option>
-
-                  <option>
-                    Waiting
-                  </option>
-                </select>
+                  {registeredPlayers < EVENT_CAPACITY
+                    ? "Registered — place available"
+                    : "Reserves — event at capacity"}
+                </div>
               </div>
 
               <div>
