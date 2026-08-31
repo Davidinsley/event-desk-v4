@@ -14,7 +14,6 @@ import {
   Image,
   Send,
   Printer,
-  FileText,
   Lock,
 } from "lucide-react";
 
@@ -515,9 +514,11 @@ export default function ReviewPublish({
               </h2>
 
               <p>
-                {published || archived
-                  ? "Create an output from the current final event record."
-                  : "Publish or republish the event before creating an output."}
+                {archived
+                  ? "Create an output from the archived event record."
+                  : published
+                  ? "Create an output from the current official event record."
+                  : "Preview the current event information before publication."}
               </p>
 
             </div>
@@ -542,10 +543,6 @@ export default function ReviewPublish({
             <button
               type="button"
               className="output-button"
-              disabled={
-                !published &&
-                !archived
-              }
               onClick={() =>
                 onNavigate("eventOutput")
               }
@@ -568,52 +565,9 @@ export default function ReviewPublish({
             </button>
 
 
-            <button
-              type="button"
-              className="output-button"
-              disabled={
-                !published &&
-                !archived
-              }
-              onClick={() =>
-                onNavigate("eventOutput")
-              }
-            >
-
-              <FileText size={21} />
-
-              <span>
-
-                <strong>
-                  Create PDF
-                </strong>
-
-                <small>
-                  Create a PDF from the event record
-                </small>
-
-              </span>
-
-            </button>
 
           </div>
 
-
-          {!published &&
-            !archived && (
-
-            <div className="output-warning">
-
-              <AlertCircle size={20} />
-
-              <span>
-                Publish or republish the event before
-                producing an output.
-              </span>
-
-            </div>
-
-          )}
 
         </div>
 

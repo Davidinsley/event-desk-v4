@@ -1750,6 +1750,8 @@ export default function App() {
             <EventOutput
               event={event}
               players={players}
+              published={isCurrentlyPublished}
+              archived={archived}
               onBack={() =>
                 setCurrentPage(
                   "reviewPublish"
