@@ -2,6 +2,8 @@ import { useState } from "react";
 import "./NewEvent.css";
 
 import type { Player } from "../types/Player";
+import type { Event } from "../types/Event";
+import type { DrawPreviewData } from "./DrawPreview";
 
 import PageLayout from "../layout/PageLayout";
 import SummaryCard from "../ui/SummaryCard";
@@ -20,7 +22,9 @@ import {
 } from "lucide-react";
 
 interface FieldManagementProps {
+  event: Event;
   players: Player[];
+  onExportPrint: (data: DrawPreviewData) => void;
 }
 
 type DrawMethod =
@@ -1142,7 +1146,9 @@ function formatHI(
 }
 
 export default function FieldManagement({
+  event,
   players,
+  onExportPrint,
 }: FieldManagementProps) {
   const registeredPlayers =
     players.filter(
@@ -2118,6 +2124,105 @@ export default function FieldManagement({
       ? "Confirm Round 1"
       : "Conduct / Confirm";
 
+  function buildDrawPreview(): DrawPreviewData {
+    const selectedTitle =
+      drawMethods.find(
+        (method) =>
+          method.key === selectedMethod
+      )?.title ?? "Draw";
+
+    const subtitleParts = [
+      event.eventDate
+        ? `Date: ${event.eventDate}`
+        : "",
+      event.venue
+        ? `Venue: ${event.venue}`
+        : "",
+      event.competition
+        ? `Competition: ${event.competition}`
+        : "",
+    ].filter(Boolean);
+
+    if (
+      (
+        selectedMethod === "singles" ||
+        selectedMethod === "pairs"
+      ) &&
+      knockoutBracket
+    ) {
+      const matches =
+        knockoutBracket.matches.map(
+          (match) => ({
+            round:
+              knockoutRoundName(
+                match.round,
+                knockoutBracket.rounds
+              ),
+            match:
+              `Match ${match.matchNumber}`,
+            playerA:
+              match.slotA.playerName ??
+              "Blank",
+            playerB:
+              match.slotB.playerName ??
+              "Blank",
+          })
+        );
+
+      return {
+        title: selectedTitle,
+        subtitle:
+          subtitleParts.length > 0
+            ? subtitleParts.join(" • ")
+            : "Knockout draw",
+        matches,
+      };
+    }
+
+    const sourceRows =
+      proposedDraw.length > 0
+        ? proposedDraw
+        : confirmedDraw;
+
+    const rows =
+      sourceRows.map((player) => ({
+        group:
+          player.groupNumber.toString(),
+        player:
+          `${player.firstName} ${player.lastName}`.trim(),
+        hi:
+          formatHI(
+            player.handicapIndex
+          ),
+        score:
+          selectedMethod === "gross" &&
+          grossStage === "round2"
+            ? getRoundOneGross(
+                player.id
+              )
+            : selectedMethod === "nett" &&
+              nettStage === "round2"
+            ? getNettScore(
+                player.id
+              )
+            : undefined,
+        status:
+          drawConfirmed
+            ? "Confirmed"
+            : "Proposed",
+      }));
+
+    return {
+      title:
+        selectedTitle,
+      subtitle:
+        subtitleParts.length > 0
+          ? subtitleParts.join(" • ")
+          : "Field draw",
+      rows,
+    };
+  }
+
   const controls = (
     <div
       className="page-actions"
@@ -2181,6 +2286,16 @@ export default function FieldManagement({
       <ActionTile
         icon={Printer}
         title="Export / Print"
+        disabled={
+          proposedDraw.length === 0 &&
+          confirmedDraw.length === 0 &&
+          knockoutBracket === null
+        }
+        onClick={() =>
+          onExportPrint(
+            buildDrawPreview()
+          )
+        }
       />
     </div>
   );

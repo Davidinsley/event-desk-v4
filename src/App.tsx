@@ -17,6 +17,8 @@ import Posters from "./components/Posters";
 import PosterPreview from "./components/PosterPreview";
 import ReviewPublish from "./components/ReviewPublish";
 import EventOutput from "./components/EventOutput";
+import DrawPreview from "./components/DrawPreview";
+import type { DrawPreviewData } from "./components/DrawPreview";
 
 const EVENT_KEY = "eventDeskEvent";
 const PLAYERS_KEY = "eventDeskPlayers";
@@ -383,6 +385,9 @@ export default function App() {
 
   const [previewPosterId, setPreviewPosterId] =
     useState<string | null>(null);
+
+  const [drawPreviewData, setDrawPreviewData] =
+    useState<DrawPreviewData | null>(null);
 
   const [published, setPublished] =
     useState(() => {
@@ -945,6 +950,7 @@ export default function App() {
     setPlayers(record.players);
     setAttachedPosterId(record.attachedPosterId);
     setPreviewPosterId(null);
+    setDrawPreviewData(null);
     setPublished(record.published);
     setPublishedSnapshot(record.publishedSnapshot);
     setPublicationMeta(record.publicationMeta);
@@ -986,6 +992,7 @@ export default function App() {
     setPlayers([]);
     setAttachedPosterId(null);
     setPreviewPosterId(null);
+    setDrawPreviewData(null);
     setPublished(false);
     setPublishedSnapshot(null);
     setPublicationMeta({
@@ -1098,6 +1105,7 @@ export default function App() {
     setPlayers(record.players);
     setAttachedPosterId(record.attachedPosterId);
     setPreviewPosterId(null);
+    setDrawPreviewData(null);
     setPublished(record.published);
     setPublishedSnapshot(record.publishedSnapshot);
     setPublicationMeta(record.publicationMeta);
@@ -1113,6 +1121,10 @@ export default function App() {
     if (page === "eventManager") {
       handleOpenEventManager();
       return;
+    }
+
+    if (page !== "drawPreview") {
+      setDrawPreviewData(null);
     }
 
     setCurrentPage(page);
@@ -1145,10 +1157,14 @@ export default function App() {
   const eventOpen =
     currentPage !== "dashboard" &&
     currentPage !== "eventManager" &&
-    currentPage !== "posterPreview";
+    currentPage !== "posterPreview" &&
+    currentPage !== "drawPreview";
 
   const appMode =
-    currentPage === "posterPreview"
+    (
+      currentPage === "posterPreview" ||
+      currentPage === "drawPreview"
+    )
       ? "preview-mode"
       : eventOpen
       ? "event-mode"
@@ -1334,7 +1350,10 @@ export default function App() {
 
       <main
         className={
-          currentPage === "posterPreview"
+          (
+            currentPage === "posterPreview" ||
+            currentPage === "drawPreview"
+          )
             ? "preview-main"
             : "main"
         }
@@ -1621,7 +1640,12 @@ export default function App() {
 
           {currentPage === "field" && (
               <FieldManagement
+                event={event}
                 players={players}
+                onExportPrint={(data) => {
+                  setDrawPreviewData(data);
+                  setCurrentPage("drawPreview");
+                }}
               />
             )}
 
@@ -1660,6 +1684,19 @@ export default function App() {
                 );
 
                 setCurrentPage("new");
+              }}
+            />
+          )}
+
+          {currentPage ===
+            "drawPreview" &&
+            drawPreviewData && (
+            <DrawPreview
+              event={event}
+              data={drawPreviewData}
+              onBack={() => {
+                setDrawPreviewData(null);
+                setCurrentPage("field");
               }}
             />
           )}
