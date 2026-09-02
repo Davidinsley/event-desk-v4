@@ -1,3 +1,4 @@
+// Revision: Event Media gallery — display and support up to 3 attached posters
 // NewEvent.tsx
 
 // Ramsdale Seniors Event Desk
@@ -22,6 +23,7 @@ import PageLayout from "../layout/PageLayout";
 import SummaryCard from "../ui/SummaryCard";
 
 import ActionTile from "../ui/ActionTile";
+import { getPosterLibrary, type PosterItem } from "../posterStorage";
 
 import {
 
@@ -43,7 +45,7 @@ interface NewEventProps {
 
   players: Player[];
 
-  attachedPosterId: string | null;
+  attachedPosterIds: string[];
 
   onAttachPoster: () => void;
 
@@ -52,6 +54,7 @@ interface NewEventProps {
   canDelete: boolean;
 
 }
+
 
 const DEFAULT_VENUE = "Ramsdale Park Golf Club";
 
@@ -279,7 +282,7 @@ export default function NewEvent({
 
   players,
 
-  attachedPosterId,
+  attachedPosterIds = [],
 
   onAttachPoster,
 
@@ -319,6 +322,51 @@ export default function NewEvent({
 
     [event.eventDate]
 
+  );
+
+  const attachedPosterId =
+    attachedPosterIds[0] ?? null;
+
+  const [posterLibrary, setPosterLibrary] =
+    useState<PosterItem[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPosters = async () => {
+      try {
+        const stored = await getPosterLibrary();
+        if (!cancelled) {
+          setPosterLibrary(stored);
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load poster library for Event Details",
+          error
+        );
+      }
+    };
+
+    void loadPosters();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const attachedPosters = useMemo(
+    () =>
+      attachedPosterIds
+        .map((posterId) =>
+          posterLibrary.find(
+            (poster) => poster.id === posterId
+          )
+        )
+        .filter(
+          (poster): poster is PosterItem =>
+            Boolean(poster)
+        ),
+    [attachedPosterIds, posterLibrary]
   );
 
   useEffect(() => {
@@ -453,7 +501,7 @@ export default function NewEvent({
 
   const handleSaveClick = () => {
 
-    if (!attachedPosterId) {
+    if (attachedPosterIds.length === 0) {
 
       setShowPosterWarning(true);
 
@@ -2076,169 +2124,150 @@ export default function NewEvent({
           </div>
 
           <div className="event-poster-section">
-
             <h2>
-
               Event Media
-
             </h2>
 
             <div
-
               className="poster-attachment-box"
-
               style={{
-
                 minHeight: "260px",
-
-                border:
-
-                  "2px dashed #cfe0f5",
-
+                border: "2px dashed #cfe0f5",
                 borderRadius: "14px",
-
-                background:
-
-                  "#f8fbff",
-
-                display: "flex",
-
-                flexDirection:
-
-                  "column",
-
-                alignItems:
-
-                  "center",
-
-                justifyContent:
-
-                  "center",
-
-                textAlign: "center",
-
-                padding: "30px",
-
+                background: "#f8fbff",
+                padding: "24px",
                 marginTop: "12px",
-
               }}
-
             >
+              {attachedPosters.length > 0 ? (
+                <>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        attachedPosters.length === 1
+                          ? "minmax(180px, 320px)"
+                          : "repeat(3, minmax(0, 1fr))",
+                      gap: "18px",
+                      alignItems: "start",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {attachedPosters.map((poster) => (
+                      <div
+                        key={poster.id}
+                        style={{
+                          background: "white",
+                          border: "1px solid #d7e6f7",
+                          borderRadius: "10px",
+                          padding: "10px",
+                          boxShadow:
+                            "0 2px 8px rgba(31,91,159,0.08)",
+                        }}
+                      >
+                        <img
+                          src={poster.image}
+                          alt={poster.title}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            maxHeight:
+                              attachedPosters.length === 1
+                                ? "420px"
+                                : "300px",
+                            objectFit: "contain",
+                            borderRadius: "6px",
+                            background: "#f5f7fa",
+                          }}
+                        />
+                        <div
+                          style={{
+                            marginTop: "8px",
+                            color: "#225ca8",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            textAlign: "center",
+                          }}
+                        >
+                          {poster.title}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-              <div
+                  <p
+                    style={{
+                      margin: "18px 0 16px",
+                      color: "#666",
+                      fontSize: "14px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {attachedPosters.length === 1
+                      ? "1 promotional asset is attached to this event."
+                      : `${attachedPosters.length} promotional assets are attached to this event.`}
+                  </p>
+                </>
+              ) : (
+                <div
+                  style={{
+                    minHeight: "190px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "96px",
+                      height: "96px",
+                      borderRadius: "10px",
+                      background: "#eef5fd",
+                      border: "1px solid #d7e6f7",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "42px",
+                      marginBottom: "18px",
+                    }}
+                  >
+                    🖼️
+                  </div>
+                  <h3
+                    style={{
+                      margin: "0 0 8px 0",
+                      color: "#225ca8",
+                      fontSize: "21px",
+                    }}
+                  >
+                    No Event Media Attached
+                  </h3>
+                  <p
+                    style={{
+                      margin: "0 0 20px 0",
+                      color: "#666",
+                      fontSize: "15px",
+                    }}
+                  >
+                    A promotional asset is normally required for an event.
+                  </p>
+                </div>
+              )}
 
-                style={{
-
-                  width: "96px",
-
-                  height: "96px",
-
-                  borderRadius: "10px",
-
-                  background:
-
-                    "#eef5fd",
-
-                  border:
-
-                    "1px solid #d7e6f7",
-
-                  display: "flex",
-
-                  alignItems:
-
-                    "center",
-
-                  justifyContent:
-
-                    "center",
-
-                  fontSize: "42px",
-
-                  marginBottom:
-
-                    "18px",
-
-                }}
-
-              >
-
-                🖼️
-
+              <div style={{ textAlign: "center" }}>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={onAttachPoster}
+                >
+                  {attachedPosters.length > 0
+                    ? "Change Media"
+                    : "Attach Event Media"}
+                </button>
               </div>
-
-              <h3
-
-                style={{
-
-                  margin:
-
-                    "0 0 8px 0",
-
-                  color: "#225ca8",
-
-                  fontSize: "21px",
-
-                }}
-
-              >
-
-                {attachedPosterId
-
-                  ? "Event Media Attached"
-
-                  : "No Event Media Attached"}
-
-              </h3>
-
-              <p
-
-                style={{
-
-                  margin:
-
-                    "0 0 20px 0",
-
-                  color: "#666",
-
-                  fontSize: "15px",
-
-                }}
-
-              >
-
-                {attachedPosterId
-
-                  ? "A promotional asset is attached to this event."
-
-                  : "A promotional asset is normally required for an event."}
-
-              </p>
-
-              <button
-
-                type="button"
-
-                className="primary-button"
-
-                onClick={
-
-                  onAttachPoster
-
-                }
-
-              >
-
-                {attachedPosterId
-
-                  ? "Change Media"
-
-                  : "Attach Event Media"}
-
-              </button>
-
             </div>
-
           </div>
 
         </div>

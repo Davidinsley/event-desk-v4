@@ -1,3 +1,4 @@
+// Revision: Multi-poster Event Media support — up to 3 posters per event
 import { useEffect, useState } from "react";
 
 import "./App.css";
@@ -53,6 +54,7 @@ interface PublishedSnapshot {
   event: Event;
   players: Player[];
   attachedPosterId: string | null;
+  attachedPosterIds: string[];
 }
 
 interface PublicationMeta {
@@ -72,6 +74,7 @@ interface EventRecord {
   event: Event;
   players: Player[];
   attachedPosterId: string | null;
+  attachedPosterIds: string[];
   published: boolean;
   publishedSnapshot: PublishedSnapshot | null;
   publicationMeta: PublicationMeta;
@@ -88,6 +91,7 @@ const createEventRecord = (event: Event): EventRecord => ({
   event,
   players: [],
   attachedPosterId: null,
+  attachedPosterIds: [],
   published: false,
   publishedSnapshot: null,
   publicationMeta: {
@@ -112,6 +116,18 @@ const loadInitialEventRecords = (): EventRecord[] => {
         const today = new Date();
 
         return parsed.map((record) => {
+          const migratedPosterIds = Array.isArray(record?.attachedPosterIds)
+            ? record.attachedPosterIds.filter((id: unknown): id is string => typeof id === "string")
+            : record?.attachedPosterId
+            ? [record.attachedPosterId]
+            : [];
+
+          record = {
+            ...record,
+            attachedPosterIds: migratedPosterIds,
+            attachedPosterId: migratedPosterIds[0] ?? null,
+          };
+
           if (!record?.archived) return record;
 
           const eventDate = record.event?.eventDate
@@ -171,7 +187,8 @@ const loadInitialEventRecords = (): EventRecord[] => {
           id: archivedEvent.snapshot.event.eventNumber,
           event: archivedEvent.snapshot.event,
           players: archivedEvent.snapshot.players,
-          attachedPosterId: archivedEvent.snapshot.attachedPosterId,
+          attachedPosterId: archivedEvent.snapshot.attachedPosterIds?.[0] ?? archivedEvent.snapshot.attachedPosterId,
+          attachedPosterIds: archivedEvent.snapshot.attachedPosterIds ?? (archivedEvent.snapshot.attachedPosterId ? [archivedEvent.snapshot.attachedPosterId] : []),
           published: true,
           publishedSnapshot: archivedEvent.snapshot,
           publicationMeta: archivedEvent.publicationMeta,
@@ -187,6 +204,7 @@ const loadInitialEventRecords = (): EventRecord[] => {
         event,
         players,
         attachedPosterId: savedPoster,
+        attachedPosterIds: savedPoster ? [savedPoster] : [],
         published: savedPublished,
         publishedSnapshot: savedSnapshot
           ? JSON.parse(savedSnapshot)
@@ -370,18 +388,26 @@ export default function App() {
       }
     });
 
-  const [attachedPosterId, setAttachedPosterId] =
-    useState<string | null>(() => {
+  const [attachedPosterIds, setAttachedPosterIds] =
+    useState<string[]>(() => {
       if (activeEventRecord) {
-        return activeEventRecord.attachedPosterId;
+        if (Array.isArray(activeEventRecord.attachedPosterIds)) {
+          return activeEventRecord.attachedPosterIds;
+        }
+        return activeEventRecord.attachedPosterId
+          ? [activeEventRecord.attachedPosterId]
+          : [];
       }
 
       try {
-        return localStorage.getItem(POSTER_KEY);
+        const savedPoster = localStorage.getItem(POSTER_KEY);
+        return savedPoster ? [savedPoster] : [];
       } catch {
-        return null;
+        return [];
       }
     });
+
+  const attachedPosterId = attachedPosterIds[0] ?? null;
 
   const [previewPosterId, setPreviewPosterId] =
     useState<string | null>(null);
@@ -496,7 +522,7 @@ export default function App() {
     try {
       const persistedRecords = eventRecords.map((record) =>
         record.id === activeEventId
-          ? { ...record, event, attachedPosterId, published, publishedSnapshot, publicationMeta, archived }
+          ? { ...record, event, attachedPosterId, attachedPosterIds, published, publishedSnapshot, publicationMeta, archived }
           : record
       );
 
@@ -531,6 +557,7 @@ export default function App() {
     currentWorkingEventId,
     event,
     attachedPosterId,
+    attachedPosterIds,
     published,
     publishedSnapshot,
     publicationMeta,
@@ -591,15 +618,13 @@ export default function App() {
     }
 
     try {
-      if (attachedPosterId) {
+      if (attachedPosterIds.length > 0) {
         localStorage.setItem(
           POSTER_KEY,
-          attachedPosterId
+          attachedPosterIds[0]
         );
       } else {
-        localStorage.removeItem(
-          POSTER_KEY
-        );
+        localStorage.removeItem(POSTER_KEY);
       }
     } catch (error) {
       console.error(
@@ -607,7 +632,7 @@ export default function App() {
         error
       );
     }
-  }, [attachedPosterId, archived]);
+  }, [attachedPosterIds, archived]);
 
   /*
    * SAVE PUBLICATION HISTORY
@@ -635,6 +660,7 @@ export default function App() {
     event,
     players,
     attachedPosterId,
+    attachedPosterIds,
   };
 
   /*
@@ -888,6 +914,7 @@ export default function App() {
     event,
     players,
     attachedPosterId,
+    attachedPosterIds,
     published,
     publishedSnapshot,
     publicationMeta,
@@ -948,7 +975,7 @@ export default function App() {
 
     setEvent(record.event);
     setPlayers(record.players);
-    setAttachedPosterId(record.attachedPosterId);
+    setAttachedPosterIds(record.attachedPosterIds ?? (record.attachedPosterId ? [record.attachedPosterId] : []));
     setPreviewPosterId(null);
     setDrawPreviewData(null);
     setPublished(record.published);
@@ -990,7 +1017,7 @@ export default function App() {
     setCurrentWorkingEventId(newRecord.id);
     setEvent(newEvent);
     setPlayers([]);
-    setAttachedPosterId(null);
+    setAttachedPosterIds([]);
     setPreviewPosterId(null);
     setDrawPreviewData(null);
     setPublished(false);
@@ -1072,7 +1099,7 @@ export default function App() {
 
       setEvent(nextRecord.event);
       setPlayers(nextRecord.players);
-      setAttachedPosterId(nextRecord.attachedPosterId);
+      setAttachedPosterIds(nextRecord.attachedPosterIds ?? (nextRecord.attachedPosterId ? [nextRecord.attachedPosterId] : []));
       setPreviewPosterId(null);
       setPublished(nextRecord.published);
       setPublishedSnapshot(nextRecord.publishedSnapshot);
@@ -1103,7 +1130,7 @@ export default function App() {
     setActiveEventId(record.id);
     setEvent(record.event);
     setPlayers(record.players);
-    setAttachedPosterId(record.attachedPosterId);
+    setAttachedPosterIds(record.attachedPosterIds ?? (record.attachedPosterId ? [record.attachedPosterId] : []));
     setPreviewPosterId(null);
     setDrawPreviewData(null);
     setPublished(record.published);
@@ -1598,8 +1625,8 @@ export default function App() {
               event={event}
               players={players}
               setEvent={setEvent}
-              attachedPosterId={
-                attachedPosterId
+              attachedPosterIds={
+                attachedPosterIds
               }
               onAttachPoster={() =>
                 handleNavigate(
@@ -1659,7 +1686,7 @@ export default function App() {
           {currentPage === "posters" && (
             <Posters
               event={event}
-              attachedPosterId={attachedPosterId}
+              attachedPosterIds={attachedPosterIds}
               onPreview={(posterId) => {
 
                 setPreviewPosterId(
@@ -1670,7 +1697,7 @@ export default function App() {
                   "posterPreview"
                 );
               }}
-              onAttach={(posterId) => {
+              onAttach={(posterIds) => {
 
                 if (archived) {
                   setCurrentPage(
@@ -1680,9 +1707,7 @@ export default function App() {
                   return;
                 }
 
-                setAttachedPosterId(
-                  posterId
-                );
+                setAttachedPosterIds(posterIds);
 
                 setCurrentPage("new");
               }}
