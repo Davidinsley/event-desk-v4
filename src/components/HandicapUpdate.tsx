@@ -31,6 +31,7 @@ export default function HandicapUpdate({
   setPlayers,
 }: HandicapUpdateProps) {
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
+  const [draftHI, setDraftHI] = useState<Record<string, string>>({});
 
   const registered = useMemo(
     () => players.filter((p) => p.status === "Registered"),
@@ -57,12 +58,48 @@ export default function HandicapUpdate({
   const allConfirmed =
     registered.length > 0 && outstanding === 0;
 
-  function updateHI(id: string, text: string) {
-    const raw = text.trim();
-    if (raw === "") return;
+  function startEditingHI(id: string, value: number) {
+    setDraftHI((current) => ({
+      ...current,
+      [id]: displayHI(value),
+    }));
+  }
+
+  function handleHIChange(id: string, text: string) {
+    // Do not parse or reformat while the user is typing.
+    // Keeping the draft as text prevents the cursor jumping
+    // and allows normal entry such as 22.0, 0.0 and +1.5.
+    setDraftHI((current) => ({
+      ...current,
+      [id]: text,
+    }));
+  }
+
+  function commitHI(id: string, fallbackValue: number) {
+    const draft = draftHI[id];
+
+    if (draft === undefined) return;
+
+    const raw = draft.trim();
+
+    if (raw === "") {
+      setDraftHI((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      return;
+    }
 
     const numeric = Number(raw);
-    if (!Number.isFinite(numeric)) return;
+
+    if (!Number.isFinite(numeric)) {
+      setDraftHI((current) => ({
+        ...current,
+        [id]: displayHI(fallbackValue),
+      }));
+      return;
+    }
 
     const value = raw.startsWith("+")
       ? -Math.abs(numeric)
@@ -83,6 +120,12 @@ export default function HandicapUpdate({
     setConfirmed((current) => {
       const next = new Set(current);
       next.delete(id);
+      return next;
+    });
+
+    setDraftHI((current) => {
+      const next = { ...current };
+      delete next[id];
       return next;
     });
   }
@@ -312,13 +355,29 @@ export default function HandicapUpdate({
                                 ? "plus-handicap"
                                 : ""
                             }`}
-                            value={displayHI(
-                              player.handicapIndex
-                            )}
+                            type="text"
+                            inputMode="decimal"
+                            value={
+                              draftHI[player.id] ??
+                              displayHI(player.handicapIndex)
+                            }
+                            onFocus={(e) => {
+                              startEditingHI(
+                                player.id,
+                                player.handicapIndex
+                              );
+                              e.currentTarget.select();
+                            }}
                             onChange={(e) =>
-                              updateHI(
+                              handleHIChange(
                                 player.id,
                                 e.target.value
+                              )
+                            }
+                            onBlur={() =>
+                              commitHI(
+                                player.id,
+                                player.handicapIndex
                               )
                             }
                             disabled={Boolean(

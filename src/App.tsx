@@ -1628,6 +1628,7 @@ export default function App() {
               <Players
                 players={players}
                 setPlayers={handlePlayersChange}
+                playerLimit={event.playerLimit}
               />
             )}
 

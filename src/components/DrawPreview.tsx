@@ -8,6 +8,7 @@ import {
 export interface DrawPreviewRow {
   group: string;
   player: string;
+  homeClub?: string;
   hi?: string;
   score?: string;
   status?: string;
@@ -66,6 +67,10 @@ export default function DrawPreview({
         : (data.rows ?? []).map(
             (row) =>
               `Group ${row.group}: ${row.player}${
+                row.homeClub
+                  ? ` — ${row.homeClub}`
+                  : ""
+              }${
                 row.score
                   ? ` — ${row.score}`
                   : ""
@@ -287,203 +292,121 @@ export default function DrawPreview({
         {hasBracket ? (
           <div
             style={{
-              width: "100%",
+              display: "flex",
+              gap: "18px",
               overflowX: "auto",
-              paddingBottom: "8px",
+              alignItems:
+                "flex-start",
+              paddingBottom: "6px",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "center",
-                gap: "18px",
-                minWidth: "900px",
-              }}
-            >
-              {Array.from(
-                new Set(
-                  (data.matches ?? []).map(
-                    (match) => match.round
-                  )
+            {Array.from(
+              new Set(
+                (data.matches ?? []).map(
+                  (match) =>
+                    match.round
                 )
-              ).map((round, roundIndex) => {
-                const matches =
-                  (data.matches ?? []).filter(
-                    (match) =>
-                      match.round === round
-                  );
+              )
+            ).map((round) => {
+              const matches =
+                (data.matches ?? []).filter(
+                  (match) =>
+                    match.round ===
+                    round
+                );
 
-                const compact =
-                  (data.matches?.length ?? 0) > 32;
-
-                const boxHeight =
-                  compact ? 64 : 82;
-                const gap =
-                  compact ? 8 : 14;
-                const step =
-                  boxHeight + gap;
-
-                const topOffset =
-                  roundIndex === 0
-                    ? 0
-                    : (
-                        step *
-                        (
-                          Math.pow(
-                            2,
-                            roundIndex
-                          ) - 1
-                        )
-                      ) / 2;
-
-                return (
-                  <section
-                    key={round}
+              return (
+                <section
+                  key={round}
+                  style={{
+                    minWidth: "240px",
+                    flex: "1 0 240px",
+                  }}
+                >
+                  <h2
                     style={{
-                      width: compact
-                        ? "190px"
-                        : "220px",
-                      minWidth: compact
-                        ? "190px"
-                        : "220px",
+                      margin:
+                        "0 0 12px",
+                      textAlign:
+                        "center",
+                      color: "#205b9f",
+                      fontSize:
+                        "17px",
                     }}
                   >
-                    <h2
-                      style={{
-                        height:
-                          compact
-                            ? "26px"
-                            : "30px",
-                        margin:
-                          "0 0 9px",
-                        textAlign:
-                          "center",
-                        color: "#205b9f",
-                        fontSize:
-                          compact
-                            ? "15px"
-                            : "17px",
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      {round}
-                    </h2>
+                    {round}
+                  </h2>
 
-                    <div
-                      style={{
-                        display:
-                          "flex",
-                        flexDirection:
-                          "column",
-                        gap:
-                          roundIndex === 0
-                            ? `${gap}px`
-                            : `${
-                                step *
-                                  Math.pow(
-                                    2,
-                                    roundIndex
-                                  ) -
-                                boxHeight
-                              }px`,
-                        paddingTop:
-                          `${topOffset}px`,
-                      }}
-                    >
-                      {matches.map(
-                        (match) => (
+                  <div
+                    style={{
+                      display:
+                        "flex",
+                      flexDirection:
+                        "column",
+                      gap:
+                        round === "Round 1"
+                          ? "10px"
+                          : "28px",
+                    }}
+                  >
+                    {matches.map(
+                      (match) => (
+                        <div
+                          key={`${round}-${match.match}`}
+                          style={{
+                            border:
+                              "1px solid #dbe7f3",
+                            borderRadius:
+                              "9px",
+                            padding:
+                              "10px 12px",
+                            background:
+                              "white",
+                          }}
+                        >
                           <div
-                            key={`${round}-${match.match}`}
                             style={{
-                              height:
-                                `${boxHeight}px`,
-                              border:
-                                "1px solid #dbe7f3",
-                              borderRadius:
-                                "9px",
-                              padding:
-                                compact
-                                  ? "7px 9px"
-                                  : "10px 12px",
-                              background:
-                                "white",
-                              boxSizing:
-                                "border-box",
-                              display:
-                                "flex",
-                              flexDirection:
-                                "column",
-                              justifyContent:
-                                "center",
+                              fontSize:
+                                "12px",
+                              color:
+                                "#64748b",
+                              marginBottom:
+                                "6px",
                             }}
                           >
-                            <div
-                              style={{
-                                fontSize:
-                                  compact
-                                    ? "10px"
-                                    : "12px",
-                                color:
-                                  "#64748b",
-                                marginBottom:
-                                  "5px",
-                              }}
-                            >
-                              {match.match}
-                            </div>
-
-                            <div
-                              style={{
-                                minHeight:
-                                  compact
-                                    ? "20px"
-                                    : "24px",
-                                padding:
-                                  "3px 0",
-                                borderBottom:
-                                  "1px solid #eef2f7",
-                                fontSize:
-                                  compact
-                                    ? "11px"
-                                    : "14px",
-                                display:
-                                  "flex",
-                                alignItems:
-                                  "center",
-                              }}
-                            >
-                              {match.playerA}
-                            </div>
-
-                            <div
-                              style={{
-                                minHeight:
-                                  compact
-                                    ? "20px"
-                                    : "24px",
-                                padding:
-                                  "3px 0",
-                                fontSize:
-                                  compact
-                                    ? "11px"
-                                    : "14px",
-                                display:
-                                  "flex",
-                                alignItems:
-                                  "center",
-                              }}
-                            >
-                              {match.playerB}
-                            </div>
+                            {match.match}
                           </div>
-                        )
-                      )}
-                    </div>
-                  </section>
-                );
-              })}
-            </div>
+
+                          <div
+                            style={{
+                              minHeight:
+                                "24px",
+                              padding:
+                                "4px 0",
+                              borderBottom:
+                                "1px solid #eef2f7",
+                            }}
+                          >
+                            {match.playerA}
+                          </div>
+
+                          <div
+                            style={{
+                              minHeight:
+                                "24px",
+                              padding:
+                                "4px 0",
+                            }}
+                          >
+                            {match.playerB}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         ) : (
           <table
@@ -518,6 +441,18 @@ export default function DrawPreview({
                   }}
                 >
                   Player
+                </th>
+
+                <th
+                  style={{
+                    textAlign: "left",
+                    padding: "11px",
+                    background:
+                      "#eef5fc",
+                    color: "#3f4d63",
+                  }}
+                >
+                  Home Club
                 </th>
 
                 <th
@@ -593,6 +528,17 @@ export default function DrawPreview({
                       }}
                     >
                       {row.player}
+                    </td>
+
+                    <td
+                      style={{
+                        padding:
+                          "9px 11px",
+                        borderBottom:
+                          "1px solid #e5e7eb",
+                      }}
+                    >
+                      {row.homeClub ?? ""}
                     </td>
 
                     <td

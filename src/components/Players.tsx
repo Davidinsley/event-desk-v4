@@ -1,6 +1,6 @@
 // Players.tsx
 // Event Desk - Players Management
-// Revision: CSV + Excel + Start List Import + Tee Time / Group Preservation + Optional Handicap + Optional Home Club + PDF Export
+// Revision: CSV + Excel + Start List merge + Home Club / Tee Time / Group preservation + Event capacity + PDF Export + Home Club verification + Legacy Club compatibility
 
 import { useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -24,6 +24,7 @@ import {
 interface PlayersProps {
   players: Player[];
   setPlayers: React.Dispatch<React.SetStateAction<Player[]>>;
+  playerLimit: number;
 }
 
 type CsvRow = Record<string, string>;
@@ -32,11 +33,13 @@ type DisplayPlayer = Player & {
   teeTime?: string;
   group?: string;
   homeClub?: string;
+  club?: string;
 };
 
 export default function Players({
   players,
   setPlayers,
+  playerLimit,
 }: PlayersProps) {
   const [showAddPlayer, setShowAddPlayer] =
     useState(false);
@@ -210,6 +213,19 @@ export default function Players({
     return "";
   }
 
+  // Home Club compatibility helper. Older player records may have stored
+  // the value as `club` rather than `homeClub`. Always prefer the current
+  // `homeClub` field, but fall back to the legacy field so existing data is
+  // not lost and the Players table / Start List export can display it.
+  function getPlayerHomeClub(player: Player): string {
+    const displayPlayer = player as DisplayPlayer;
+    return (
+      displayPlayer.homeClub?.trim() ||
+      displayPlayer.club?.trim() ||
+      ""
+    );
+  }
+
   function parsePaidValue(value: string): boolean {
     const normalised = value
       .trim()
@@ -338,9 +354,39 @@ export default function Players({
           "Paid",
         ]);
 
+      // Optional Start List fields. These must be carried through CSV and
+      // Excel imports so an imported player register can populate the
+      // Players / Start List export without creating duplicate players.
+      const teeTime = getCsvValue(row, [
+        "Tee Time",
+        "Start Time",
+        "Start",
+        "Time",
+      ]);
+
+      const group = getCsvValue(row, [
+        "Group",
+        "Group Number",
+        "Group No",
+        "Fourball",
+        "Fourball Number",
+        "Fourball No",
+      ]);
+
+      const homeClub = getCsvValue(row, [
+        "Home Club",
+        "HomeClub",
+        "Golf Club",
+        "Home Golf Club",
+        "Club",
+        "Club Affiliation",
+        "Home Club Name",
+      ]);
+
       const notesValue =
         getCsvValue(row, [
           "Notes",
+          "Source Notes",
         ]);
 
       importedPlayers.push({
@@ -355,7 +401,10 @@ export default function Players({
         source: importedSource,
         paid: parsePaidValue(paidValue),
         notes: notesValue,
-      });
+        teeTime,
+        group,
+        homeClub,
+      } as Player);
     });
 
     return {
@@ -407,21 +456,83 @@ export default function Players({
           return;
         }
 
-        setPlayers((current) => [
-          ...current,
-          ...applyCapacityToNewPlayers(
-            current,
-            importedPlayers
-          ),
-        ]);
+        // Merge imported CSV rows into existing players by first + last
+        // name. This is important when the register already contains the
+        // players and the CSV is being used to add Home Club / Start List
+        // information. Do not create a second copy of the players.
+        let updatedCount = 0;
+        let addedCount = 0;
+        let homeClubCount = 0;
+
+        setPlayers((current) => {
+          const next = [...current];
+
+          importedPlayers.forEach((imported) => {
+            const first = imported.firstName.trim().toLowerCase();
+            const last = imported.lastName.trim().toLowerCase();
+
+            const existingIndex = next.findIndex(
+              (player) =>
+                player.firstName.trim().toLowerCase() === first &&
+                player.lastName.trim().toLowerCase() === last
+            );
+
+            if (existingIndex === -1) {
+              const registeredCount = next.filter(
+                (player) => player.status === "Registered"
+              ).length;
+
+              next.push({
+                ...imported,
+                status:
+                  registeredCount < EVENT_CAPACITY
+                    ? "Registered"
+                    : "Waiting",
+              } as Player);
+              addedCount += 1;
+              return;
+            }
+
+            const existing = next[existingIndex];
+            const importedDisplay = imported as DisplayPlayer;
+
+            if ((importedDisplay.homeClub || "").trim() !== "") {
+              homeClubCount += 1;
+            }
+
+            next[existingIndex] = {
+              ...existing,
+              handicapIndex: imported.handicapIndex,
+              source: "CSV",
+              paid: existing.paid,
+              notes:
+                imported.notes.trim() !== ""
+                  ? imported.notes
+                  : existing.notes,
+              ...(importedDisplay.teeTime !== undefined
+                ? { teeTime: importedDisplay.teeTime }
+                : {}),
+              ...(importedDisplay.group !== undefined
+                ? { group: importedDisplay.group }
+                : {}),
+              ...(importedDisplay.homeClub?.trim()
+                ? { homeClub: importedDisplay.homeClub.trim() }
+                : { homeClub: getPlayerHomeClub(existing) }),
+            } as Player;
+
+            updatedCount += 1;
+          });
+
+          return next;
+        });
 
         if (skipped > 0) {
           alert(
-            `${importedPlayers.length} player(s) imported successfully.\n\n${skipped} row(s) were skipped because they were missing a first name or last name.`
+            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.\n${homeClubCount} Home Club value(s) imported.\n\n${skipped} row(s) were skipped because they were missing a first name or last name.`
           );
         } else {
           alert(
-            `${importedPlayers.length} player(s) imported successfully.`
+            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.\n${homeClubCount} Home Club value(s) imported.`
           );
         }
       } catch (error) {
@@ -521,21 +632,83 @@ export default function Players({
           return;
         }
 
-        setPlayers((current) => [
-          ...current,
-          ...applyCapacityToNewPlayers(
-            current,
-            importedPlayers
-          ),
-        ]);
+        // Merge imported CSV rows into existing players by first + last
+        // name. This is important when the register already contains the
+        // players and the CSV is being used to add Home Club / Start List
+        // information. Do not create a second copy of the players.
+        let updatedCount = 0;
+        let addedCount = 0;
+        let homeClubCount = 0;
+
+        setPlayers((current) => {
+          const next = [...current];
+
+          importedPlayers.forEach((imported) => {
+            const first = imported.firstName.trim().toLowerCase();
+            const last = imported.lastName.trim().toLowerCase();
+
+            const existingIndex = next.findIndex(
+              (player) =>
+                player.firstName.trim().toLowerCase() === first &&
+                player.lastName.trim().toLowerCase() === last
+            );
+
+            if (existingIndex === -1) {
+              const registeredCount = next.filter(
+                (player) => player.status === "Registered"
+              ).length;
+
+              next.push({
+                ...imported,
+                status:
+                  registeredCount < EVENT_CAPACITY
+                    ? "Registered"
+                    : "Waiting",
+              } as Player);
+              addedCount += 1;
+              return;
+            }
+
+            const existing = next[existingIndex];
+            const importedDisplay = imported as DisplayPlayer;
+
+            if ((importedDisplay.homeClub || "").trim() !== "") {
+              homeClubCount += 1;
+            }
+
+            next[existingIndex] = {
+              ...existing,
+              handicapIndex: imported.handicapIndex,
+              source: "Excel",
+              paid: existing.paid,
+              notes:
+                imported.notes.trim() !== ""
+                  ? imported.notes
+                  : existing.notes,
+              ...(importedDisplay.teeTime !== undefined
+                ? { teeTime: importedDisplay.teeTime }
+                : {}),
+              ...(importedDisplay.group !== undefined
+                ? { group: importedDisplay.group }
+                : {}),
+              ...(importedDisplay.homeClub?.trim()
+                ? { homeClub: importedDisplay.homeClub.trim() }
+                : { homeClub: getPlayerHomeClub(existing) }),
+            } as Player;
+
+            updatedCount += 1;
+          });
+
+          return next;
+        });
 
         if (skipped > 0) {
           alert(
-            `${importedPlayers.length} player(s) imported successfully.\n\n${skipped} row(s) were skipped because they were missing a first name or last name.`
+            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.\n${homeClubCount} Home Club value(s) imported.\n\n${skipped} row(s) were skipped because they were missing a first name or last name.`
           );
         } else {
           alert(
-            `${importedPlayers.length} player(s) imported successfully.`
+            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.\n${homeClubCount} Home Club value(s) imported.`
           );
         }
       } catch (error) {
@@ -909,7 +1082,10 @@ export default function Players({
                   : existing.notes,
               teeTime: imported.teeTime,
               group: imported.group,
-              homeClub: imported.homeClub,
+              homeClub:
+                imported.homeClub?.trim()
+                  ? imported.homeClub.trim()
+                  : getPlayerHomeClub(existing),
             };
 
             next[existingIndex] = updatedPlayer as Player;
@@ -959,8 +1135,10 @@ export default function Players({
   // --------------------------------------------------
   // Registration / Reserves Rules
   // --------------------------------------------------
-
-  const EVENT_CAPACITY = 76;
+  // The event itself owns the capacity. Do not hard-code a
+  // registration limit here: different events can have different
+  // field sizes (for example, the Ramsdale Seniors Open has 120).
+  const EVENT_CAPACITY = Math.max(0, Number(playerLimit) || 0);
 
   function reservePositionForPlayer(
     playerId: string
@@ -972,31 +1150,6 @@ export default function Players({
     const index = reserveIds.indexOf(playerId);
 
     return index === -1 ? null : index + 1;
-  }
-
-  function applyCapacityToNewPlayers(
-    current: Player[],
-    incoming: Player[]
-  ): Player[] {
-    let registeredCount = current.filter(
-      (player) => player.status === "Registered"
-    ).length;
-
-    return incoming.map((player) => {
-      const nextStatus =
-        registeredCount < EVENT_CAPACITY
-          ? "Registered"
-          : "Waiting";
-
-      if (nextStatus === "Registered") {
-        registeredCount += 1;
-      }
-
-      return {
-        ...player,
-        status: nextStatus,
-      };
-    });
   }
 
   // --------------------------------------------------
@@ -1023,8 +1176,8 @@ export default function Players({
       handicapIndex:
         Number(handicapIndex) || 0,
 
-      // Registration status is automatic. If all 76 places are
-      // occupied, the new player joins the bottom of the Reserves list.
+      // Registration status is automatic. If the event is at capacity,
+      // the new player joins the bottom of the Reserves list.
       status:
         registeredPlayers < EVENT_CAPACITY
           ? "Registered"
@@ -1102,6 +1255,26 @@ export default function Players({
   }
 
   // --------------------------------------------------
+  // Clear All Players
+  // --------------------------------------------------
+
+  function clearAllPlayers() {
+    if (players.length === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Clear all ${players.length} players from this event?\n\nThis will remove the complete player list, including registration, payment, tee time, group and Start List information. The event itself and its capacity will not be changed.\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setPlayers([]);
+  }
+
+  // --------------------------------------------------
   // Export / Print PDF
   // --------------------------------------------------
 
@@ -1126,7 +1299,7 @@ export default function Players({
         teeTime: startListPlayer.teeTime || "",
         group: startListPlayer.group || "",
         name: `${player.firstName} ${player.lastName}`.trim(),
-        homeClub: startListPlayer.homeClub || "",
+        homeClub: getPlayerHomeClub(player),
         handicap: player.handicapIndex.toFixed(1),
         status:
           player.status === "Waiting"
@@ -1341,7 +1514,7 @@ export default function Players({
 
       <SummaryCard
         title="Players"
-        value={`${players.length} / 76`}
+        value={`${players.length} / ${EVENT_CAPACITY}`}
       />
     </div>
   );
@@ -1386,6 +1559,12 @@ export default function Players({
         icon={Download}
         title="Export"
         onClick={handleExport}
+      />
+
+      <ActionTile
+        icon={Trash2}
+        title="Clear All Players"
+        onClick={clearAllPlayers}
       />
     </div>
   );
@@ -1436,6 +1615,7 @@ export default function Players({
                 <th>Tee Time</th>
                 <th>Group</th>
                 <th>Name</th>
+                <th>Home Club</th>
                 <th>HI</th>
                 <th>Paid</th>
                 <th>Source</th>
@@ -1485,6 +1665,10 @@ export default function Players({
                       <td>
                         {player.firstName}{" "}
                         {player.lastName}
+                      </td>
+
+                      <td>
+                        {getPlayerHomeClub(player)}
                       </td>
 
                     <td>

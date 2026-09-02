@@ -81,6 +81,16 @@ interface NettScoreEntry {
   playingHandicap: string;
 }
 
+interface ExistingStartListRow {
+  id: string;
+  teeTime: string;
+  group: string;
+  playerId: string;
+  playerName: string;
+  homeClub: string;
+  handicapIndex: number | null;
+}
+
 interface PersistedState {
   playerSignature: string;
   selectedMethod: DrawMethod | null;
@@ -1156,6 +1166,34 @@ export default function FieldManagement({
         player.status === "Registered"
     );
 
+  // The Players register is the single source of truth for an existing start list.
+  // Players already imports/merges Tee Time and Group into each player record.
+  // Field Management only derives a chronological view from those player records;
+  // it does not maintain a second start-list dataset.
+  const existingStartList: ExistingStartListRow[] = registeredPlayers
+    .filter(
+      (player) =>
+        Boolean(player.teeTime?.trim()) &&
+        Boolean(player.group?.trim())
+    )
+    .map((player) => ({
+      id: player.id,
+      teeTime: player.teeTime?.trim() ?? "",
+      group: player.group?.trim() ?? "",
+      playerId: player.id,
+      playerName: `${player.firstName} ${player.lastName}`.trim(),
+      homeClub: player.homeClub?.trim() ?? "",
+      handicapIndex: Number.isFinite(player.handicapIndex)
+        ? player.handicapIndex
+        : null,
+    }))
+    .sort(
+      (a, b) =>
+        a.teeTime.localeCompare(b.teeTime, undefined, { numeric: true }) ||
+        a.group.localeCompare(b.group, undefined, { numeric: true }) ||
+        a.playerName.localeCompare(b.playerName)
+    );
+
   const reserveCount =
     players.filter(
       (player) =>
@@ -1302,6 +1340,13 @@ export default function FieldManagement({
   ] = useState(
     initialState?.defendingPairIds?.[1] ?? ""
   );
+
+  const isUsingExistingStartList =
+    existingStartList.length > 0 &&
+    selectedMethod === null &&
+    proposedDraw.length === 0 &&
+    confirmedDraw.length === 0 &&
+    knockoutBracket === null;
 
   function persistState(
     override: Partial<PersistedState>
@@ -1969,13 +2014,17 @@ export default function FieldManagement({
   }
 
   const groupCount =
-    getGroupSizes(
-      playerCount,
-      true
-    ).length;
+    isUsingExistingStartList
+      ? new Set(existingStartList.map((row) => row.group)).size
+      : getGroupSizes(
+          playerCount,
+          true
+        ).length;
 
   let drawStatus =
-    "Not Started";
+    isUsingExistingStartList
+      ? "Existing Start List"
+      : "Not Started";
 
   if (
     selectedMethod === "gross" &&
@@ -2049,7 +2098,7 @@ export default function FieldManagement({
         title="Spaces"
         value={Math.max(
           0,
-          76 - playerCount
+          (event.playerLimit || 0) - playerCount
         ).toString()}
       />
       <SummaryCard
@@ -2112,6 +2161,35 @@ export default function FieldManagement({
     </div>
   );
 
+  const existingStartListAction =
+    existingStartList.length > 0 ? (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "0.65rem",
+          minHeight: "82px",
+          padding: "0.75rem 1rem",
+          border: "2px solid #6ea4e8",
+          borderRadius: "12px",
+          background: isUsingExistingStartList ? "#edf5ff" : "#f7f9fc",
+          color: "#1f5fbf",
+          boxSizing: "border-box",
+        }}
+      >
+        <ListOrdered size={22} />
+        <div style={{ textAlign: "left" }}>
+          <strong style={{ display: "block" }}>
+            Existing Start List
+          </strong>
+          <span style={{ fontSize: "0.85rem", color: "#5f6b7a" }}>
+            {existingStartList.length} players from Players
+          </span>
+        </div>
+      </div>
+    ) : null;
+
   const conductTitle =
     (
       selectedMethod === "gross" &&
@@ -2142,6 +2220,23 @@ export default function FieldManagement({
         ? `Competition: ${event.competition}`
         : "",
     ].filter(Boolean);
+
+    if (isUsingExistingStartList) {
+      return {
+        title: "Existing Start List",
+        subtitle:
+          subtitleParts.length > 0
+            ? subtitleParts.join(" • ")
+            : "Existing start list from Players",
+        rows: existingStartList.map((row) => ({
+          group: row.group,
+          player: row.playerName,
+          homeClub: row.homeClub,
+          hi: row.handicapIndex === null ? "" : formatHI(row.handicapIndex),
+          status: "Registered",
+        })),
+      };
+    }
 
     if (
       (
@@ -2190,6 +2285,8 @@ export default function FieldManagement({
           player.groupNumber.toString(),
         player:
           `${player.firstName} ${player.lastName}`.trim(),
+        homeClub:
+          player.homeClub?.trim() ?? "",
         hi:
           formatHI(
             player.handicapIndex
@@ -2287,6 +2384,7 @@ export default function FieldManagement({
         icon={Printer}
         title="Export / Print"
         disabled={
+          !isUsingExistingStartList &&
           proposedDraw.length === 0 &&
           confirmedDraw.length === 0 &&
           knockoutBracket === null
@@ -2297,6 +2395,7 @@ export default function FieldManagement({
           )
         }
       />
+
     </div>
   );
 
@@ -2829,13 +2928,48 @@ export default function FieldManagement({
           }}
         >
           {drawOptions}
+          {existingStartListAction}
           {controls}
         </div>
       }
       footer="Team draw and starting sheet management."
     >
       <div className="players-table">
-        {selectedMethod === "pairs" &&
+        {isUsingExistingStartList ? (
+          <div style={{ width: "100%", overflowX: "auto" }}>
+            <div style={{ padding: "1rem 1rem 0.75rem" }}>
+              <h3 style={{ margin: 0, color: "#1f5fbf" }}>Existing Start List</h3>
+              <p style={{ margin: "0.35rem 0 0", color: "#6b7280", lineHeight: 1.5 }}>
+                This starting order comes directly from the Players register. Tee times and groups were supplied by the Start List import; Event Desk has not re-drawn these players.
+              </p>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Tee Time</th>
+                  <th>Group</th>
+                  <th>Player</th>
+                  <th>Home Club</th>
+                  <th>HI</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {existingStartList.map((row) => (
+                  <tr key={row.id}>
+                    <td><strong>{row.teeTime || "—"}</strong></td>
+                    <td>{row.group}</td>
+                    <td>{row.playerName}</td>
+                    <td>{row.homeClub || "—"}</td>
+                    <td>{row.handicapIndex === null ? "—" : formatHI(row.handicapIndex)}</td>
+                    <td>Registered</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          selectedMethod === "pairs" &&
         showPairsSetup
           ? (
             <div
@@ -2990,7 +3124,8 @@ export default function FieldManagement({
                     : drawTable}
                 </table>
               )
-          )}
+          )
+        )}
       </div>
     </PageLayout>
   );

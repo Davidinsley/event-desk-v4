@@ -2,7 +2,7 @@
  * ============================================================
  * EVENT DESK
  * Player Master Data Model
- * Version 2.0
+ * Version 2.1
  * ============================================================
  */
 
@@ -23,12 +23,16 @@ export interface Player {
   notes: string;
 
   // -----------------------------
-  // Event Assignment
+  // Player / Start List Data
   // -----------------------------
 
   team?: number;
 
   teeTime?: string;
+
+  group?: string;
+
+  homeClub?: string;
 
   startingHole?: number;
 
