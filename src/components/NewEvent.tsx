@@ -1,4 +1,4 @@
-// Revision: Event Media gallery — display and support up to 3 attached posters
+// Revision: Core Event Details report reads live Catering V4 data
 // NewEvent.tsx
 
 // Ramsdale Seniors Event Desk
@@ -23,7 +23,6 @@ import PageLayout from "../layout/PageLayout";
 import SummaryCard from "../ui/SummaryCard";
 
 import ActionTile from "../ui/ActionTile";
-import { getPosterLibrary, type PosterItem } from "../posterStorage";
 
 import {
 
@@ -55,8 +54,23 @@ interface NewEventProps {
 
 }
 
+interface PosterItem {
+  id: string;
+  title: string;
+  fileType: string;
+  dateAdded: string;
+  attachedEvent: string;
+  image: string;
+}
+
+const POSTER_STORAGE_KEY = "posterLibrary";
 
 const DEFAULT_VENUE = "Ramsdale Park Golf Club";
+
+// Catering V4 stores the live event catering data separately from the core event record.
+const CATERING_KEY_PREFIX = "eventDeskCateringV1:";
+const EVENT_RECORDS_KEY = "eventDeskEventRecords";
+const ACTIVE_EVENT_ID_KEY = "eventDeskActiveEventId";
 
 const VENUE_STORAGE_KEY = "eventDeskVenues";
 
@@ -327,47 +341,39 @@ export default function NewEvent({
   const attachedPosterId =
     attachedPosterIds[0] ?? null;
 
-  const [posterLibrary, setPosterLibrary] =
-    useState<PosterItem[]>([]);
+  const attachedPosters = useMemo<PosterItem[]>(() => {
 
-  useEffect(() => {
-    let cancelled = false;
+    try {
 
-    const loadPosters = async () => {
-      try {
-        const stored = await getPosterLibrary();
-        if (!cancelled) {
-          setPosterLibrary(stored);
-        }
-      } catch (error) {
-        console.error(
-          "Failed to load poster library for Event Details",
-          error
-        );
+      const stored = localStorage.getItem(
+        POSTER_STORAGE_KEY
+      );
+
+      if (!stored) {
+        return [];
       }
-    };
 
-    void loadPosters();
+      const parsed = JSON.parse(stored);
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
 
-  const attachedPosters = useMemo(
-    () =>
-      attachedPosterIds
+      return attachedPosterIds
         .map((posterId) =>
-          posterLibrary.find(
-            (poster) => poster.id === posterId
+          parsed.find(
+            (poster: PosterItem) =>
+              poster.id === posterId
           )
         )
         .filter(
           (poster): poster is PosterItem =>
             Boolean(poster)
-        ),
-    [attachedPosterIds, posterLibrary]
-  );
+        );
+    } catch {
+      return [];
+    }
+  }, [attachedPosterIds]);
 
   useEffect(() => {
 
@@ -644,6 +650,130 @@ export default function NewEvent({
         ? "Event Media Attached"
 
         : "No Event Media Attached";
+
+    /*
+     * CATERING SUMMARY
+     *
+     * Read the same V4 catering record used by the Catering page.
+     * This keeps the Core Event Details report in step with the live
+     * Catering page instead of reading the retired catering data model.
+     */
+    let cateringPackage = "Not yet entered";
+    let cateringEating = 0;
+    let cateringDietary = 0;
+    let cateringPaid = 0;
+    let cateringOutstanding = 0;
+    let cateringCharge = 0;
+
+    try {
+      const activeEventId = localStorage.getItem(ACTIVE_EVENT_ID_KEY);
+      const records = JSON.parse(
+        localStorage.getItem(EVENT_RECORDS_KEY) || "[]"
+      ) as Array<{ id?: string; event?: { eventNumber?: string } }>;
+
+      const matchingRecord = Array.isArray(records)
+        ? records.find(
+            (record) =>
+              record?.id === activeEventId ||
+              record?.event?.eventNumber === event.eventNumber
+          )
+        : undefined;
+
+      const cateringRecordId =
+        matchingRecord?.id || activeEventId || event.eventNumber;
+
+      const savedCatering = localStorage.getItem(
+        `${CATERING_KEY_PREFIX}${cateringRecordId}`
+      );
+
+      if (savedCatering) {
+        const catering = JSON.parse(savedCatering) as {
+          eating?: number;
+          dietaryNeeds?: number;
+          paid?: number;
+          selectedPackage?: string | null;
+          packages?: Array<{
+            id?: string;
+            name?: string;
+            price?: number;
+          }>;
+        };
+
+        cateringEating = Math.max(0, Math.floor(Number(catering.eating) || 0));
+        cateringDietary = Math.min(
+          cateringEating,
+          Math.max(0, Math.floor(Number(catering.dietaryNeeds) || 0))
+        );
+        cateringPaid = Math.min(
+          cateringEating,
+          Math.max(0, Math.floor(Number(catering.paid) || 0))
+        );
+        cateringOutstanding = Math.max(0, cateringEating - cateringPaid);
+
+        const selectedPackage = Array.isArray(catering.packages)
+          ? catering.packages.find(
+              (item) => item?.id === catering.selectedPackage
+            )
+          : undefined;
+
+        if (selectedPackage?.name) {
+          cateringPackage = selectedPackage.name;
+        }
+
+        const pricePerPerson = Math.max(
+          0,
+          Number(selectedPackage?.price) || 0
+        );
+
+        cateringCharge = cateringEating * pricePerPerson;
+      }
+    } catch {
+      // Catering is supplementary to the core event report.
+    }
+
+    const formatReportCurrency = (value: number) =>
+      new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: "GBP",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(value);
+
+    const parseReportDate = (value: string) => {
+      const ddmmyyyy = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+      if (ddmmyyyy) {
+        const [, day, month, year] = ddmmyyyy;
+        const date = new Date(
+          Number(year),
+          Number(month) - 1,
+          Number(day)
+        );
+
+        if (
+          date.getFullYear() === Number(year) &&
+          date.getMonth() === Number(month) - 1 &&
+          date.getDate() === Number(day)
+        ) {
+          return date;
+        }
+      }
+
+      const isoDate = new Date(`${value}T00:00:00`);
+      return Number.isNaN(isoDate.getTime()) ? null : isoDate;
+    };
+
+    const cateringDeadline = (() => {
+      const date = parseReportDate(event.eventDate);
+      if (!date) return "Not available";
+
+      date.setDate(date.getDate() - 14);
+      return date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    })();
 
     const dateDisplay = weekday
 
@@ -1556,6 +1686,131 @@ export default function NewEvent({
                   : "No competition rules have been entered at this stage."
 
               }
+
+            </div>
+
+          </section>
+
+          <section class="section">
+
+            <h3 class="section-heading">
+
+              Catering
+
+            </h3>
+
+            <div class="details-grid">
+
+              <div class="detail">
+
+                <div class="detail-label">
+
+                  Meal Package
+
+                </div>
+
+                <div class="detail-value">
+
+                  ${escapeHtml(cateringPackage)}
+
+                </div>
+
+              </div>
+
+              <div class="detail">
+
+                <div class="detail-label">
+
+                  Number Eating
+
+                </div>
+
+                <div class="detail-value">
+
+                  ${escapeHtml(String(cateringEating))}
+
+                </div>
+
+              </div>
+
+              <div class="detail">
+
+                <div class="detail-label">
+
+                  Dietary Needs
+
+                </div>
+
+                <div class="detail-value">
+
+                  ${escapeHtml(String(cateringDietary))}
+
+                </div>
+
+              </div>
+
+              <div class="detail">
+
+                <div class="detail-label">
+
+                  Paid
+
+                </div>
+
+                <div class="detail-value">
+
+                  ${escapeHtml(String(cateringPaid))}
+
+                </div>
+
+              </div>
+
+              <div class="detail">
+
+                <div class="detail-label">
+
+                  Outstanding
+
+                </div>
+
+                <div class="detail-value">
+
+                  ${escapeHtml(String(cateringOutstanding))}
+
+                </div>
+
+              </div>
+
+              <div class="detail">
+
+                <div class="detail-label">
+
+                  Catering Charge
+
+                </div>
+
+                <div class="detail-value">
+
+                  ${escapeHtml(formatReportCurrency(cateringCharge))}
+
+                </div>
+
+              </div>
+              <div class="detail">
+
+                <div class="detail-label">
+
+                  Kitchen Confirmation Deadline
+
+                </div>
+
+                <div class="detail-value">
+
+                  ${escapeHtml(cateringDeadline)}
+
+                </div>
+
+              </div>
 
             </div>
 

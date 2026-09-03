@@ -1,485 +1,357 @@
-/* Catering.css
- * Ramsdale Seniors Event Desk — Catering
- * Full replacement stylesheet for the Catering module.
+/**
+ * ============================================================
+ * Catering.css
+ * Ramsdale Seniors Event Desk
+ * Catering Module — Simplified V4
+ * ============================================================
  */
 
-.catering-card {
-  background: #ffffff;
-  border: 1px solid #dce8f4;
-  border-radius: 18px;
-  padding: 26px 28px;
-  margin-bottom: 24px;
-  box-shadow: 0 3px 12px rgba(34, 82, 132, 0.07);
-}
-
-.catering-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 22px;
-}
-
-.catering-card-header h2 {
-  margin: 0 0 6px;
-  color: #20589a;
-  font-size: 23px;
-  line-height: 1.2;
-}
-
-.catering-card-header p {
-  margin: 0;
-  color: #687789;
-  font-size: 15px;
-  line-height: 1.5;
-}
-
-.catering-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-  border-radius: 22px;
-  padding: 9px 14px;
-  background: #eef6ff;
-  color: #2467ad;
-  font-weight: 700;
-  font-size: 14px;
-}
-
 .catering-summary {
-  gap: 12px;
+  display: grid;
+  width: 100%;
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 auto 14px;
 }
 
-.summary-card {
+.catering-summary .summary-card {
+  width: 100%;
+  height: auto;
   min-width: 0;
-  background: #ffffff;
+  min-height: 76px;
+  box-sizing: border-box;
+  padding: 9px 6px;
   border: 1px solid #dce8f4;
-  border-radius: 16px;
-  padding: 17px 18px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 3px 10px rgba(31, 79, 129, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  box-shadow: 0 3px 10px rgba(34, 82, 132, 0.06);
 }
 
-.summary-card-title {
+.catering-summary .summary-card-title {
   color: #687789;
-  font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 5px;
+  font-size: 12px;
+  line-height: 1.15;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
-.summary-card-value {
+.catering-summary .summary-card-value {
+  margin-top: 4px;
   color: #2464aa;
   font-size: 25px;
+  line-height: 1;
   font-weight: 800;
 }
 
+.catering-summary .countdown-card.urgent {
+  border-color: #dfb65c;
+  background: #fffaf0;
+}
+
+.catering-summary .countdown-card.urgent .summary-card-value {
+  color: #a66b0b;
+  font-size: 15px;
+}
+
+/* ------------------------------------------------------------
+   Six clickable catering package tiles
+   ------------------------------------------------------------ */
+
 .catering-actions {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 .catering-action {
-  min-width: 120px;
-  min-height: 104px;
+  min-width: 0;
+  min-height: 78px;
+  box-sizing: border-box;
+  padding: 8px 6px;
   border: 1px solid #dce8f4;
-  border-radius: 16px;
+  border-radius: 12px;
   background: #ffffff;
   color: #2464aa;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 6px;
   font: inherit;
-  font-weight: 700;
   cursor: pointer;
   transition:
-    transform 0.15s ease,
     border-color 0.15s ease,
+    background-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
 .catering-action:hover {
-  transform: translateY(-1px);
   border-color: #76a9dc;
-  box-shadow: 0 4px 12px rgba(34, 82, 132, 0.1);
+  background: #f8fbff;
+  box-shadow: 0 3px 10px rgba(34, 82, 132, 0.08);
 }
 
-.catering-action.primary {
-  border: 2px solid #72a6dc;
+.catering-action.selected {
+  border: 2px solid #5c9bd7;
   background: #eef6ff;
+  box-shadow: 0 3px 10px rgba(34, 82, 132, 0.08);
 }
 
-.catering-grid {
+.catering-action-name {
+  font-size: 12px;
+  line-height: 1.15;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------
+   Simple catering inputs
+   ------------------------------------------------------------ */
+
+.catering-input-panel {
+  margin-bottom: 12px;
+  padding: 13px 16px 11px;
+  border: 1px solid #dce8f4;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 3px 10px rgba(34, 82, 132, 0.05);
+}
+
+.catering-input-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
-  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.catering-grid label {
+.catering-input-grid label,
+.price-control {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
-.catering-grid label > span {
+.catering-input-grid label > span,
+.price-control > span {
   color: #536679;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 800;
 }
 
-.catering-grid input,
-.catering-grid select,
-.catering-table select {
+.catering-input-grid input,
+.price-input-wrap input {
   width: 100%;
+  min-height: 38px;
   box-sizing: border-box;
-  min-height: 44px;
-  border: 1px solid #cfddea;
+  padding: 7px 10px;
+  border: 1px solid #d4e2ef;
   border-radius: 9px;
   background: #ffffff;
-  color: #27384a;
-  padding: 9px 11px;
+  color: #23384d;
   font: inherit;
-}
-
-.catering-grid input:focus,
-.catering-grid select:focus,
-.catering-table select:focus {
-  outline: none;
-  border-color: #5d98d3;
-  box-shadow: 0 0 0 3px rgba(93, 152, 211, 0.13);
-}
-
-.catering-grid input:disabled,
-.catering-grid select:disabled,
-.catering-table select:disabled {
-  background: #f2f5f8;
-  color: #788594;
-  cursor: not-allowed;
-}
-
-.currency-input {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  border: 1px solid #cfddea;
-  border-radius: 9px;
-  overflow: hidden;
-  background: #ffffff;
-}
-
-.currency-input > span {
-  padding-left: 12px;
-  color: #536679;
-  font-weight: 700;
-}
-
-.currency-input input {
-  border: 0;
-  box-shadow: none;
-  min-height: 42px;
-}
-
-.currency-input input:focus {
-  box-shadow: none;
-}
-
-.catering-calculation {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1.2fr;
-  gap: 12px;
-  margin-top: 22px;
-}
-
-.catering-calculation > div {
-  border: 1px solid #e0e9f2;
-  border-radius: 12px;
-  padding: 14px 16px;
-  background: #f8fbfe;
-}
-
-.catering-calculation span {
-  display: block;
-  color: #6b7b8d;
-  font-size: 12px;
-  font-weight: 700;
-  margin-bottom: 5px;
-}
-
-.catering-calculation strong {
-  color: #244f7e;
-  font-size: 17px;
-}
-
-.catering-calculation .calculation-total {
-  background: #eef6ff;
-  border-color: #c9dff4;
-}
-
-.calculation-total strong {
-  color: #20589a;
-  font-size: 21px;
-}
-
-.catering-deadline-card {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  background: #fff8e8;
-  border: 1px solid #f0d18a;
-  border-radius: 16px;
-  padding: 19px 22px;
-  margin-bottom: 24px;
-  color: #765719;
-}
-
-.deadline-icon,
-.note-icon {
-  flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-  border: 1px solid #efd28e;
-}
-
-.catering-deadline-card h3,
-.catering-notes h3 {
-  margin: 0 0 5px;
-  color: #6e5114;
-  font-size: 17px;
-}
-
-.catering-deadline-card p,
-.catering-notes p {
-  margin: 0 0 5px;
-  line-height: 1.5;
   font-size: 14px;
 }
 
-.deadline-note {
-  font-weight: 700;
+.catering-input-grid input:focus,
+.price-input-wrap input:focus {
+  outline: none;
+  border-color: #72a6dc;
+  box-shadow: 0 0 0 3px rgba(114, 166, 220, 0.12);
 }
 
-.add-attendee-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid #72a6dc;
-  border-radius: 10px;
-  padding: 10px 14px;
-  background: #eef6ff;
-  color: #205d9e;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
+.catering-input-panel p {
+  margin: 8px 0 0;
+  color: #687789;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
-.add-attendee-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+/* ------------------------------------------------------------
+   Selected package calculator
+   ------------------------------------------------------------ */
+
+.package-calculator {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  border: 1px solid #dce8f4;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 3px 10px rgba(34, 82, 132, 0.05);
 }
 
-.catering-table-wrap {
-  overflow-x: auto;
-}
-
-.catering-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 820px;
-}
-
-.catering-table th {
-  text-align: left;
-  background: #edf4fb;
-  color: #536679;
-  padding: 13px 12px;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.catering-table td {
-  border-bottom: 1px solid #e4ebf2;
-  padding: 13px 12px;
-  color: #344657;
-  vertical-align: middle;
-}
-
-.catering-table tr:last-child td {
-  border-bottom: 0;
-}
-
-.catering-table td strong {
-  color: #2d4052;
-}
-
-.person-badge {
-  display: inline-block;
-  border-radius: 15px;
-  padding: 5px 9px;
-  background: #eaf3fd;
-  color: #2867a8;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.person-badge.attendee {
-  background: #f1f1f1;
-  color: #606b76;
-}
-
-.checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-  color: #405365;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.checkbox-label input {
-  width: 17px;
-  height: 17px;
-}
-
-.not-applicable {
-  color: #9aa5af;
-}
-
-.remove-cell {
-  width: 65px;
-  text-align: right;
-}
-
-.remove-cell button {
-  border: 0;
-  background: transparent;
-  color: #8a5c5c;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.remove-cell button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.empty-state {
-  padding: 28px 18px !important;
-  text-align: center;
-  color: #7b8996;
-  line-height: 1.5;
-}
-
-.kitchen-report {
-  background: #fbfdff;
-}
-
-.dish-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.dish-row {
+.package-calculator-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 15px;
-  padding: 13px 15px;
-  border: 1px solid #dfe9f3;
-  border-radius: 10px;
-  background: #ffffff;
+  gap: 12px;
 }
 
-.dish-row span {
-  color: #405365;
+.package-calculator-label {
+  display: block;
+  margin-bottom: 2px;
+  color: #687789;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.package-calculator h2 {
+  margin: 0;
+  color: #20589a;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.package-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: 14px;
+  background: #eef6ff;
+  color: #2467ad;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.package-lock.locked {
+  background: #fff7e8;
+  color: #9a6b1a;
+}
+
+.package-calculator-body {
+  display: grid;
+  grid-template-columns: minmax(190px, 260px) 1fr;
+  gap: 14px;
+  align-items: end;
+  margin-top: 11px;
+}
+
+.price-input-wrap {
+  position: relative;
+}
+
+.price-input-wrap b {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #687789;
+  pointer-events: none;
+}
+
+.price-input-wrap input {
+  padding-left: 25px;
+}
+
+.package-total {
+  min-height: 38px;
+  box-sizing: border-box;
+  padding: 7px 12px;
+  border: 1px solid #dce8f4;
+  border-radius: 9px;
+  background: #f7fbff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.package-total span {
+  color: #687789;
+  font-size: 11px;
   font-weight: 700;
 }
 
-.dish-row strong {
-  min-width: 32px;
-  text-align: center;
-  border-radius: 16px;
-  padding: 5px 8px;
-  background: #eaf3fd;
-  color: #205d9e;
+.package-total strong {
+  color: #2464aa;
+  font-size: 20px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.catering-notes {
+.package-hint {
+  margin-top: 8px;
+  color: #687789;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+/* ------------------------------------------------------------
+   Lock note
+   ------------------------------------------------------------ */
+
+.catering-lock-note {
   display: flex;
-  gap: 15px;
-  align-items: flex-start;
-  background: #f6f9fc;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid #ead8ad;
+  border-radius: 9px;
+  background: #fffaf0;
+  color: #8a641c;
+  font-size: 11px;
+  font-weight: 800;
 }
 
-.catering-notes .note-icon {
-  border-color: #d6e2ee;
-  color: #2867a8;
-}
+/* ------------------------------------------------------------
+   Responsive
+   ------------------------------------------------------------ */
 
-.catering-notes h3 {
-  color: #29567f;
-}
-
-.catering-notes p {
-  color: #596b7d;
-}
-
-@media (max-width: 1100px) {
-  .catering-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .catering-calculation {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 700px) {
-  .catering-card {
-    padding: 20px 16px;
-  }
-
-  .catering-card-header {
-    flex-direction: column;
-  }
-
-  .catering-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 1150px) {
+  .catering-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .catering-actions {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .catering-summary,
+  .catering-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .catering-action {
-    min-width: 0;
-    min-height: 90px;
+  .catering-input-grid,
+  .package-calculator-body {
+    grid-template-columns: 1fr 1fr;
   }
+}
 
-  .dish-grid {
+@media (max-width: 520px) {
+  .catering-summary,
+  .catering-actions,
+  .catering-input-grid,
+  .package-calculator-body {
     grid-template-columns: 1fr;
+  }
+
+  .package-calculator-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
 @media print {
-  .catering-action,
-  .add-attendee-button,
-  .remove-cell {
-    display: none !important;
+  .catering-action {
+    cursor: default;
+    break-inside: avoid;
   }
 
-  .catering-card,
-  .catering-deadline-card {
+  .package-calculator,
+  .catering-input-panel,
+  .catering-lock-note {
     box-shadow: none;
     break-inside: avoid;
   }

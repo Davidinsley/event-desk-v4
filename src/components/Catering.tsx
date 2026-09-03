@@ -1,49 +1,61 @@
+/**
+ * ============================================================
+ * Catering.tsx
+ * Ramsdale Seniors Event Desk
+ * Catering Module — Simplified V4
+ * ============================================================
+ *
+ * Scope:
+ * - Six primary information tiles.
+ * - Six catering package tiles.
+ * - Clicking a package immediately shows its calculated total.
+ * - Each package has an organiser-editable price per person.
+ * - Number Eating is entered directly and includes everyone eating:
+ *   players and non-playing guests.
+ * - Dietary Needs and People Paid are simple totals.
+ * - Catering Cost is the total for the selected package.
+ * - 14-day catering lock retained.
+ *
+ * Deliberately NOT included:
+ * - Kitchen report
+ * - Menu builder
+ * - Individual player food options
+ * - Package quantity allocation
+ */
+
 import { useEffect, useMemo, useState } from "react";
 import "./Catering.css";
 
 import type { Player } from "../types/Player";
 import PageLayout from "../layout/PageLayout";
-import ActionTile from "../ui/ActionTile";
 
-import {
-  AlertCircle,
-  CheckCircle2,
-  Download,
-  FileText,
-  Lock,
-  Printer,
-  RefreshCw,
-  UtensilsCrossed,
-  Users,
-} from "lucide-react";
+import { Lock, UtensilsCrossed } from "lucide-react";
 
 interface CateringProps {
   players: Player[];
 }
 
-type MealOption =
-  | "Breakfast cob"
-  | "Breakfast cob + Main Course"
-  | "Main Course + Dessert"
-  | "Starter + Main Course"
-  | "Bespoke";
+type PackageId =
+  | "breakfastCob"
+  | "smallBreakfast"
+  | "breakfastCobMain"
+  | "starterMain"
+  | "mainDessert"
+  | "mainOnly"
+  | "bespoke";
 
-type EatingArrangement = "Rolling" | "Group";
-
-interface CateringPerson {
-  id: string;
+interface CateringPackage {
+  id: PackageId;
   name: string;
-  isPlayer: boolean;
-  mealOption: MealOption | "";
-  vegetarianMain: boolean;
+  price: number;
 }
 
 interface CateringData {
-  menuReference: string;
-  foodChargePerPerson: number;
-  additionalCharge: number;
-  eatingArrangement: EatingArrangement;
-  people: CateringPerson[];
+  eating: number;
+  dietaryNeeds: number;
+  paid: number;
+  selectedPackage: PackageId | null;
+  packages: CateringPackage[];
 }
 
 interface EventRecordLike {
@@ -56,22 +68,25 @@ interface EventRecordLike {
 
 const EVENT_RECORDS_KEY = "eventDeskEventRecords";
 const ACTIVE_EVENT_ID_KEY = "eventDeskActiveEventId";
+const CATERING_KEY_PREFIX = "eventDeskCateringV1:";
 
-const MEAL_OPTIONS: MealOption[] = [
-  "Breakfast cob",
-  "Breakfast cob + Main Course",
-  "Main Course + Dessert",
-  "Starter + Main Course",
-  "Bespoke",
+const DEFAULT_PACKAGES: CateringPackage[] = [
+  { id: "breakfastCob", name: "Breakfast Cob", price: 5 },
+  { id: "smallBreakfast", name: "Small Breakfast", price: 8 },
+  { id: "breakfastCobMain", name: "Breakfast Cob / Main", price: 17 },
+  { id: "starterMain", name: "Starter / Main", price: 17 },
+  { id: "mainDessert", name: "Main / Dessert", price: 17 },
+  { id: "mainOnly", name: "Main Only", price: 0 },
+  { id: "bespoke", name: "Bespoke", price: 20 },
 ];
 
-const EMPTY_DATA: CateringData = {
-  menuReference: "",
-  foodChargePerPerson: 0,
-  additionalCharge: 0,
-  eatingArrangement: "Group",
-  people: [],
-};
+const createEmptyData = (defaultEating = 0): CateringData => ({
+  eating: defaultEating,
+  dietaryNeeds: 0,
+  paid: 0,
+  selectedPackage: null,
+  packages: DEFAULT_PACKAGES.map((item) => ({ ...item })),
+});
 
 const readActiveEvent = (): EventRecordLike | null => {
   try {
@@ -80,7 +95,9 @@ const readActiveEvent = (): EventRecordLike | null => {
       localStorage.getItem(EVENT_RECORDS_KEY) || "[]"
     ) as EventRecordLike[];
 
-    if (!Array.isArray(records)) return null;
+    if (!Array.isArray(records)) {
+      return null;
+    }
 
     return (
       records.find((record) => record.id === activeId) ||
@@ -94,23 +111,75 @@ const readActiveEvent = (): EventRecordLike | null => {
 
 const getCateringKey = () => {
   const activeEvent = readActiveEvent();
-  return `eventDeskCatering:${activeEvent?.id || "default"}`;
+  return `${CATERING_KEY_PREFIX}${activeEvent?.id || "default"}`;
 };
 
-const loadCatering = (): CateringData => {
-  try {
-    const saved = localStorage.getItem(getCateringKey());
-    if (!saved) return EMPTY_DATA;
+const isPackageId = (value: unknown): value is PackageId =>
+  DEFAULT_PACKAGES.some((item) => item.id === value);
 
-    const parsed = JSON.parse(saved) as Partial<CateringData>;
+const normalisePackages = (savedPackages: unknown): CateringPackage[] => {
+  const saved = Array.isArray(savedPackages) ? savedPackages : [];
+
+  return DEFAULT_PACKAGES.map((defaultPackage) => {
+    const savedPackage = saved.find(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        "id" in item &&
+        item.id === defaultPackage.id
+    ) as Partial<CateringPackage> | undefined;
 
     return {
-      ...EMPTY_DATA,
-      ...parsed,
-      people: Array.isArray(parsed.people) ? parsed.people : [],
+      ...defaultPackage,
+      price:
+        typeof savedPackage?.price === "number"
+          ? Math.max(0, savedPackage.price)
+          : defaultPackage.price,
+    };
+  });
+};
+
+const loadCatering = (defaultEating = 0): CateringData => {
+  try {
+    const saved = localStorage.getItem(getCateringKey());
+
+    if (!saved) {
+      return createEmptyData(defaultEating);
+    }
+
+    const parsed = JSON.parse(saved) as Partial<CateringData> & {
+      additionalEaters?: number;
+      packages?: unknown;
+    };
+
+    // V2 migration:
+    // eating = players + additionalEaters.
+    const migratedEating =
+      typeof parsed.eating === "number"
+        ? parsed.eating
+        : typeof parsed.additionalEaters === "number"
+          ? defaultEating + Math.max(0, Math.floor(parsed.additionalEaters))
+          : defaultEating;
+
+    const selectedPackage = isPackageId(parsed.selectedPackage)
+      ? parsed.selectedPackage
+      : null;
+
+    return {
+      eating: Math.max(0, Math.floor(migratedEating)),
+      dietaryNeeds:
+        typeof parsed.dietaryNeeds === "number"
+          ? Math.max(0, Math.floor(parsed.dietaryNeeds))
+          : 0,
+      paid:
+        typeof parsed.paid === "number"
+          ? Math.max(0, Math.floor(parsed.paid))
+          : 0,
+      selectedPackage,
+      packages: normalisePackages(parsed.packages),
     };
   } catch {
-    return EMPTY_DATA;
+    return createEmptyData(defaultEating);
   }
 };
 
@@ -122,65 +191,38 @@ const saveCatering = (data: CateringData) => {
   }
 };
 
-const mealIncludesMain = (meal: MealOption | "") =>
-  meal === "Breakfast cob + Main Course" ||
-  meal === "Main Course + Dessert" ||
-  meal === "Starter + Main Course";
-
-const mealComponents = (meal: MealOption | "") => {
-  switch (meal) {
-    case "Breakfast cob":
-      return ["Breakfast cob"];
-    case "Breakfast cob + Main Course":
-      return ["Breakfast cob", "Main Course"];
-    case "Main Course + Dessert":
-      return ["Main Course", "Dessert"];
-    case "Starter + Main Course":
-      return ["Starter", "Main Course"];
-    case "Bespoke":
-      return ["Bespoke"];
-    default:
-      return [];
+const getDaysUntilEvent = (eventDate: string) => {
+  if (!eventDate) {
+    return null;
   }
+
+  const target = new Date(`${eventDate}T00:00:00`);
+
+  if (Number.isNaN(target.getTime())) {
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return Math.ceil((target.getTime() - today.getTime()) / 86400000);
 };
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "GBP",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(value);
 
-const getDaysUntilEvent = (eventDate: string) => {
-  if (!eventDate) return null;
-
-  const target = new Date(`${eventDate}T00:00:00`);
-  if (Number.isNaN(target.getTime())) return null;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return Math.ceil(
-    (target.getTime() - today.getTime()) / 86400000
-  );
-};
-
-const formatEventDate = (eventDate: string) => {
-  if (!eventDate) return "Event date not set";
-
-  const date = new Date(`${eventDate}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return "Event date not set";
-
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
-
 export default function Catering({ players }: CateringProps) {
-  const [data, setData] = useState<CateringData>(loadCatering);
-  const [showKitchenReport, setShowKitchenReport] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [data, setData] = useState<CateringData>(() =>
+    loadCatering(players.length)
+  );
+  const [selectedPackage, setSelectedPackage] = useState<PackageId | null>(
+    null
+  );
 
   const activeEvent = readActiveEvent();
   const eventDate = activeEvent?.event?.eventDate || "";
@@ -190,64 +232,18 @@ export default function Catering({ players }: CateringProps) {
     Boolean(activeEvent?.archived) ||
     (daysUntilEvent !== null && daysUntilEvent <= 14);
 
-  const finalCateringDate =
-    daysUntilEvent === null
-      ? null
-      : (() => {
-          const date = new Date(`${eventDate}T00:00:00`);
-          date.setDate(date.getDate() - 14);
-          return date.toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          });
-        })();
-
   useEffect(() => {
-    const playerPeople: CateringPerson[] = players.map((player) => {
-      const existing = data.people.find(
-        (person) => person.id === player.id
-      );
-
-      return (
-        existing || {
-          id: player.id,
-          name: `${player.firstName} ${player.lastName}`,
-          isPlayer: true,
-          mealOption: "",
-          vegetarianMain: false,
-        }
-      );
-    });
-
-    const nonPlayerPeople = data.people.filter(
-      (person) => !person.isPlayer
-    );
-
-    const nextPeople = [...playerPeople, ...nonPlayerPeople];
-
-    if (
-      nextPeople.length !== data.people.length ||
-      nextPeople.some(
-        (person, index) =>
-          person.id !== data.people[index]?.id ||
-          person.name !== data.people[index]?.name
-      )
-    ) {
-      setData((current) => {
-        const next = { ...current, people: nextPeople };
-        saveCatering(next);
-        return next;
-      });
-    }
-    // Player register changes are intentionally reconciled here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, refreshKey]);
+    const loaded = loadCatering(players.length);
+    setData(loaded);
+    setSelectedPackage(loaded.selectedPackage);
+  }, [activeEvent?.id, players.length]);
 
   const updateData = (
     updater: (current: CateringData) => CateringData
   ) => {
-    if (locked) return;
+    if (locked) {
+      return;
+    }
 
     setData((current) => {
       const next = updater(current);
@@ -256,548 +252,259 @@ export default function Catering({ players }: CateringProps) {
     });
   };
 
-  const assignedPeople = data.people.filter(
-    (person) => person.mealOption
+  const eating = data.eating;
+  const paid = Math.min(data.paid, eating);
+  const outstanding = Math.max(0, eating - paid);
+  const dietaryNeeds = Math.min(data.dietaryNeeds, eating);
+
+  const selected = useMemo(
+    () =>
+      data.packages.find((item) => item.id === selectedPackage) || null,
+    [data.packages, selectedPackage]
   );
 
-  const outstanding = data.people.filter(
-    (person) => !person.mealOption
-  ).length;
+  const cateringCost = selected ? selected.price * eating : 0;
 
-  const vegetarianCount = data.people.filter(
-    (person) =>
-      person.vegetarianMain && mealIncludesMain(person.mealOption)
-  ).length;
+  const selectPackage = (packageId: PackageId) => {
+    setSelectedPackage(packageId);
 
-  const totalFoodCharge =
-    players.length * Number(data.foodChargePerPerson || 0) +
-    Number(data.additionalCharge || 0);
-
-  const dishCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-
-    assignedPeople.forEach((person) => {
-      mealComponents(person.mealOption).forEach((component) => {
-        counts[component] = (counts[component] || 0) + 1;
-      });
-
-      if (
-        person.vegetarianMain &&
-        mealIncludesMain(person.mealOption)
-      ) {
-        counts["Main Course — Vegetarian"] =
-          (counts["Main Course — Vegetarian"] || 0) + 1;
-        counts["Main Course"] = Math.max(
-          0,
-          (counts["Main Course"] || 0) - 1
-        );
-      }
-    });
-
-    return Object.entries(counts).filter(([, count]) => count > 0);
-  }, [assignedPeople]);
-
-  const addAttendee = () => {
-    if (locked) return;
-
-    const id = `attendee-${Date.now()}`;
+    if (locked) {
+      return;
+    }
 
     updateData((current) => ({
       ...current,
-      people: [
-        ...current.people,
-        {
-          id,
-          name: "Additional attendee",
-          isPlayer: false,
-          mealOption: "",
-          vegetarianMain: false,
-        },
-      ],
+      selectedPackage: packageId,
     }));
   };
 
-  const removeAttendee = (id: string) => {
-    if (locked) return;
+  const updatePackagePrice = (packageId: PackageId, value: string) => {
+    const number = Number(value);
 
     updateData((current) => ({
       ...current,
-      people: current.people.filter(
-        (person) => person.id !== id
+      packages: current.packages.map((item) =>
+        item.id === packageId
+          ? {
+              ...item,
+              price: Number.isFinite(number) ? Math.max(0, number) : 0,
+            }
+          : item
       ),
     }));
   };
 
-  const exportCsv = () => {
-    const rows = [
-      ["Name", "Type", "Meal Option", "Vegetarian Main"],
-      ...data.people.map((person) => [
-        person.name,
-        person.isPlayer ? "Player" : "Eating-only attendee",
-        person.mealOption || "Not selected",
-        person.vegetarianMain ? "Yes" : "No",
-      ]),
-    ];
+  const setEating = (value: string) => {
+    const number = Number(value);
 
-    const csv = rows
-      .map((row) =>
-        row
-          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
-          .join(",")
-      )
-      .join("\n");
+    updateData((current) => {
+      const eatingValue = Number.isFinite(number)
+        ? Math.max(0, Math.floor(number))
+        : 0;
 
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;",
+      return {
+        ...current,
+        eating: eatingValue,
+        dietaryNeeds: Math.min(current.dietaryNeeds, eatingValue),
+        paid: Math.min(current.paid, eatingValue),
+      };
     });
-
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "catering-register.csv";
-    anchor.click();
-    URL.revokeObjectURL(url);
   };
+
+  const setDietaryNeeds = (value: string) => {
+    const number = Number(value);
+
+    updateData((current) => ({
+      ...current,
+      dietaryNeeds: Number.isFinite(number)
+        ? Math.max(0, Math.min(current.eating, Math.floor(number)))
+        : 0,
+    }));
+  };
+
+  const setPaid = (value: string) => {
+    const number = Number(value);
+
+    updateData((current) => ({
+      ...current,
+      paid: Number.isFinite(number)
+        ? Math.max(0, Math.min(current.eating, Math.floor(number)))
+        : 0,
+    }));
+  };
+
+  const deadlineValue =
+    daysUntilEvent === null
+      ? "—"
+      : daysUntilEvent <= 14
+        ? "LOCKED"
+        : String(daysUntilEvent - 14);
 
   const summary = (
     <div className="page-summary catering-summary">
       <div className="summary-card">
-        <div className="summary-card-title">Eating</div>
-        <div className="summary-card-value">{data.people.length}</div>
+        <span className="summary-card-title">Eating</span>
+        <strong className="summary-card-value">{eating}</strong>
       </div>
 
       <div className="summary-card">
-        <div className="summary-card-title">Players</div>
-        <div className="summary-card-value">{players.length}</div>
+        <span className="summary-card-title">Dietary Needs</span>
+        <strong className="summary-card-value">{dietaryNeeds}</strong>
       </div>
 
       <div className="summary-card">
-        <div className="summary-card-title">Vegetarian</div>
-        <div className="summary-card-value">{vegetarianCount}</div>
+        <span className="summary-card-title">Paid</span>
+        <strong className="summary-card-value">{paid}</strong>
       </div>
 
       <div className="summary-card">
-        <div className="summary-card-title">Outstanding</div>
-        <div className="summary-card-value">{outstanding}</div>
+        <span className="summary-card-title">Outstanding</span>
+        <strong className="summary-card-value">{outstanding}</strong>
       </div>
 
       <div className="summary-card">
-        <div className="summary-card-title">Total Food Charge</div>
-        <div className="summary-card-value">
-          {formatCurrency(totalFoodCharge)}
-        </div>
+        <span className="summary-card-title">Catering Cost</span>
+        <strong className="summary-card-value">
+          {formatCurrency(cateringCost)}
+        </strong>
+      </div>
+
+      <div
+        className={`summary-card countdown-card ${
+          daysUntilEvent !== null && daysUntilEvent <= 14 ? "urgent" : ""
+        }`}
+      >
+        <span className="summary-card-title">Kitchen Deadline</span>
+        <strong className="summary-card-value">{deadlineValue}</strong>
       </div>
     </div>
   );
 
   const actions = (
     <div className="page-actions catering-actions">
-      <ActionTile
-        icon={RefreshCw}
-        title="Refresh"
-        primary
-        onClick={() => {
-          setData(loadCatering());
-          setRefreshKey((value) => value + 1);
-        }}
-      />
+      {data.packages.map((item) => {
+        const isSelected = selectedPackage === item.id;
 
-      <ActionTile
-        icon={UtensilsCrossed}
-        title="Meal Choices"
-        onClick={() => {
-          setShowKitchenReport(false);
-          document
-            .getElementById("catering-register")
-            ?.scrollIntoView({ behavior: "smooth" });
-        }}
-      />
-
-      <ActionTile
-        icon={FileText}
-        title="Kitchen Report"
-        onClick={() => setShowKitchenReport((value) => !value)}
-      />
-
-      <ActionTile
-        icon={Printer}
-        title="Print"
-        onClick={() => window.print()}
-      />
-
-      <ActionTile
-        icon={Download}
-        title="Export"
-        onClick={exportCsv}
-      />
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className={`catering-action ${isSelected ? "selected" : ""}`}
+            onClick={() => selectPackage(item.id)}
+            aria-pressed={isSelected}
+          >
+            <UtensilsCrossed size={19} />
+            <span className="catering-action-name">{item.name}</span>
+          </button>
+        );
+      })}
     </div>
   );
 
   return (
-    <PageLayout
-      title="Catering"
-      subtitle="Manage food choices, eating arrangements, catering costs and the final kitchen requirement."
-      summary={summary}
-      actions={actions}
-      footer="Catering management."
-    >
-      <section className="catering-card">
-        <div className="catering-card-header">
-          <div>
-            <h2>Catering Setup</h2>
-            <p>
-              Players are automatically included for food. Additional
-              attendees may be added where someone is attending to eat
-              but is not playing.
-            </p>
-          </div>
-
-          <div className="catering-status">
-            {locked ? (
-              <>
-                <Lock size={18} />
-                <span>Catering Locked</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle2 size={18} />
-                <span>Open for Updates</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="catering-grid">
+    <PageLayout title="Catering" summary={summary} actions={actions}>
+      <section className="catering-input-panel">
+        <div className="catering-input-grid">
           <label>
-            <span>Menu / Food Reference</span>
+            <span>Number Eating</span>
             <input
-              value={data.menuReference}
+              type="number"
+              min="0"
+              step="1"
+              value={data.eating}
               disabled={locked}
-              onChange={(event) =>
-                updateData((current) => ({
-                  ...current,
-                  menuReference: event.target.value,
-                }))
-              }
-              placeholder="e.g. Menu A / Christmas Lunch 2027"
+              onChange={(event) => setEating(event.target.value)}
             />
           </label>
 
           <label>
-            <span>Food Charge per Person</span>
-            <div className="currency-input">
-              <span>£</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={data.foodChargePerPerson || ""}
-                disabled={locked}
-                onChange={(event) =>
-                  updateData((current) => ({
-                    ...current,
-                    foodChargePerPerson:
-                      Number(event.target.value) || 0,
-                  }))
-                }
-                placeholder="0.00"
-              />
-            </div>
-          </label>
-
-          <label>
-            <span>Additional Catering Charge</span>
-            <div className="currency-input">
-              <span>£</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={data.additionalCharge || ""}
-                disabled={locked}
-                onChange={(event) =>
-                  updateData((current) => ({
-                    ...current,
-                    additionalCharge:
-                      Number(event.target.value) || 0,
-                  }))
-                }
-                placeholder="0.00"
-              />
-            </div>
-          </label>
-
-          <label>
-            <span>Eating Arrangement</span>
-            <select
-              value={data.eatingArrangement}
+            <span>Dietary Needs</span>
+            <input
+              type="number"
+              min="0"
+              max={eating}
+              step="1"
+              value={dietaryNeeds}
               disabled={locked}
-              onChange={(event) =>
-                updateData((current) => ({
-                  ...current,
-                  eatingArrangement:
-                    event.target.value as EatingArrangement,
-                }))
-              }
-            >
-              <option value="Group">Group</option>
-              <option value="Rolling">Rolling</option>
-            </select>
+              onChange={(event) => setDietaryNeeds(event.target.value)}
+            />
+          </label>
+
+          <label>
+            <span>People Paid</span>
+            <input
+              type="number"
+              min="0"
+              max={eating}
+              step="1"
+              value={paid}
+              disabled={locked}
+              onChange={(event) => setPaid(event.target.value)}
+            />
           </label>
         </div>
 
-        <div className="catering-calculation">
-          <div>
-            <span>Players × Food Charge</span>
-            <strong>
-              {players.length} ×{" "}
-              {formatCurrency(data.foodChargePerPerson)}
-            </strong>
-          </div>
-
-          <div>
-            <span>Additional Charge</span>
-            <strong>
-              {formatCurrency(data.additionalCharge)}
-            </strong>
-          </div>
-
-          <div className="calculation-total">
-            <span>Total Event Food Charge</span>
-            <strong>{formatCurrency(totalFoodCharge)}</strong>
-          </div>
-        </div>
+        <p>
+          Number Eating includes everyone who is eating, including players and
+          non-playing guests.
+        </p>
       </section>
 
-      <section className="catering-deadline-card">
-        <div className="deadline-icon">
-          {locked ? <Lock size={22} /> : <AlertCircle size={22} />}
-        </div>
-
-        <div>
-          <h3>
-            {locked
-              ? "Final Catering Numbers Locked"
-              : "Catering Finalisation"}
-          </h3>
-
-          {eventDate ? (
-            <p>
-              Event date: <strong>{formatEventDate(eventDate)}</strong>.
-              Final catering entries lock 14 days before the event
-              {finalCateringDate
-                ? ` (${finalCateringDate})`
-                : ""}.
-            </p>
-          ) : (
-            <p>
-              Set the event date to activate the 14-day catering
-              lock.
-            </p>
-          )}
-
-          <p className="deadline-note">
-            Notify the catering team of the final number of diners and
-            the confirmed food choices before the lock date.
-          </p>
-        </div>
-      </section>
-
-      {showKitchenReport && (
-        <section className="catering-card kitchen-report">
-          <div className="catering-card-header">
+      {selected && (
+        <section className="package-calculator">
+          <div className="package-calculator-heading">
             <div>
-              <h2>Kitchen Report</h2>
-              <p>
-                Required dish quantities from the current catering
-                register.
-              </p>
+              <span className="package-calculator-label">Selected package</span>
+              <h2>{selected.name}</h2>
+            </div>
+
+            <div className={`package-lock ${locked ? "locked" : ""}`}>
+              <Lock size={14} />
+              {locked ? "Locked" : "Open"}
             </div>
           </div>
 
-          {dishCounts.length === 0 ? (
-            <div className="empty-state">
-              No meal choices have been assigned yet.
+          <div className="package-calculator-body">
+            <label className="price-control">
+              <span>Price per Person</span>
+              <div className="price-input-wrap">
+                <b>£</b>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={selected.price}
+                  disabled={locked}
+                  onChange={(event) =>
+                    updatePackagePrice(selected.id, event.target.value)
+                  }
+                  aria-label={`${selected.name} price per person`}
+                />
+              </div>
+            </label>
+
+            <div className="package-total">
+              <span>{eating} people × {formatCurrency(selected.price)}</span>
+              <strong>{formatCurrency(cateringCost)}</strong>
             </div>
-          ) : (
-            <div className="dish-grid">
-              {dishCounts.map(([dish, count]) => (
-                <div className="dish-row" key={dish}>
-                  <span>{dish}</span>
-                  <strong>{count}</strong>
-                </div>
-              ))}
-            </div>
-          )}
+          </div>
+
+          <div className="package-hint">
+            Change the price using the field or its stepper arrows to compare
+            different price points. The total updates immediately.
+          </div>
         </section>
       )}
 
-      <section
-        className="catering-card"
-        id="catering-register"
-      >
-        <div className="catering-card-header">
-          <div>
-            <h2>Eating Register</h2>
-            <p>
-              Select one food option for every diner. Players do not
-              have a food opt-out.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="add-attendee-button"
-            disabled={locked}
-            onClick={addAttendee}
-          >
-            <Users size={18} />
-            Add Eating-Only Attendee
-          </button>
+      {locked && (
+        <div className="catering-lock-note">
+          <Lock size={16} />
+          <span>
+            Catering changes are locked because the event is within 14 days
+            or has been archived.
+          </span>
         </div>
-
-        <div className="catering-table-wrap">
-          <table className="catering-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Food Option</th>
-                <th>Vegetarian Main</th>
-                <th />
-              </tr>
-            </thead>
-
-            <tbody>
-              {data.people.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="empty-state">
-                    No players are currently registered. Add players
-                    in the Players section.
-                  </td>
-                </tr>
-              ) : (
-                data.people.map((person) => (
-                  <tr key={person.id}>
-                    <td>
-                      <strong>{person.name}</strong>
-                    </td>
-
-                    <td>
-                      <span
-                        className={
-                          person.isPlayer
-                            ? "person-badge"
-                            : "person-badge attendee"
-                        }
-                      >
-                        {person.isPlayer
-                          ? "Player"
-                          : "Eating only"}
-                      </span>
-                    </td>
-
-                    <td>
-                      <select
-                        value={person.mealOption}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const meal =
-                            event.target.value as MealOption | "";
-
-                          updateData((current) => ({
-                            ...current,
-                            people: current.people.map(
-                              (item) =>
-                                item.id === person.id
-                                  ? {
-                                      ...item,
-                                      mealOption: meal,
-                                      vegetarianMain:
-                                        mealIncludesMain(meal)
-                                          ? item.vegetarianMain
-                                          : false,
-                                    }
-                                  : item
-                            ),
-                          }));
-                        }}
-                      >
-                        <option value="">
-                          Select food option
-                        </option>
-                        {MEAL_OPTIONS.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-
-                    <td>
-                      {mealIncludesMain(person.mealOption) ? (
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            checked={person.vegetarianMain}
-                            disabled={locked}
-                            onChange={(event) =>
-                              updateData((current) => ({
-                                ...current,
-                                people: current.people.map(
-                                  (item) =>
-                                    item.id === person.id
-                                      ? {
-                                          ...item,
-                                          vegetarianMain:
-                                            event.target.checked,
-                                        }
-                                      : item
-                                ),
-                              }))
-                            }
-                          />
-                          Vegetarian
-                        </label>
-                      ) : (
-                        <span className="not-applicable">—</span>
-                      )}
-                    </td>
-
-                    <td className="remove-cell">
-                      {!person.isPlayer && (
-                        <button
-                          type="button"
-                          disabled={locked}
-                          onClick={() => removeAttendee(person.id)}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="catering-card catering-notes">
-        <div className="note-icon">
-          <AlertCircle size={20} />
-        </div>
-        <div>
-          <h3>Final Catering Instruction</h3>
-          <p>
-            Before the 14-day lock, check that every player and
-            eating-only attendee has a food option selected. Then
-            provide the catering team with the final diner count,
-            eating arrangement, menu reference and kitchen dish
-            quantities.
-          </p>
-        </div>
-      </section>
+      )}
     </PageLayout>
   );
 }
