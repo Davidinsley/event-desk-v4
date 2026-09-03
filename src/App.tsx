@@ -15,6 +15,7 @@ import HandicapUpdate from "./components/HandicapUpdate";
 import FieldManagement from "./components/FieldManagement";
 import Catering from "./components/Catering";
 import Financials from "./components/Financials";
+import Booklets from "./components/Booklets";
 import Posters from "./components/Posters";
 import PosterPreview from "./components/PosterPreview";
 import ReviewPublish from "./components/ReviewPublish";
@@ -225,6 +226,9 @@ export default function App() {
 
   const [currentPage, setCurrentPage] =
     useState("dashboard");
+
+  const [recentEventsOnly, setRecentEventsOnly] =
+    useState(false);
 
   const [eventRecords, setEventRecords] =
     useState<EventRecord[]>(loadInitialEventRecords);
@@ -945,6 +949,12 @@ export default function App() {
   };
 
   const handleOpenEventManager = () => {
+    setRecentEventsOnly(false);
+    setCurrentPage("eventManager");
+  };
+
+  const handleOpenRecentEvents = () => {
+    setRecentEventsOnly(true);
     setCurrentPage("eventManager");
   };
 
@@ -1158,6 +1168,33 @@ export default function App() {
     setCurrentPage(page);
   };
 
+  const isPastCompletedEvent = (record: EventRecord) => {
+    if (!record.archived || !record.event.eventDate) {
+      return false;
+    }
+
+    const rawDate = record.event.eventDate.trim();
+    let eventDate: Date | null = null;
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+      const [day, month, year] = rawDate.split("/").map(Number);
+      eventDate = new Date(year, month - 1, day);
+    } else {
+      const parsed = new Date(`${rawDate}T00:00:00`);
+      eventDate = Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    if (!eventDate || Number.isNaN(eventDate.getTime())) {
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    eventDate.setHours(0, 0, 0, 0);
+
+    return eventDate < today;
+  };
+
   /*
    * ARCHIVED SETUP PAGES
    *
@@ -1176,7 +1213,8 @@ export default function App() {
       currentPage === "handicap" ||
       currentPage === "field" ||
       currentPage === "catering" ||
-      currentPage === "financials"
+      currentPage === "financials" ||
+      currentPage === "booklets"
     );
 
   /*
@@ -1366,7 +1404,16 @@ export default function App() {
               £ Financials
             </li>
 
-            <li>
+            <li
+              className={
+                currentPage === "booklets"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                handleNavigate("booklets")
+              }
+            >
               📖 Booklets
             </li>
 
@@ -1452,7 +1499,7 @@ export default function App() {
                       fontSize: "38px",
                     }}
                   >
-                    Event Desk
+                    {recentEventsOnly ? "Recent Events" : "Event Desk"}
                   </h1>
                   <p
                     style={{
@@ -1461,27 +1508,49 @@ export default function App() {
                       fontSize: "18px",
                     }}
                   >
-                    Create, open and manage your Ramsdale Seniors events.
+                    {recentEventsOnly
+                      ? "Past and completed Ramsdale Seniors events."
+                      : "Create, open and manage your Ramsdale Seniors events."}
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleNewEvent}
-                  style={{
-                    border: "none",
-                    borderRadius: "10px",
-                    padding: "14px 22px",
-                    background: "#2468b3",
-                    color: "white",
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    boxShadow: "0 3px 8px rgba(36,104,179,0.25)",
-                  }}
-                >
-                  + New Event
-                </button>
+                {recentEventsOnly ? (
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate("dashboard")}
+                    style={{
+                      border: "1px solid #b8d5ef",
+                      borderRadius: "10px",
+                      padding: "13px 22px",
+                      background: "white",
+                      color: "#205b9f",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      boxShadow: "0 2px 6px rgba(31,91,159,0.08)",
+                    }}
+                  >
+                    ← Main Menu
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleNewEvent}
+                    style={{
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "14px 22px",
+                      background: "#2468b3",
+                      color: "white",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      boxShadow: "0 3px 8px rgba(36,104,179,0.25)",
+                    }}
+                  >
+                    + New Event
+                  </button>
+                )}
               </div>
 
               <div
@@ -1490,7 +1559,28 @@ export default function App() {
                   gap: "16px",
                 }}
               >
+                {recentEventsOnly &&
+                  !eventRecords.some(isPastCompletedEvent) && (
+                    <div
+                      style={{
+                        background: "white",
+                        border: "1px solid #dbe7f3",
+                        borderRadius: "14px",
+                        padding: "28px",
+                        textAlign: "center",
+                        color: "#64748b",
+                        fontSize: "17px",
+                      }}
+                    >
+                      No past and completed events are currently available.
+                    </div>
+                  )}
+
                 {eventRecords
+                  .filter(
+                    (record) =>
+                      !recentEventsOnly || isPastCompletedEvent(record)
+                  )
                   .slice()
                   .sort((a, b) =>
                     Number.parseInt(b.event.eventNumber, 10) -
@@ -1605,23 +1695,25 @@ export default function App() {
                             {record.archived ? "View" : "Open"}
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteEvent(record)}
-                            title="Permanently delete this event"
-                            aria-label={`Delete Event ${record.event.eventNumber}`}
-                            style={{
-                              border: "1px solid #d6dee8",
-                              borderRadius: "9px",
-                              padding: "9px 11px",
-                              background: "white",
-                              color: "#b42318",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                            }}
-                          >
-                            🗑 Delete
-                          </button>
+                          {!recentEventsOnly && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEvent(record)}
+                              title="Permanently delete this event"
+                              aria-label={`Delete Event ${record.event.eventNumber}`}
+                              style={{
+                                border: "1px solid #d6dee8",
+                                borderRadius: "9px",
+                                padding: "9px 11px",
+                                background: "white",
+                                color: "#b42318",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              🗑 Delete
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -1634,6 +1726,7 @@ export default function App() {
             <Dashboard
               onNewEvent={handleNewEvent}
               onContinueEvent={handleContinueEvent}
+              onRecentEvents={handleOpenRecentEvents}
             />
           )}
 
@@ -1703,6 +1796,15 @@ export default function App() {
           {currentPage === "financials" && (
               <Financials
                 players={players}
+              />
+            )}
+
+          {currentPage === "booklets" && (
+              <Booklets
+                event={event}
+                attachedPosterIds={attachedPosterIds}
+                readOnly={archived}
+                onBack={() => handleNavigate("new")}
               />
             )}
 

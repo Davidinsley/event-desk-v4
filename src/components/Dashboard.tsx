@@ -7,6 +7,7 @@ import "./Dashboard.css";
 interface DashboardProps {
   onNewEvent: () => void;
   onContinueEvent: () => void;
+  onRecentEvents: () => void;
 }
 
 function NewEventIcon() {
@@ -39,7 +40,11 @@ function OpenBookIcon() {
   );
 }
 
-function Dashboard({ onNewEvent, onContinueEvent }: DashboardProps) {
+function Dashboard({
+  onNewEvent,
+  onContinueEvent,
+  onRecentEvents,
+}: DashboardProps) {
   return (
     <section className="dashboard-screen">
       <div className="dashboard-grid">
@@ -66,7 +71,11 @@ function Dashboard({ onNewEvent, onContinueEvent }: DashboardProps) {
           </span>
         </button>
 
-        <button type="button" className="dashboard-card">
+        <button
+          type="button"
+          className="dashboard-card"
+          onClick={onRecentEvents}
+        >
           <span className="dashboard-card-content">
             <OpenBookIcon />
             <span className="dashboard-card-title">Recent Events</span>

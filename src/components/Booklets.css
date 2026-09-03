@@ -1,0 +1,467 @@
+.booklets-screen {
+  width: 100%;
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 34px 42px 48px;
+  box-sizing: border-box;
+}
+
+.booklets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.booklets-header h1 {
+  margin: 0;
+  color: #205b9f;
+  font-size: 38px;
+}
+
+.booklets-header p {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 17px;
+}
+
+.booklets-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.booklets-secondary-button,
+.booklets-print-button,
+.booklets-import-button {
+  border-radius: 9px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.booklets-secondary-button,
+.booklets-import-button {
+  border: 1px solid #b8d5ef;
+  background: white;
+  color: #205b9f;
+}
+
+.booklets-print-button {
+  border: 1px solid #2468b3;
+  background: #2468b3;
+  color: white;
+  box-shadow: 0 3px 8px rgba(36, 104, 179, 0.2);
+}
+
+.booklets-layout {
+  display: grid;
+  grid-template-columns: minmax(430px, 0.88fr) minmax(650px, 1.12fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.booklets-editor {
+  display: grid;
+  gap: 16px;
+}
+
+.booklet-panel {
+  background: white;
+  border: 1px solid #dbe7f3;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(31, 91, 159, 0.06);
+}
+
+.booklet-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.booklet-panel-heading > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.booklet-panel-number {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #eef6ff;
+  color: #205b9f;
+  font-weight: 800;
+}
+
+.booklet-panel h2 {
+  margin: 0;
+  color: #1e4f89;
+  font-size: 20px;
+}
+
+.booklet-panel p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.poster-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.poster-choice {
+  border: 2px solid #dbe7f3;
+  border-radius: 10px;
+  padding: 7px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+}
+
+.poster-choice.selected {
+  border-color: #2468b3;
+  box-shadow: 0 0 0 2px rgba(36, 104, 179, 0.12);
+}
+
+.poster-choice img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1.414;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #f1f5f9;
+}
+
+.poster-choice span {
+  display: block;
+  margin-top: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.booklet-panel textarea {
+  width: 100%;
+  min-height: 145px;
+  resize: vertical;
+  box-sizing: border-box;
+  border: 1px solid #cbd8e6;
+  border-radius: 9px;
+  padding: 12px;
+  font: inherit;
+  line-height: 1.45;
+  color: #1e293b;
+  background: #fbfdff;
+}
+
+.booklet-panel textarea:focus {
+  outline: none;
+  border-color: #6fa9dc;
+  box-shadow: 0 0 0 3px rgba(111, 169, 220, 0.14);
+}
+
+.menu-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #205b9f;
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.booklet-empty-state,
+.booklet-menu-disabled {
+  padding: 16px;
+  border-radius: 9px;
+  background: #f7fafc;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.booklet-preview-area {
+  background: #f7fafc;
+  border: 1px solid #dbe7f3;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.booklet-preview-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.booklet-preview-heading h2 {
+  margin: 0;
+  color: #205b9f;
+  font-size: 24px;
+}
+
+.booklet-preview-heading p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.print-note {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #205b9f;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.print-preview-sheets {
+  display: grid;
+  gap: 24px;
+}
+
+.preview-sheet-group {
+  display: grid;
+  gap: 8px;
+}
+
+.preview-sheet-label {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.preview-sheet {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+  width: 100%;
+  aspect-ratio: 297 / 210;
+  background: white;
+  border: 1px solid #cbd8e6;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(15, 53, 90, 0.12);
+}
+
+.preview-half {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: white;
+}
+
+.preview-fold {
+  background: #cbd8e6;
+  z-index: 3;
+}
+
+.preview-page-number {
+  position: absolute;
+  top: 8px;
+  left: 9px;
+  z-index: 5;
+  min-width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #205b9f;
+  font-size: 10px;
+  font-weight: 800;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.preview-page-number.light {
+  color: #205b9f;
+}
+
+.preview-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.preview-text-page,
+.preview-menu {
+  padding: 30px 28px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.preview-text-page h3,
+.preview-menu h3 {
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #b8d5ef;
+  color: #205b9f;
+  font-size: 23px;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.preview-page-text {
+  color: #334155;
+  font-size: 17px;
+  line-height: 1.55;
+  overflow: hidden;
+  max-height: calc(100% - 62px);
+  text-align: center;
+  white-space: pre-line;
+}
+
+.preview-page-empty,
+.preview-blank {
+  color: #94a3b8;
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.preview-blank {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.preview-instruction {
+  margin-top: 14px;
+  padding: 11px 13px;
+  border-radius: 9px;
+  background: #eef6ff;
+  color: #52677e;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.print-booklet {
+  display: none;
+}
+
+@media (max-width: 1120px) {
+  .booklets-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 297mm;
+    min-height: 210mm;
+    background: white !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .print-booklet,
+  .print-booklet * {
+    visibility: visible !important;
+  }
+
+  .booklets-screen {
+    width: 297mm !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-booklet {
+    display: block !important;
+    width: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-sheet {
+    width: 297mm !important;
+    height: 210mm !important;
+    display: flex !important;
+    flex-direction: row !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    overflow: hidden !important;
+  }
+
+  .print-sheet:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .print-page {
+    position: relative;
+    width: 148.5mm !important;
+    height: 210mm !important;
+    flex: 0 0 148.5mm !important;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding: 18mm 16mm;
+    background: white !important;
+    color: #1f2937 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .print-page h2 {
+    margin: 0 0 7mm;
+    padding-bottom: 3mm;
+    border-bottom: 0.5mm solid #9ec5e8;
+    color: #205b9f;
+    font-size: 23pt;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .print-text {
+    font-size: 16pt;
+    line-height: 1.55;
+    text-align: center;
+    white-space: pre-line;
+  }
+
+  .print-cover {
+    padding: 0 !important;
+  }
+
+  .print-cover img {
+    width: 148.5mm !important;
+    height: 210mm !important;
+    object-fit: cover;
+    display: block !important;
+  }
+}
