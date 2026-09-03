@@ -18,6 +18,7 @@ import type {
 } from "../types/Event";
 
 import type { Player } from "../types/Player";
+import { getPosterLibrary, type PosterItem } from "../posterStorage";
 import PageLayout from "../layout/PageLayout";
 
 import SummaryCard from "../ui/SummaryCard";
@@ -54,16 +55,6 @@ interface NewEventProps {
 
 }
 
-interface PosterItem {
-  id: string;
-  title: string;
-  fileType: string;
-  dateAdded: string;
-  attachedEvent: string;
-  image: string;
-}
-
-const POSTER_STORAGE_KEY = "posterLibrary";
 
 const DEFAULT_VENUE = "Ramsdale Park Golf Club";
 
@@ -341,39 +332,48 @@ export default function NewEvent({
   const attachedPosterId =
     attachedPosterIds[0] ?? null;
 
-  const attachedPosters = useMemo<PosterItem[]>(() => {
+  const [posterLibrary, setPosterLibrary] =
+    useState<PosterItem[]>([]);
 
-    try {
+  useEffect(() => {
+    let cancelled = false;
 
-      const stored = localStorage.getItem(
-        POSTER_STORAGE_KEY
-      );
+    const loadPosters = async () => {
+      try {
+        const stored = await getPosterLibrary();
 
-      if (!stored) {
-        return [];
+        if (!cancelled) {
+          setPosterLibrary(stored);
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load poster library for Event Details",
+          error
+        );
       }
+    };
 
-      const parsed = JSON.parse(stored);
+    void loadPosters();
 
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-      return attachedPosterIds
+  const attachedPosters = useMemo(
+    () =>
+      attachedPosterIds
         .map((posterId) =>
-          parsed.find(
-            (poster: PosterItem) =>
-              poster.id === posterId
+          posterLibrary.find(
+            (poster) => poster.id === posterId
           )
         )
         .filter(
           (poster): poster is PosterItem =>
             Boolean(poster)
-        );
-    } catch {
-      return [];
-    }
-  }, [attachedPosterIds]);
+        ),
+    [attachedPosterIds, posterLibrary]
+  );
 
   useEffect(() => {
 
@@ -730,6 +730,106 @@ export default function NewEvent({
     } catch {
       // Catering is supplementary to the core event report.
     }
+
+    /*
+     * FINANCIAL SUMMARY
+     *
+     * Read the same Financials record used by the Financials page.
+     * Food Charge is read from the live Catering V4 record, so the
+     * report uses the same calculation as the Financials page.
+     */
+    let financialSponsorship = 0;
+    let financialSectionSupport = 0;
+    let financialGreenFees = 0;
+    let financialPrizeFund = 0;
+    let financialMiscellaneous = 0;
+    let financialCharity = 0;
+
+    const financialEventId = (() => {
+      try {
+        const activeEventId = localStorage.getItem(ACTIVE_EVENT_ID_KEY);
+        const records = JSON.parse(
+          localStorage.getItem(EVENT_RECORDS_KEY) || "[]"
+        ) as Array<{ id?: string; event?: { eventNumber?: string } }>;
+
+        const matchingRecord = Array.isArray(records)
+          ? records.find(
+              (record) =>
+                record?.id === activeEventId ||
+                record?.event?.eventNumber === event.eventNumber
+            )
+          : undefined;
+
+        return matchingRecord?.id || activeEventId || event.eventNumber;
+      } catch {
+        return event.eventNumber;
+      }
+    })();
+
+    try {
+      const savedFinancials = localStorage.getItem(
+        `eventDeskFinancials:${financialEventId}`
+      );
+
+      if (savedFinancials) {
+        const financials = JSON.parse(savedFinancials) as {
+          sponsorship?: number;
+          sectionSupport?: number;
+          greenFees?: number;
+          prizeFund?: number;
+          miscellaneous?: number;
+          charity?: number;
+        };
+
+        financialSponsorship = Math.max(
+          0,
+          Number(financials.sponsorship) || 0
+        );
+        financialSectionSupport = Math.max(
+          0,
+          Number(financials.sectionSupport) || 0
+        );
+        financialGreenFees = Math.max(
+          0,
+          Number(financials.greenFees) || 0
+        );
+        financialPrizeFund = Math.max(
+          0,
+          Number(financials.prizeFund) || 0
+        );
+        financialMiscellaneous = Math.max(
+          0,
+          Number(financials.miscellaneous) || 0
+        );
+        financialCharity = Math.max(
+          0,
+          Number(financials.charity) || 0
+        );
+      }
+    } catch {
+      // Financials are supplementary to the core event report.
+    }
+
+    const financialEntryFees = Math.max(
+      0,
+      Number(event.entryFee) || 0
+    ) * Math.max(0, Number(players?.length) || 0);
+
+    const financialBasicIncome =
+      financialEntryFees +
+      financialSponsorship +
+      financialSectionSupport;
+
+    const financialBasicOutgoings =
+      financialGreenFees +
+      cateringCharge +
+      financialPrizeFund +
+      financialMiscellaneous;
+
+    const financialSurplusToSection =
+      financialBasicIncome -
+      financialBasicOutgoings -
+      financialCharity;
 
     const formatReportCurrency = (value: number) =>
       new Intl.NumberFormat("en-GB", {
@@ -1128,6 +1228,127 @@ export default function NewEvent({
             letter-spacing: 0.4px;
 
             text-transform: uppercase;
+
+          }
+
+          .financial-group-heading {
+
+            margin: 9px 0 5px;
+
+            padding: 5px 9px;
+
+            border-radius: 5px;
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            letter-spacing: 0.5px;
+
+            text-transform: uppercase;
+
+          }
+
+          .financial-group-heading.income {
+
+            background: #eaf6ee;
+
+            color: #24733d;
+
+          }
+
+          .financial-group-heading.outgoing {
+
+            background: #fbeeee;
+
+            color: #a13a3a;
+
+          }
+
+          .financial-income .detail-label,
+          .financial-income .detail-value {
+
+            color: #24733d;
+
+          }
+
+          .financial-outgoing .detail-label,
+          .financial-outgoing .detail-value {
+
+            color: #a13a3a;
+
+          }
+
+          .financial-total {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-top: 5px;
+
+            padding: 8px 11px;
+
+            border-radius: 6px;
+
+            font-size: 12px;
+
+            font-weight: 800;
+
+          }
+
+          .financial-total strong {
+
+            font-size: 13px;
+
+          }
+
+          .income-total {
+
+            background: #eaf6ee;
+
+            border: 1px solid #b9dec3;
+
+            color: #24733d;
+
+          }
+
+          .outgoing-total {
+
+            background: #fbeeee;
+
+            border: 1px solid #e8c1c1;
+
+            color: #a13a3a;
+
+          }
+
+          .financial-result-grid {
+
+            margin-top: 9px;
+
+          }
+
+          .charity-row {
+
+            background: #fff8f8;
+
+          }
+
+          .surplus-row .detail-label,
+          .surplus-row .detail-value {
+
+            color: #205b9f;
+
+            font-weight: 800;
+
+          }
+
+          .surplus-row {
+
+            background: #eef5fb;
 
           }
 
@@ -1810,6 +2031,121 @@ export default function NewEvent({
 
                 </div>
 
+              </div>
+
+            </div>
+
+          </section>
+
+          <section class="section">
+
+            <h3 class="section-heading">
+              Financials
+            </h3>
+
+            <div class="financial-group-heading income">Income</div>
+
+            <div class="details-grid financial-income-grid">
+
+              <div class="detail financial-income">
+                <div class="detail-label">
+                  Entry Fees
+                </div>
+                <div class="detail-value">
+                  ${escapeHtml(formatReportCurrency(financialEntryFees))}
+                </div>
+              </div>
+
+              <div class="detail financial-income">
+                <div class="detail-label">
+                  Sponsorship
+                </div>
+                <div class="detail-value">
+                  ${escapeHtml(formatReportCurrency(financialSponsorship))}
+                </div>
+              </div>
+
+              <div class="detail financial-income">
+                <div class="detail-label">
+                  Section Support
+                </div>
+                <div class="detail-value">
+                  ${escapeHtml(formatReportCurrency(financialSectionSupport))}
+                </div>
+              </div>
+
+            </div>
+
+            <div class="financial-total income-total">
+              <span>Basic Income</span>
+              <strong>${escapeHtml(formatReportCurrency(financialBasicIncome))}</strong>
+            </div>
+
+            <div class="financial-group-heading outgoing">Outgoings</div>
+
+            <div class="details-grid financial-outgoing-grid">
+
+              <div class="detail financial-outgoing">
+                <div class="detail-label">
+                  Green Fees
+                </div>
+                <div class="detail-value">
+                  ${escapeHtml(formatReportCurrency(financialGreenFees))}
+                </div>
+              </div>
+
+              <div class="detail financial-outgoing">
+                <div class="detail-label">
+                  Food Charge
+                </div>
+                <div class="detail-value">
+                  ${escapeHtml(formatReportCurrency(cateringCharge))}
+                </div>
+              </div>
+
+              <div class="detail financial-outgoing">
+                <div class="detail-label">
+                  Prize Fund
+                </div>
+                <div class="detail-value">
+                  ${escapeHtml(formatReportCurrency(financialPrizeFund))}
+                </div>
+              </div>
+
+              <div class="detail financial-outgoing">
+                <div class="detail-label">
+                  Miscellaneous
+                </div>
+                <div class="detail-value">
+                  ${escapeHtml(formatReportCurrency(financialMiscellaneous))}
+                </div>
+              </div>
+
+            </div>
+
+            <div class="financial-total outgoing-total">
+              <span>Basic Outgoings</span>
+              <strong>${escapeHtml(formatReportCurrency(financialBasicOutgoings))}</strong>
+            </div>
+
+            <div class="details-grid financial-result-grid">
+
+              <div class="detail financial-outgoing charity-row">
+                <div class="detail-label">
+                  Charity
+                </div>
+                <div class="detail-value">
+                  ${escapeHtml(formatReportCurrency(financialCharity))}
+                </div>
+              </div>
+
+              <div class="detail financial-surplus surplus-row">
+                <div class="detail-label">
+                  Surplus to Section
+                </div>
+                <div class="detail-value">
+                  ${escapeHtml(formatReportCurrency(financialSurplusToSection))}
+                </div>
               </div>
 
             </div>

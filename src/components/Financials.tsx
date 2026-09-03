@@ -60,6 +60,18 @@ interface FinancialData {
   charity: number;
 }
 
+interface CateringPackageLike {
+  id: string;
+  name: string;
+  price: number;
+}
+
+interface CateringDataLike {
+  eating: number;
+  selectedPackage: string | null;
+  packages: CateringPackageLike[];
+}
+
 interface EventRecordLike {
   id: string;
   event?: {
@@ -71,6 +83,7 @@ interface EventRecordLike {
 
 const EVENT_RECORDS_KEY = "eventDeskEventRecords";
 const ACTIVE_EVENT_ID_KEY = "eventDeskActiveEventId";
+const CATERING_KEY_PREFIX = "eventDeskCateringV1:";
 
 const EMPTY_DATA: FinancialData = {
   sponsorship: 0,
@@ -166,13 +179,61 @@ const saveFinancials = (data: FinancialData) => {
 const formatCurrency = (value: number) =>
   `£${Math.round(value).toLocaleString("en-GB")}`;
 
+const loadCateringCharge = (eventId?: string): number => {
+  if (!eventId) {
+    return 0;
+  }
+
+  try {
+    const saved = localStorage.getItem(
+      `${CATERING_KEY_PREFIX}${eventId}`,
+    );
+
+    if (!saved) {
+      return 0;
+    }
+
+    const catering = JSON.parse(saved) as Partial<CateringDataLike>;
+
+    const eating =
+      typeof catering.eating === "number"
+        ? Math.max(0, catering.eating)
+        : 0;
+
+    const selectedPackageId =
+      typeof catering.selectedPackage === "string"
+        ? catering.selectedPackage
+        : null;
+
+    const packages = Array.isArray(catering.packages)
+      ? catering.packages
+      : [];
+
+    const selectedPackage = packages.find(
+      (item) => item.id === selectedPackageId,
+    );
+
+    const price =
+      selectedPackage &&
+      typeof selectedPackage.price === "number"
+        ? Math.max(0, selectedPackage.price)
+        : 0;
+
+    return eating * price;
+  } catch {
+    return 0;
+  }
+};
+
 export default function Financials({ players = [] }: FinancialsProps) {
   const [data, setData] = useState<FinancialData>(loadFinancials);
+  const [cateringCharge, setCateringCharge] = useState(0);
 
   const activeEvent = useMemo(() => readActiveEvent(), []);
 
   useEffect(() => {
     setData(loadFinancials());
+    setCateringCharge(loadCateringCharge(activeEvent?.id));
   }, [activeEvent?.id]);
 
   useEffect(() => {
@@ -200,6 +261,7 @@ export default function Financials({ players = [] }: FinancialsProps) {
 
   const basicOutgoings =
     data.greenFees +
+    cateringCharge +
     data.prizeFund +
     data.miscellaneous;
 
@@ -244,6 +306,16 @@ export default function Financials({ players = [] }: FinancialsProps) {
         </div>
       </div>
 
+      <div className="financial-summary-card">
+        <div className="financial-summary-title">
+          Charity
+        </div>
+
+        <div className="financial-summary-value">
+          {formatCurrency(data.charity)}
+        </div>
+      </div>
+
       <div
         className={`financial-summary-card ${
           surplusToSection < 0 ? "negative" : ""
@@ -255,16 +327,6 @@ export default function Financials({ players = [] }: FinancialsProps) {
 
         <div className="financial-summary-value">
           {formatCurrency(surplusToSection)}
-        </div>
-      </div>
-
-      <div className="financial-summary-card">
-        <div className="financial-summary-title">
-          Charity
-        </div>
-
-        <div className="financial-summary-value">
-          {formatCurrency(data.charity)}
         </div>
       </div>
     </div>
@@ -393,7 +455,7 @@ export default function Financials({ players = [] }: FinancialsProps) {
             </div>
 
             <div className="financial-entry-value">
-              {formatCurrency(0)}
+              {formatCurrency(cateringCharge)}
             </div>
 
             <div className="financial-entry-note">
