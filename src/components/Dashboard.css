@@ -1,0 +1,131 @@
+/* Dashboard.css */
+/* Ramsdale Seniors Event Desk */
+/* Revision: Three tall uniform dashboard tiles with descriptors */
+
+.dashboard-screen {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 42px 38px;
+}
+
+.dashboard-grid {
+  width: 100%;
+  max-width: 1320px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 42px;
+}
+
+.dashboard-card {
+  width: 100%;
+  height: 430px;
+  min-width: 0;
+  padding: 34px 34px;
+  border: 2px solid #a9cef0;
+  border-radius: 24px;
+  background: linear-gradient(to bottom, #ffffff, #fbfdff);
+  color: #123f78;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(40, 90, 140, 0.05), 0 12px 28px rgba(40, 90, 140, 0.06);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  border-color: #7eb5e8;
+  box-shadow: 0 8px 18px rgba(40, 90, 140, 0.09), 0 18px 36px rgba(40, 90, 140, 0.08);
+}
+
+.dashboard-card:focus-visible {
+  outline: 3px solid rgba(77, 159, 232, 0.35);
+  outline-offset: 4px;
+}
+
+.dashboard-card-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+}
+
+.dashboard-icon {
+  width: 96px;
+  height: 76px;
+  fill: none;
+  stroke: #1456a6;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+.dashboard-card-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #123f78;
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+.dashboard-card-description {
+  display: block;
+  max-width: 300px;
+  color: #4d5966;
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+@media (max-width: 900px) {
+  .dashboard-screen {
+    padding: 28px 20px;
+  }
+
+  .dashboard-grid {
+    gap: 22px;
+  }
+
+  .dashboard-card {
+    height: 360px;
+    border-radius: 20px;
+    padding: 28px 22px;
+  }
+
+  .dashboard-icon {
+    width: 76px;
+    height: 62px;
+  }
+
+  .dashboard-card-title {
+    font-size: 24px;
+  }
+
+  .dashboard-card-description {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 680px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    max-width: 420px;
+  }
+
+  .dashboard-card {
+    height: 280px;
+  }
+}

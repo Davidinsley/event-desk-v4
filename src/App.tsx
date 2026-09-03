@@ -1222,6 +1222,12 @@ export default function App() {
 
         </div>
 
+        <img
+          src={logo}
+          alt="Ramsdale Park Golf Club"
+          className="logo logo-right"
+        />
+
         {eventOpen && (
           <button
             type="button"
