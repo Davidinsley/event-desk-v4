@@ -14,6 +14,7 @@ import Players from "./components/Players";
 import HandicapUpdate from "./components/HandicapUpdate";
 import FieldManagement from "./components/FieldManagement";
 import Catering from "./components/Catering";
+import Financials from "./components/Financials";
 import Posters from "./components/Posters";
 import PosterPreview from "./components/PosterPreview";
 import ReviewPublish from "./components/ReviewPublish";
@@ -1174,7 +1175,8 @@ export default function App() {
       currentPage === "players" ||
       currentPage === "handicap" ||
       currentPage === "field" ||
-      currentPage === "catering"
+      currentPage === "catering" ||
+      currentPage === "financials"
     );
 
   /*
@@ -1345,8 +1347,17 @@ export default function App() {
               🎨 Posters
             </li>
 
-            <li>
-              ❤️ Charity
+            <li
+              className={
+                currentPage === "financials"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                handleNavigate("financials")
+              }
+            >
+              £ Financials
             </li>
 
             <li>
@@ -1679,6 +1690,12 @@ export default function App() {
 
           {currentPage === "catering" && (
               <Catering
+                players={players}
+              />
+            )}
+
+          {currentPage === "financials" && (
+              <Financials
                 players={players}
               />
             )}
