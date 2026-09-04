@@ -45,6 +45,8 @@ interface NewEventProps {
 
   players: Player[];
 
+  published: boolean;
+
   attachedPosterIds: string[];
 
   onAttachPoster: () => void;
@@ -287,6 +289,8 @@ export default function NewEvent({
 
   players,
 
+  published,
+
   attachedPosterIds = [],
 
   onAttachPoster,
@@ -319,7 +323,9 @@ export default function NewEvent({
 
   const currentStatus: EventStatus =
 
-    event.status ?? "draft";
+    published
+      ? "published"
+      : event.status ?? "draft";
 
   const weekday = useMemo(
 

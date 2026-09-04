@@ -713,6 +713,26 @@ export default function App() {
         lastPublishedAt: now,
       };
 
+      const publishedEvent: Event = {
+        ...event,
+        status: "published",
+      };
+
+      const publishedSnapshot: PublishedSnapshot = {
+        ...currentSnapshot,
+        event: publishedEvent,
+      };
+
+      const currentRecord = buildCurrentRecord();
+
+      const publishedRecord: EventRecord = {
+        ...currentRecord,
+        event: publishedEvent,
+        published: true,
+        publishedSnapshot,
+        publicationMeta: updatedMeta,
+      };
+
       localStorage.setItem(
         PUBLISHED_EVENT_KEY,
         "true"
@@ -720,7 +740,7 @@ export default function App() {
 
       localStorage.setItem(
         PUBLISHED_SNAPSHOT_KEY,
-        JSON.stringify(currentSnapshot)
+        JSON.stringify(publishedSnapshot)
       );
 
       localStorage.setItem(
@@ -728,8 +748,20 @@ export default function App() {
         JSON.stringify(updatedMeta)
       );
 
+      localStorage.setItem(
+        EVENT_RECORDS_KEY,
+        JSON.stringify(
+          eventRecords.map((record) =>
+            record.id === currentRecord.id
+              ? publishedRecord
+              : record
+          )
+        )
+      );
+
+      setEvent(publishedEvent);
       setPublishedSnapshot(
-        currentSnapshot
+        publishedSnapshot
       );
 
       setPublicationMeta(
@@ -1750,6 +1782,9 @@ export default function App() {
               }
               canDelete={
                 !archived && !published
+              }
+              published={
+                isCurrentlyPublished
               }
             />
           )}
