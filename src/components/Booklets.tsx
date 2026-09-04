@@ -223,31 +223,41 @@ export default function Booklets({
           <meta charset="utf-8" />
           <title>${escapeHtml(event.eventName || "Event Booklet")}</title>
           <style>
-            @page { size: A4 landscape; margin: 0; }
+            @page { size: A4 portrait; margin: 0; }
             * { box-sizing: border-box; }
             html, body { margin: 0; padding: 0; background: white; }
-            body { width: 297mm; font-family: Arial, Helvetica, sans-serif; }
+            body { width: 210mm; font-family: Arial, Helvetica, sans-serif; }
             .sheet {
-              width: 297mm;
-              height: 210mm;
+              width: 210mm;
+              height: 296mm;
               display: flex;
+              flex-direction: column;
               page-break-after: always;
               break-after: page;
               overflow: hidden;
+              break-inside: avoid;
+              page-break-inside: avoid;
             }
             .sheet:last-child {
               page-break-after: auto;
               break-after: auto;
             }
+            .booklet {
+              width: 210mm;
+              height: 148mm;
+              flex: 0 0 148mm;
+              display: flex;
+              overflow: hidden;
+            }
             .page {
-              width: 148.5mm;
-              height: 210mm;
-              flex: 0 0 148.5mm;
+              width: 105mm;
+              height: 148mm;
+              flex: 0 0 105mm;
               overflow: hidden;
               position: relative;
               background: white;
               color: #1f2937;
-              padding: 18mm 16mm;
+              padding: 9mm 8mm;
               display: flex;
               flex-direction: column;
               justify-content: center;
@@ -259,8 +269,8 @@ export default function Booklets({
             }
             .cover-page img {
               display: block;
-              width: 148.5mm;
-              height: 210mm;
+              width: 105mm;
+              height: 148mm;
               object-fit: cover;
             }
             h2 {
@@ -268,13 +278,13 @@ export default function Booklets({
               padding-bottom: 3mm;
               border-bottom: 0.5mm solid #9ec5e8;
               color: #205b9f;
-              font-size: 46pt;
+              font-size: 11pt;
               line-height: 1.15;
               text-align: center;
             }
             .page-text {
-              font-size: 32pt;
-              line-height: 1.55;
+              font-size: 11pt;
+              line-height: 1.35;
               white-space: pre-line;
               text-align: center;
             }
@@ -284,8 +294,14 @@ export default function Booklets({
           </style>
         </head>
         <body>
-          <div class="sheet">${menuPage}${coverPage}</div>
-          <div class="sheet">${orderPage}${prizesPage}</div>
+          <div class="sheet">
+            <div class="booklet">${menuPage}${coverPage}</div>
+            <div class="booklet">${menuPage}${coverPage}</div>
+          </div>
+          <div class="sheet">
+            <div class="booklet">${orderPage}${prizesPage}</div>
+            <div class="booklet">${orderPage}${prizesPage}</div>
+          </div>
         </body>
       </html>
     `);
@@ -490,7 +506,7 @@ export default function Booklets({
           <div className="booklet-preview-heading">
             <div>
               <h2>Print Preview</h2>
-              <p>What the two sides of the A4 sheet will actually look like.</p>
+              <p>What one booklet looks like. It will print twice — top and bottom — on each A4 sheet.</p>
             </div>
             <span className="print-note">A4 landscape • fold to A5</span>
           </div>
@@ -554,8 +570,7 @@ export default function Booklets({
           </div>
 
           <div className="preview-instruction">
-            <strong>Print:</strong> A4 landscape • double-sided • short-edge
-            flip • 100% scale • fold vertically down the centre.
+            <strong>Print:</strong> A4 portrait • double-sided • 100% scale • two copies per sheet • short-edge flip.
           </div>
         </div>
       </div>
