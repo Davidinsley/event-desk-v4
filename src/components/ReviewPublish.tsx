@@ -1,6 +1,8 @@
 import type { Event } from "../types/Event";
 import type { Player } from "../types/Player";
 
+const DEFAULT_VENUE = "Ramsdale Park Golf Club";
+
 import "./ReviewPublish.css";
 
 import PageLayout from "../layout/PageLayout";
@@ -10,7 +12,6 @@ import {
   AlertCircle,
   CalendarDays,
   Trophy,
-  Users,
   Image,
   Send,
   Printer,
@@ -58,16 +59,21 @@ export default function ReviewPublish({
   onCloseArchive,
   onNavigate,
 }: ReviewPublishProps) {
+  /*
+   * Event Details uses Ramsdale Park Golf Club as the default venue
+   * when no venue has yet been stored in the event record. Review &
+   * Publish must use the same rule so the two pages cannot disagree.
+   */
+  const effectiveVenue =
+    event.venue.trim() || DEFAULT_VENUE;
+
   const eventDetailsComplete =
     event.eventName.trim() !== "" &&
     event.eventDate.trim() !== "" &&
-    event.venue.trim() !== "";
+    effectiveVenue !== "";
 
   const competitionComplete =
     event.competition.trim() !== "";
-
-  const playersComplete =
-    players.length > 0;
 
   const posterComplete =
     attachedPosterId !== null;
@@ -76,7 +82,7 @@ export default function ReviewPublish({
     {
       title: "Event Details",
       description: eventDetailsComplete
-        ? "Event name, date and venue are complete."
+        ? `Event name, date and venue are complete. Venue: ${effectiveVenue}.`
         : "Event name, date and venue must be completed.",
       complete: eventDetailsComplete,
       icon: CalendarDays,
@@ -93,13 +99,14 @@ export default function ReviewPublish({
     },
     {
       title: "Players",
-      description: playersComplete
-        ? `${players.length} player${
-            players.length === 1 ? "" : "s"
-          } currently entered.`
-        : "No players have been entered yet.",
-      complete: playersComplete,
-      icon: Users,
+      description:
+        players.length > 0
+          ? `${players.length} player${
+              players.length === 1 ? "" : "s"
+            } currently entered. Player entry can continue after publication.`
+          : "No players entered yet. Player entry can be completed later.",
+      complete: true,
+      icon: CalendarDays,
       page: "players",
     },
     {
@@ -285,8 +292,7 @@ export default function ReviewPublish({
               <span>VENUE</span>
 
               <strong>
-                {event.venue ||
-                  "Not Set"}
+                {effectiveVenue}
               </strong>
             </div>
 
