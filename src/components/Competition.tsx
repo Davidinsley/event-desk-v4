@@ -1,6 +1,6 @@
 // Competition.tsx
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import "./NewEvent.css";
@@ -47,6 +47,55 @@ export default function Competition({
     }, 2000);
   };
 
+  type CompetitionStatus = "draft" | "published" | "archived";
+
+  const [eventStatus, setEventStatus] =
+    useState<CompetitionStatus>("draft");
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(
+        "eventDeskEventRecords"
+      );
+
+      if (!stored) {
+        setEventStatus("draft");
+        return;
+      }
+
+      const records = JSON.parse(stored);
+      const record = Array.isArray(records)
+        ? records.find(
+            (item: { id?: string; event?: { eventNumber?: string } }) =>
+              item?.id === event.eventNumber ||
+              item?.event?.eventNumber === event.eventNumber
+          )
+        : null;
+
+      if (record?.archived) {
+        setEventStatus("archived");
+      } else if (record?.published) {
+        setEventStatus("published");
+      } else {
+        setEventStatus("draft");
+      }
+    } catch {
+      setEventStatus("draft");
+    }
+  }, [event.eventNumber]);
+
+  const getStatusLabel = (status: CompetitionStatus) => {
+    switch (status) {
+      case "published":
+        return "Published";
+      case "archived":
+        return "Archived";
+      case "draft":
+      default:
+        return "Draft";
+    }
+  };
+
   const summary = (
     <div className="page-summary">
       <SummaryCard
@@ -71,7 +120,7 @@ export default function Competition({
 
       <SummaryCard
         title="Status"
-        value="Draft"
+        value={getStatusLabel(eventStatus)}
       />
     </div>
   );
