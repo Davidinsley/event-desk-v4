@@ -45,6 +45,7 @@ import {
   ArrowUpCircle,
   Gift,
   PoundSterling,
+  Pencil,
 } from "lucide-react";
 
 interface FinancialsProps {
@@ -57,6 +58,7 @@ interface FinancialData {
   greenFees: number;
   prizeFund: number;
   miscellaneous: number;
+  miscellaneousItems: string;
   charity: number;
 }
 
@@ -91,6 +93,7 @@ const EMPTY_DATA: FinancialData = {
   greenFees: 0,
   prizeFund: 0,
   miscellaneous: 0,
+  miscellaneousItems: "",
   charity: 0,
 };
 
@@ -157,6 +160,11 @@ const loadFinancials = (): FinancialData => {
         typeof parsed.miscellaneous === "number"
           ? Math.max(0, parsed.miscellaneous)
           : 0,
+
+      miscellaneousItems:
+        typeof parsed.miscellaneousItems === "string"
+          ? parsed.miscellaneousItems
+          : "",
 
       charity:
         typeof parsed.charity === "number"
@@ -508,6 +516,50 @@ export default function Financials({ players = [] }: FinancialsProps) {
               />
             </div>
           </label>
+
+          <div className="financial-entry miscellaneous-items-entry">
+            <div
+              className="financial-entry-label"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+              }}
+            >
+              <span>Miscellaneous Items</span>
+              <Pencil size={18} />
+            </div>
+
+            <textarea
+              value={data.miscellaneousItems}
+              onChange={(event) =>
+                setData((current) => ({
+                  ...current,
+                  miscellaneousItems: event.target.value,
+                }))
+              }
+              placeholder={
+                "Enter brief items, one per line\nExample: Scorecards\nNearest the Pin markers"
+              }
+              aria-label="Miscellaneous Items"
+              style={{
+                width: "100%",
+                minHeight: "112px",
+                marginTop: "10px",
+                padding: "10px 12px",
+                boxSizing: "border-box",
+                border: "1px solid #dbe5ef",
+                borderRadius: "8px",
+                background: "#ffffff",
+                color: "#334155",
+                fontSize: "15px",
+                lineHeight: 1.45,
+                fontFamily: "inherit",
+                resize: "vertical",
+              }}
+            />
+          </div>
         </div>
       </section>
 

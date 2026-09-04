@@ -1,4 +1,4 @@
-// Revision: Core Event Details report reads live Catering V4 data
+// Revision: Event Details changes synchronise immediately with Event Desk records
 // NewEvent.tsx
 
 // Ramsdale Seniors Event Desk
@@ -44,8 +44,6 @@ interface NewEventProps {
   setEvent: React.Dispatch<React.SetStateAction<Event>>;
 
   players: Player[];
-
-  published: boolean;
 
   attachedPosterIds: string[];
 
@@ -289,8 +287,6 @@ export default function NewEvent({
 
   players,
 
-  published,
-
   attachedPosterIds = [],
 
   onAttachPoster,
@@ -323,9 +319,7 @@ export default function NewEvent({
 
   const currentStatus: EventStatus =
 
-    published
-      ? "published"
-      : event.status ?? "draft";
+    event.status ?? "draft";
 
   const weekday = useMemo(
 

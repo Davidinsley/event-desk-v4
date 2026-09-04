@@ -291,7 +291,9 @@ export default function Players({
       lastNameIndex === -1
     ) {
       throw new Error(
-        "The CSV must contain First Name and Last Name columns."
+        importedSource === "Excel"
+          ? "The Excel worksheet must contain First Name and Last Name columns."
+          : "The CSV must contain First Name and Last Name columns."
       );
     }
 
@@ -564,6 +566,289 @@ export default function Players({
 
 
   // --------------------------------------------------
+  // Excel Helpers
+  // --------------------------------------------------
+
+  function findExcelHeaderRowIndex(
+    rows: string[][]
+  ): number {
+    return rows.findIndex((row) => {
+      const headers = row.map(normaliseHeader);
+
+      const hasFirstName = headers.some((header) =>
+        [
+          "firstname",
+          "forename",
+          "givenname",
+        ].includes(header)
+      );
+
+      const hasLastName = headers.some((header) =>
+        [
+          "lastname",
+          "surname",
+          "familyname",
+        ].includes(header)
+      );
+
+      const hasName = headers.some((header) =>
+        [
+          "name",
+          "playername",
+          "player",
+          "fullname",
+          "playerfullname",
+        ].includes(header)
+      );
+
+      return (hasFirstName && hasLastName) || hasName;
+    });
+  }
+
+  function parseImportedPlayerName(
+    value: string
+  ): { firstName: string; lastName: string } {
+    const name = value.trim();
+
+    if (name.includes(",")) {
+      const parts = name
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      if (parts.length >= 2) {
+        return {
+          firstName: parts.slice(1).join(" "),
+          lastName: parts[0],
+        };
+      }
+    }
+
+    const parts = name
+      .split(/\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (parts.length < 2) {
+      return {
+        firstName: "",
+        lastName: "",
+      };
+    }
+
+    return {
+      firstName: parts.slice(0, -1).join(" "),
+      lastName: parts[parts.length - 1],
+    };
+  }
+
+  function convertExcelRows(
+    rows: string[][]
+  ): {
+    players: Player[];
+    skipped: number;
+  } {
+    const headerRowIndex =
+      findExcelHeaderRowIndex(rows);
+
+    if (headerRowIndex === -1) {
+      // Also accept a simple one-column Excel name list with no header.
+      const nonEmptyRows = rows.filter((row) =>
+        row.some((cell) => String(cell).trim() !== "")
+      );
+
+      if (nonEmptyRows.length === 0) {
+        return { players: [], skipped: 0 };
+      }
+
+      const importedPlayers: Player[] = [];
+      let skipped = 0;
+
+      nonEmptyRows.forEach((row) => {
+        const name = String(row[0] ?? "").trim();
+        const { firstName, lastName } =
+          parseImportedPlayerName(name);
+
+        if (!firstName || !lastName) {
+          skipped += 1;
+          return;
+        }
+
+        importedPlayers.push({
+          id: crypto.randomUUID(),
+          firstName,
+          lastName,
+          handicapIndex: 0,
+          status: "Registered",
+          source: "Excel",
+          paid: false,
+          notes: "",
+        });
+      });
+
+      return {
+        players: importedPlayers,
+        skipped,
+      };
+    }
+
+    const playerRows = rows.slice(headerRowIndex);
+    const headers = playerRows[0].map(normaliseHeader);
+
+    const firstNameIndex = headers.findIndex((header) =>
+      [
+        "firstname",
+        "forename",
+        "givenname",
+      ].includes(header)
+    );
+
+    const lastNameIndex = headers.findIndex((header) =>
+      [
+        "lastname",
+        "surname",
+        "familyname",
+      ].includes(header)
+    );
+
+    const nameIndex = headers.findIndex((header) =>
+      [
+        "name",
+        "playername",
+        "player",
+        "fullname",
+        "playerfullname",
+      ].includes(header)
+    );
+
+    // A normal First Name / Last Name workbook uses the same
+    // conversion path as CSV, preserving HI, Paid, Notes,
+    // Home Club, Tee Time and Group where those columns exist.
+    if (firstNameIndex !== -1 && lastNameIndex !== -1) {
+      return convertPlayerRows(playerRows, "Excel");
+    }
+
+    const importedPlayers: DisplayPlayer[] = [];
+    let skipped = 0;
+
+    playerRows.slice(1).forEach((row) => {
+      const name = String(row[nameIndex] ?? "").trim();
+
+      if (!name) {
+        return;
+      }
+
+      const { firstName, lastName } =
+        parseImportedPlayerName(name);
+
+      if (!firstName || !lastName) {
+        skipped += 1;
+        return;
+      }
+
+      const handicapIndex = headers.findIndex((header) =>
+        [
+          "handicapindex",
+          "handicap",
+          "hi",
+        ].includes(header)
+      );
+
+      const handicapText =
+        handicapIndex === -1
+          ? ""
+          : String(row[handicapIndex] ?? "").trim();
+
+      const parsedHandicap = Number(handicapText);
+
+      const paidIndex = headers.findIndex((header) =>
+        header === "paid"
+      );
+
+      const statusIndex = headers.findIndex((header) =>
+        header === "status"
+      );
+
+      const notesIndex = headers.findIndex((header) =>
+        ["notes", "sourcenotes"].includes(header)
+      );
+
+      const homeClubIndex = headers.findIndex((header) =>
+        [
+          "homeclub",
+          "golfclub",
+          "homegolfclub",
+          "club",
+          "clubaffiliation",
+        ].includes(header)
+      );
+
+      const teeTimeIndex = headers.findIndex((header) =>
+        [
+          "teetime",
+          "starttime",
+          "start",
+          "time",
+        ].includes(header)
+      );
+
+      const groupIndex = headers.findIndex((header) =>
+        [
+          "group",
+          "groupnumber",
+          "groupno",
+          "fourball",
+          "fourballnumber",
+          "fourballno",
+        ].includes(header)
+      );
+
+      importedPlayers.push({
+        id: crypto.randomUUID(),
+        firstName,
+        lastName,
+        handicapIndex: Number.isFinite(parsedHandicap)
+          ? parsedHandicap
+          : 0,
+        status:
+          statusIndex === -1
+            ? "Registered"
+            : parseStatus(
+                String(row[statusIndex] ?? "")
+              ),
+        source: "Excel",
+        paid:
+          paidIndex === -1
+            ? false
+            : parsePaidValue(
+                String(row[paidIndex] ?? "")
+              ),
+        notes:
+          notesIndex === -1
+            ? ""
+            : String(row[notesIndex] ?? "").trim(),
+        homeClub:
+          homeClubIndex === -1
+            ? ""
+            : String(row[homeClubIndex] ?? "").trim(),
+        teeTime:
+          teeTimeIndex === -1
+            ? ""
+            : String(row[teeTimeIndex] ?? "").trim(),
+        group:
+          groupIndex === -1
+            ? ""
+            : String(row[groupIndex] ?? "").trim(),
+      });
+    });
+
+    return {
+      players: importedPlayers,
+      skipped,
+    };
+  }
+
+  // --------------------------------------------------
   // Import Excel
   // --------------------------------------------------
 
@@ -620,7 +905,7 @@ export default function Players({
         const {
           players: importedPlayers,
           skipped,
-        } = convertPlayerRows(rows, "Excel");
+        } = convertExcelRows(rows);
 
         if (importedPlayers.length === 0) {
           alert(
@@ -1152,6 +1437,31 @@ export default function Players({
     return index === -1 ? null : index + 1;
   }
 
+  function applyCapacityToNewPlayers(
+    current: Player[],
+    incoming: Player[]
+  ): Player[] {
+    let registeredCount = current.filter(
+      (player) => player.status === "Registered"
+    ).length;
+
+    return incoming.map((player) => {
+      const nextStatus =
+        registeredCount < EVENT_CAPACITY
+          ? "Registered"
+          : "Waiting";
+
+      if (nextStatus === "Registered") {
+        registeredCount += 1;
+      }
+
+      return {
+        ...player,
+        status: nextStatus,
+      };
+    });
+  }
+
   // --------------------------------------------------
   // Add Player
   // --------------------------------------------------
@@ -1252,26 +1562,6 @@ export default function Players({
 
       return remaining;
     });
-  }
-
-  // --------------------------------------------------
-  // Clear All Players
-  // --------------------------------------------------
-
-  function clearAllPlayers() {
-    if (players.length === 0) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Clear all ${players.length} players from this event?\n\nThis will remove the complete player list, including registration, payment, tee time, group and Start List information. The event itself and its capacity will not be changed.\n\nThis action cannot be undone.`
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setPlayers([]);
   }
 
   // --------------------------------------------------
@@ -1559,12 +1849,6 @@ export default function Players({
         icon={Download}
         title="Export"
         onClick={handleExport}
-      />
-
-      <ActionTile
-        icon={Trash2}
-        title="Clear All Players"
-        onClick={clearAllPlayers}
       />
     </div>
   );
