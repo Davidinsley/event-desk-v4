@@ -1,6 +1,6 @@
 // Players.tsx
 // Event Desk - Players Management
-// Revision: CSV + Excel + Start List merge + Home Club / Tee Time / Group preservation + Event capacity + PDF Export + Home Club verification + Legacy Club compatibility
+// Revision: CSV + Excel + Start List merge + Home Club / Tee Time / Group preservation + Event capacity + PDF Export + Home Club verification
 
 import { useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -33,7 +33,6 @@ type DisplayPlayer = Player & {
   teeTime?: string;
   group?: string;
   homeClub?: string;
-  club?: string;
 };
 
 export default function Players({
@@ -213,19 +212,6 @@ export default function Players({
     return "";
   }
 
-  // Home Club compatibility helper. Older player records may have stored
-  // the value as `club` rather than `homeClub`. Always prefer the current
-  // `homeClub` field, but fall back to the legacy field so existing data is
-  // not lost and the Players table / Start List export can display it.
-  function getPlayerHomeClub(player: Player): string {
-    const displayPlayer = player as DisplayPlayer;
-    return (
-      displayPlayer.homeClub?.trim() ||
-      displayPlayer.club?.trim() ||
-      ""
-    );
-  }
-
   function parsePaidValue(value: string): boolean {
     const normalised = value
       .trim()
@@ -291,9 +277,7 @@ export default function Players({
       lastNameIndex === -1
     ) {
       throw new Error(
-        importedSource === "Excel"
-          ? "The Excel worksheet must contain First Name and Last Name columns."
-          : "The CSV must contain First Name and Last Name columns."
+        "The CSV must contain First Name and Last Name columns."
       );
     }
 
@@ -381,8 +365,6 @@ export default function Players({
         "Golf Club",
         "Home Golf Club",
         "Club",
-        "Club Affiliation",
-        "Home Club Name",
       ]);
 
       const notesValue =
@@ -517,9 +499,9 @@ export default function Players({
               ...(importedDisplay.group !== undefined
                 ? { group: importedDisplay.group }
                 : {}),
-              ...(importedDisplay.homeClub?.trim()
-                ? { homeClub: importedDisplay.homeClub.trim() }
-                : { homeClub: getPlayerHomeClub(existing) }),
+              ...(importedDisplay.homeClub !== undefined
+                ? { homeClub: importedDisplay.homeClub }
+                : {}),
             } as Player;
 
             updatedCount += 1;
@@ -564,289 +546,6 @@ export default function Players({
     reader.readAsText(file);
   }
 
-
-  // --------------------------------------------------
-  // Excel Helpers
-  // --------------------------------------------------
-
-  function findExcelHeaderRowIndex(
-    rows: string[][]
-  ): number {
-    return rows.findIndex((row) => {
-      const headers = row.map(normaliseHeader);
-
-      const hasFirstName = headers.some((header) =>
-        [
-          "firstname",
-          "forename",
-          "givenname",
-        ].includes(header)
-      );
-
-      const hasLastName = headers.some((header) =>
-        [
-          "lastname",
-          "surname",
-          "familyname",
-        ].includes(header)
-      );
-
-      const hasName = headers.some((header) =>
-        [
-          "name",
-          "playername",
-          "player",
-          "fullname",
-          "playerfullname",
-        ].includes(header)
-      );
-
-      return (hasFirstName && hasLastName) || hasName;
-    });
-  }
-
-  function parseImportedPlayerName(
-    value: string
-  ): { firstName: string; lastName: string } {
-    const name = value.trim();
-
-    if (name.includes(",")) {
-      const parts = name
-        .split(",")
-        .map((part) => part.trim())
-        .filter(Boolean);
-
-      if (parts.length >= 2) {
-        return {
-          firstName: parts.slice(1).join(" "),
-          lastName: parts[0],
-        };
-      }
-    }
-
-    const parts = name
-      .split(/\s+/)
-      .map((part) => part.trim())
-      .filter(Boolean);
-
-    if (parts.length < 2) {
-      return {
-        firstName: "",
-        lastName: "",
-      };
-    }
-
-    return {
-      firstName: parts.slice(0, -1).join(" "),
-      lastName: parts[parts.length - 1],
-    };
-  }
-
-  function convertExcelRows(
-    rows: string[][]
-  ): {
-    players: Player[];
-    skipped: number;
-  } {
-    const headerRowIndex =
-      findExcelHeaderRowIndex(rows);
-
-    if (headerRowIndex === -1) {
-      // Also accept a simple one-column Excel name list with no header.
-      const nonEmptyRows = rows.filter((row) =>
-        row.some((cell) => String(cell).trim() !== "")
-      );
-
-      if (nonEmptyRows.length === 0) {
-        return { players: [], skipped: 0 };
-      }
-
-      const importedPlayers: Player[] = [];
-      let skipped = 0;
-
-      nonEmptyRows.forEach((row) => {
-        const name = String(row[0] ?? "").trim();
-        const { firstName, lastName } =
-          parseImportedPlayerName(name);
-
-        if (!firstName || !lastName) {
-          skipped += 1;
-          return;
-        }
-
-        importedPlayers.push({
-          id: crypto.randomUUID(),
-          firstName,
-          lastName,
-          handicapIndex: 0,
-          status: "Registered",
-          source: "Excel",
-          paid: false,
-          notes: "",
-        });
-      });
-
-      return {
-        players: importedPlayers,
-        skipped,
-      };
-    }
-
-    const playerRows = rows.slice(headerRowIndex);
-    const headers = playerRows[0].map(normaliseHeader);
-
-    const firstNameIndex = headers.findIndex((header) =>
-      [
-        "firstname",
-        "forename",
-        "givenname",
-      ].includes(header)
-    );
-
-    const lastNameIndex = headers.findIndex((header) =>
-      [
-        "lastname",
-        "surname",
-        "familyname",
-      ].includes(header)
-    );
-
-    const nameIndex = headers.findIndex((header) =>
-      [
-        "name",
-        "playername",
-        "player",
-        "fullname",
-        "playerfullname",
-      ].includes(header)
-    );
-
-    // A normal First Name / Last Name workbook uses the same
-    // conversion path as CSV, preserving HI, Paid, Notes,
-    // Home Club, Tee Time and Group where those columns exist.
-    if (firstNameIndex !== -1 && lastNameIndex !== -1) {
-      return convertPlayerRows(playerRows, "Excel");
-    }
-
-    const importedPlayers: DisplayPlayer[] = [];
-    let skipped = 0;
-
-    playerRows.slice(1).forEach((row) => {
-      const name = String(row[nameIndex] ?? "").trim();
-
-      if (!name) {
-        return;
-      }
-
-      const { firstName, lastName } =
-        parseImportedPlayerName(name);
-
-      if (!firstName || !lastName) {
-        skipped += 1;
-        return;
-      }
-
-      const handicapIndex = headers.findIndex((header) =>
-        [
-          "handicapindex",
-          "handicap",
-          "hi",
-        ].includes(header)
-      );
-
-      const handicapText =
-        handicapIndex === -1
-          ? ""
-          : String(row[handicapIndex] ?? "").trim();
-
-      const parsedHandicap = Number(handicapText);
-
-      const paidIndex = headers.findIndex((header) =>
-        header === "paid"
-      );
-
-      const statusIndex = headers.findIndex((header) =>
-        header === "status"
-      );
-
-      const notesIndex = headers.findIndex((header) =>
-        ["notes", "sourcenotes"].includes(header)
-      );
-
-      const homeClubIndex = headers.findIndex((header) =>
-        [
-          "homeclub",
-          "golfclub",
-          "homegolfclub",
-          "club",
-          "clubaffiliation",
-        ].includes(header)
-      );
-
-      const teeTimeIndex = headers.findIndex((header) =>
-        [
-          "teetime",
-          "starttime",
-          "start",
-          "time",
-        ].includes(header)
-      );
-
-      const groupIndex = headers.findIndex((header) =>
-        [
-          "group",
-          "groupnumber",
-          "groupno",
-          "fourball",
-          "fourballnumber",
-          "fourballno",
-        ].includes(header)
-      );
-
-      importedPlayers.push({
-        id: crypto.randomUUID(),
-        firstName,
-        lastName,
-        handicapIndex: Number.isFinite(parsedHandicap)
-          ? parsedHandicap
-          : 0,
-        status:
-          statusIndex === -1
-            ? "Registered"
-            : parseStatus(
-                String(row[statusIndex] ?? "")
-              ),
-        source: "Excel",
-        paid:
-          paidIndex === -1
-            ? false
-            : parsePaidValue(
-                String(row[paidIndex] ?? "")
-              ),
-        notes:
-          notesIndex === -1
-            ? ""
-            : String(row[notesIndex] ?? "").trim(),
-        homeClub:
-          homeClubIndex === -1
-            ? ""
-            : String(row[homeClubIndex] ?? "").trim(),
-        teeTime:
-          teeTimeIndex === -1
-            ? ""
-            : String(row[teeTimeIndex] ?? "").trim(),
-        group:
-          groupIndex === -1
-            ? ""
-            : String(row[groupIndex] ?? "").trim(),
-      });
-    });
-
-    return {
-      players: importedPlayers,
-      skipped,
-    };
-  }
 
   // --------------------------------------------------
   // Import Excel
@@ -905,7 +604,7 @@ export default function Players({
         const {
           players: importedPlayers,
           skipped,
-        } = convertExcelRows(rows);
+        } = convertPlayerRows(rows, "Excel");
 
         if (importedPlayers.length === 0) {
           alert(
@@ -976,9 +675,9 @@ export default function Players({
               ...(importedDisplay.group !== undefined
                 ? { group: importedDisplay.group }
                 : {}),
-              ...(importedDisplay.homeClub?.trim()
-                ? { homeClub: importedDisplay.homeClub.trim() }
-                : { homeClub: getPlayerHomeClub(existing) }),
+              ...(importedDisplay.homeClub !== undefined
+                ? { homeClub: importedDisplay.homeClub }
+                : {}),
             } as Player;
 
             updatedCount += 1;
@@ -1367,10 +1066,7 @@ export default function Players({
                   : existing.notes,
               teeTime: imported.teeTime,
               group: imported.group,
-              homeClub:
-                imported.homeClub?.trim()
-                  ? imported.homeClub.trim()
-                  : getPlayerHomeClub(existing),
+              homeClub: imported.homeClub,
             };
 
             next[existingIndex] = updatedPlayer as Player;
@@ -1435,31 +1131,6 @@ export default function Players({
     const index = reserveIds.indexOf(playerId);
 
     return index === -1 ? null : index + 1;
-  }
-
-  function applyCapacityToNewPlayers(
-    current: Player[],
-    incoming: Player[]
-  ): Player[] {
-    let registeredCount = current.filter(
-      (player) => player.status === "Registered"
-    ).length;
-
-    return incoming.map((player) => {
-      const nextStatus =
-        registeredCount < EVENT_CAPACITY
-          ? "Registered"
-          : "Waiting";
-
-      if (nextStatus === "Registered") {
-        registeredCount += 1;
-      }
-
-      return {
-        ...player,
-        status: nextStatus,
-      };
-    });
   }
 
   // --------------------------------------------------
@@ -1589,7 +1260,7 @@ export default function Players({
         teeTime: startListPlayer.teeTime || "",
         group: startListPlayer.group || "",
         name: `${player.firstName} ${player.lastName}`.trim(),
-        homeClub: getPlayerHomeClub(player),
+        homeClub: startListPlayer.homeClub || "",
         handicap: player.handicapIndex.toFixed(1),
         status:
           player.status === "Waiting"
@@ -1952,7 +1623,7 @@ export default function Players({
                       </td>
 
                       <td>
-                        {getPlayerHomeClub(player)}
+                        {startListPlayer.homeClub || ""}
                       </td>
 
                     <td>

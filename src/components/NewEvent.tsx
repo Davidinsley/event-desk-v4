@@ -1,4 +1,4 @@
-// Revision: Event Details changes synchronise immediately with Event Desk records
+// Revision: Core Event Details report reads live Catering V4 data
 // NewEvent.tsx
 
 // Ramsdale Seniors Event Desk
@@ -52,6 +52,10 @@ interface NewEventProps {
   onDeleteEvent: () => void;
 
   canDelete: boolean;
+
+  published: boolean;
+
+  archived: boolean;
 
 }
 
@@ -291,6 +295,10 @@ export default function NewEvent({
 
   onAttachPoster,
 
+  published,
+
+  archived,
+
 }: NewEventProps) {
 
   const [venues, setVenues] =
@@ -319,7 +327,11 @@ export default function NewEvent({
 
   const currentStatus: EventStatus =
 
-    event.status ?? "draft";
+    archived
+      ? "archived"
+      : published
+      ? "published"
+      : "draft";
 
   const weekday = useMemo(
 
@@ -913,7 +925,7 @@ export default function NewEvent({
 
             size: A4 portrait;
 
-            margin: 14mm;
+            margin: 0;
 
           }
 
@@ -1169,7 +1181,7 @@ export default function NewEvent({
 
             background: ${
 
-              currentStatus === "confirmed"
+              currentStatus === "published"
 
                 ? "#ecfdf3"
 
@@ -1183,7 +1195,7 @@ export default function NewEvent({
 
             color: ${
 
-              currentStatus === "confirmed"
+              currentStatus === "published"
 
                 ? "#15803d"
 
@@ -1480,6 +1492,8 @@ export default function NewEvent({
 
               padding: 0;
 
+              margin: 0;
+
             }
 
             .preview-controls {
@@ -1490,17 +1504,104 @@ export default function NewEvent({
 
             .event-document {
 
-              width: auto;
+              width: 210mm;
 
-              min-height: 0;
+              height: 297mm;
 
-              max-width: none;
+              min-height: 297mm;
+
+              max-width: 210mm;
 
               margin: 0;
 
-              padding: 0;
+              padding: 8mm;
 
               box-shadow: none;
+
+              overflow: hidden;
+
+              page-break-after: avoid;
+
+              page-break-before: avoid;
+
+            }
+
+            .document-header {
+
+              padding-bottom: 8px;
+
+              margin-bottom: 10px;
+
+            }
+
+            .event-heading {
+
+              margin-bottom: 10px;
+
+            }
+
+            .section {
+
+              margin-top: 8px;
+
+            }
+
+            .section-heading {
+
+              margin-bottom: 5px;
+
+              padding: 5px 8px;
+
+            }
+
+            .detail {
+
+              min-height: 26px;
+
+            }
+
+            .detail-label,
+            .detail-value {
+
+              padding: 5px 8px;
+
+            }
+
+            .rules-box {
+
+              padding: 7px 9px;
+
+              min-height: 40px;
+
+            }
+
+            .financial-group-heading {
+
+              margin: 6px 0 4px;
+
+              padding: 4px 8px;
+
+            }
+
+            .financial-total {
+
+              margin-top: 4px;
+
+              padding: 6px 9px;
+
+            }
+
+            .financial-result-grid {
+
+              margin-top: 6px;
+
+            }
+
+            .document-footer {
+
+              margin-top: 10px;
+
+              padding-top: 6px;
 
             }
 
@@ -1524,7 +1625,7 @@ export default function NewEvent({
 
           >
 
-            Print Event Details
+            Print / Export PDF — A4
 
           </button>
 
@@ -2330,7 +2431,7 @@ export default function NewEvent({
 
         title={
 
-          currentStatus === "confirmed"
+          currentStatus === "published"
 
             ? "Reconfirm"
 
