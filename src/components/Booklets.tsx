@@ -1,6 +1,6 @@
 // Booklets.tsx
 // Ramsdale Seniors Event Desk
-// Revision: Four-page A5 booklet builder with true A4 print preview
+// Revision: Four-page A5 booklet builder from one A4 landscape sheet
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
@@ -64,22 +64,12 @@ const loadBookletData = (
 };
 
 function formatPageText(text: string) {
-  const lines = text.split("\n");
-
-  return lines.map((line, index) => (
+  return text.split("\n").map((line, index) => (
     <span key={`${index}-${line}`}>
       {line || "\u00a0"}
-      {index < lines.length - 1 && <br />}
+      {index < text.split("\n").length - 1 && <br />}
     </span>
   ));
-}
-
-function PreviewText({ text, emptyText }: { text: string; emptyText: string }) {
-  return text ? (
-    <div className="preview-page-text">{formatPageText(text)}</div>
-  ) : (
-    <div className="preview-page-empty">{emptyText}</div>
-  );
 }
 
 export default function Booklets({
@@ -158,7 +148,8 @@ export default function Booklets({
 
     const reader = new FileReader();
     reader.onload = () => {
-      updateField(importTarget, String(reader.result ?? ""));
+      const text = String(reader.result ?? "");
+      updateField(importTarget, text);
       setImportTarget(null);
     };
     reader.onerror = () => setImportTarget(null);
@@ -166,162 +157,7 @@ export default function Booklets({
   };
 
   const handlePrint = () => {
-    const printWindow = window.open("", "_blank", "width=1200,height=900");
-
-    if (!printWindow) {
-      window.alert("Please allow pop-ups for Event Desk to print the booklet.");
-      return;
-    }
-
-    const escapeHtml = (value: string) =>
-      value
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-
-    const textHtml = (value: string) =>
-      escapeHtml(value).replace(/\r?\n/g, "<br />");
-
-    const menuPage = data.includeMenu
-      ? `
-          <section class="page menu-page">
-            <h2>MENU</h2>
-            <div class="page-text">${textHtml(data.menu)}</div>
-          </section>
-        `
-      : `<section class="page blank-page"></section>`;
-
-    const coverPage = selectedPoster
-      ? `
-          <section class="page cover-page">
-            <img src="${selectedPoster.image}" alt="Front cover" />
-          </section>
-        `
-      : `<section class="page blank-page"></section>`;
-
-    const orderPage = `
-      <section class="page text-page">
-        <h2>ORDER OF THE DAY</h2>
-        <div class="page-text">${textHtml(data.orderOfDay)}</div>
-      </section>
-    `;
-
-    const prizesPage = `
-      <section class="page text-page">
-        <h2>PRIZES &amp; DETAILS</h2>
-        <div class="page-text">${textHtml(data.prizes)}</div>
-      </section>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>${escapeHtml(event.eventName || "Event Booklet")}</title>
-          <style>
-            @page { size: A4 portrait; margin: 0; }
-            * { box-sizing: border-box; }
-            html, body { margin: 0; padding: 0; background: white; }
-            body { width: 210mm; font-family: Arial, Helvetica, sans-serif; }
-            .sheet {
-              width: 210mm;
-              height: 296mm;
-              display: flex;
-              flex-direction: column;
-              page-break-after: always;
-              break-after: page;
-              overflow: hidden;
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-            .sheet:last-child {
-              page-break-after: auto;
-              break-after: auto;
-            }
-            .booklet {
-              width: 210mm;
-              height: 148mm;
-              flex: 0 0 148mm;
-              display: flex;
-              overflow: hidden;
-            }
-            .page {
-              width: 105mm;
-              height: 148mm;
-              flex: 0 0 105mm;
-              overflow: hidden;
-              position: relative;
-              background: white;
-              color: #1f2937;
-              padding: 9mm 8mm;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-              text-align: center;
-            }
-            .cover-page {
-              padding: 0;
-              display: block;
-            }
-            .cover-page img {
-              display: block;
-              width: 105mm;
-              height: 148mm;
-              object-fit: cover;
-            }
-            h2 {
-              margin: 0 0 7mm;
-              padding-bottom: 3mm;
-              border-bottom: 0.5mm solid #9ec5e8;
-              color: #205b9f;
-              font-size: 11pt;
-              line-height: 1.15;
-              text-align: center;
-            }
-            .page-text {
-              font-size: 11pt;
-              line-height: 1.35;
-              white-space: pre-line;
-              text-align: center;
-            }
-            .blank-page {
-              background: white;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="sheet">
-            <div class="booklet">${menuPage}${coverPage}</div>
-            <div class="booklet">${menuPage}${coverPage}</div>
-          </div>
-          <div class="sheet">
-            <div class="booklet">${orderPage}${prizesPage}</div>
-            <div class="booklet">${orderPage}${prizesPage}</div>
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-
-    const startPrint = () => {
-      printWindow.focus();
-      printWindow.print();
-    };
-
-    const coverImage = printWindow.document.querySelector<HTMLImageElement>(
-      ".cover-page img",
-    );
-
-    if (coverImage && !coverImage.complete) {
-      coverImage.addEventListener("load", startPrint, { once: true });
-      coverImage.addEventListener("error", startPrint, { once: true });
-    } else {
-      window.setTimeout(startPrint, 250);
-    }
+    window.print();
   };
 
   return (
@@ -338,24 +174,16 @@ export default function Booklets({
         <div>
           <h1>Booklet</h1>
           <p>
-            Four-page A5 event booklet — A4 landscape, double-sided and folded
-            in half.
+            Four-page A5 event booklet — print double-sided on one A4 landscape
+            sheet and fold in half.
           </p>
         </div>
 
         <div className="booklets-actions">
-          <button
-            type="button"
-            className="booklets-secondary-button"
-            onClick={onBack}
-          >
+          <button type="button" className="booklets-secondary-button" onClick={onBack}>
             ← Event Details
           </button>
-          <button
-            type="button"
-            className="booklets-print-button"
-            onClick={handlePrint}
-          >
+          <button type="button" className="booklets-print-button" onClick={handlePrint}>
             🖨 Print Booklet
           </button>
         </div>
@@ -490,7 +318,9 @@ export default function Booklets({
               <textarea
                 value={data.menu}
                 onChange={(e) => updateField("menu", e.target.value)}
-                placeholder={"STARTER\n...\n\nMAIN COURSE\n...\n\nDESSERT\n..."}
+                placeholder={
+                  "STARTER\n...\n\nMAIN COURSE\n...\n\nDESSERT\n..."
+                }
                 disabled={readOnly}
               />
             ) : (
@@ -505,79 +335,59 @@ export default function Booklets({
         <div className="booklet-preview-area">
           <div className="booklet-preview-heading">
             <div>
-              <h2>Print Preview</h2>
-              <p>What one booklet looks like. It will print twice — top and bottom — on each A4 sheet.</p>
+              <h2>Booklet Preview</h2>
+              <p>Logical page order: 1 → 2 → 3 → 4</p>
             </div>
-            <span className="print-note">A4 landscape • fold to A5</span>
+            <span className="print-note">A5 portrait when folded</span>
           </div>
 
-          <div className="print-preview-sheets">
-            <div className="preview-sheet-group">
-              <div className="preview-sheet-label">OUTSIDE — print side 1</div>
-              <div className="preview-sheet">
-                <div className="preview-half preview-menu">
-                  <span className="preview-page-number">4</span>
-                  {data.includeMenu ? (
-                    <>
-                      <h3>MENU</h3>
-                      <PreviewText
-                        text={data.menu}
-                        emptyText="Enter the menu in Page 4."
-                      />
-                    </>
-                  ) : (
-                    <div className="preview-blank">Page 4 • Menu not required</div>
-                  )}
-                </div>
+          <div className="logical-pages">
+            <article className="logical-page cover-page">
+              <span className="page-label">PAGE 1 • FRONT COVER</span>
+              {selectedPoster ? (
+                <img src={selectedPoster.image} alt={selectedPoster.title} />
+              ) : (
+                <div className="page-placeholder">No attached poster selected</div>
+              )}
+            </article>
 
-                <div className="preview-fold" />
-
-                <div className="preview-half preview-cover">
-                  <span className="preview-page-number light">1</span>
-                  {selectedPoster ? (
-                    <img src={selectedPoster.image} alt="Front cover preview" />
-                  ) : (
-                    <div className="preview-blank">No attached poster selected</div>
-                  )}
-                </div>
+            <article className="logical-page text-page">
+              <span className="page-label">PAGE 2 • ORDER OF THE DAY</span>
+              <h3>ORDER OF THE DAY</h3>
+              <div className="page-text">
+                {data.orderOfDay ? formatPageText(data.orderOfDay) : "Enter the itinerary above."}
               </div>
-            </div>
+            </article>
 
-            <div className="preview-sheet-group">
-              <div className="preview-sheet-label">INSIDE — print side 2</div>
-              <div className="preview-sheet">
-                <div className="preview-half preview-text-page">
-                  <span className="preview-page-number">2</span>
-                  <h3>ORDER OF THE DAY</h3>
-                  <PreviewText
-                    text={data.orderOfDay}
-                    emptyText="Enter the Order of the Day in Page 2."
-                  />
-                </div>
-
-                <div className="preview-fold" />
-
-                <div className="preview-half preview-text-page">
-                  <span className="preview-page-number">3</span>
-                  <h3>PRIZES & DETAILS</h3>
-                  <PreviewText
-                    text={data.prizes}
-                    emptyText="Enter the prize details in Page 3."
-                  />
-                </div>
+            <article className="logical-page text-page">
+              <span className="page-label">PAGE 3 • PRIZES & DETAILS</span>
+              <h3>PRIZES & DETAILS</h3>
+              <div className="page-text">
+                {data.prizes ? formatPageText(data.prizes) : "Enter the prize details above."}
               </div>
-            </div>
-          </div>
+            </article>
 
-          <div className="preview-instruction">
-            <strong>Print:</strong> A4 portrait • double-sided • 100% scale • two copies per sheet • short-edge flip.
+            <article className="logical-page text-page">
+              <span className="page-label">PAGE 4 • MENU</span>
+              {data.includeMenu ? (
+                <>
+                  <h3>MENU</h3>
+                  <div className="page-text">
+                    {data.menu ? formatPageText(data.menu) : "Enter the menu above."}
+                  </div>
+                </>
+              ) : (
+                <div className="page-placeholder">Menu not required</div>
+              )}
+            </article>
           </div>
         </div>
       </div>
 
-      <div className="print-booklet">
+      <div className="print-booklet no-screen">
         <div className="print-sheet">
           <div className="print-page">
+            <span className="print-page-number">PAGE 4</span>
             {data.includeMenu ? (
               <>
                 <h2>MENU</h2>
@@ -585,8 +395,8 @@ export default function Booklets({
               </>
             ) : null}
           </div>
-
           <div className="print-page print-cover">
+            <span className="print-page-number">PAGE 1</span>
             {selectedPoster ? (
               <img src={selectedPoster.image} alt="Front cover" />
             ) : null}
@@ -595,10 +405,12 @@ export default function Booklets({
 
         <div className="print-sheet">
           <div className="print-page">
+            <span className="print-page-number">PAGE 2</span>
             <h2>ORDER OF THE DAY</h2>
             <div className="print-text">{formatPageText(data.orderOfDay)}</div>
           </div>
           <div className="print-page">
+            <span className="print-page-number">PAGE 3</span>
             <h2>PRIZES & DETAILS</h2>
             <div className="print-text">{formatPageText(data.prizes)}</div>
           </div>

@@ -1,8 +1,6 @@
 import type { Event } from "../types/Event";
 import type { Player } from "../types/Player";
 
-const DEFAULT_VENUE = "Ramsdale Park Golf Club";
-
 import "./ReviewPublish.css";
 
 import PageLayout from "../layout/PageLayout";
@@ -59,18 +57,10 @@ export default function ReviewPublish({
   onCloseArchive,
   onNavigate,
 }: ReviewPublishProps) {
-  /*
-   * Event Details uses Ramsdale Park Golf Club as the default venue
-   * when no venue has yet been stored in the event record. Review &
-   * Publish must use the same rule so the two pages cannot disagree.
-   */
-  const effectiveVenue =
-    event.venue.trim() || DEFAULT_VENUE;
-
   const eventDetailsComplete =
     event.eventName.trim() !== "" &&
     event.eventDate.trim() !== "" &&
-    effectiveVenue !== "";
+    event.venue.trim() !== "";
 
   const competitionComplete =
     event.competition.trim() !== "";
@@ -82,7 +72,7 @@ export default function ReviewPublish({
     {
       title: "Event Details",
       description: eventDetailsComplete
-        ? `Event name, date and venue are complete. Venue: ${effectiveVenue}.`
+        ? "Event name, date and venue are complete."
         : "Event name, date and venue must be completed.",
       complete: eventDetailsComplete,
       icon: CalendarDays,
@@ -292,7 +282,8 @@ export default function ReviewPublish({
               <span>VENUE</span>
 
               <strong>
-                {effectiveVenue}
+                {event.venue ||
+                  "Not Set"}
               </strong>
             </div>
 
@@ -446,6 +437,18 @@ export default function ReviewPublish({
               <h2>
                 Final Publication
               </h2>
+
+              <div
+                style={{
+                  marginTop: "8px",
+                  marginBottom: "8px",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  color: hasPendingChanges ? "#c2410c" : "#15803d",
+                }}
+              >
+                Current Status: {hasPendingChanges ? "Draft" : "Published"}
+              </div>
 
               <p>
                 {published

@@ -56,7 +56,7 @@
 
 .booklets-layout {
   display: grid;
-  grid-template-columns: minmax(430px, 0.88fr) minmax(650px, 1.12fr);
+  grid-template-columns: minmax(430px, 0.9fr) minmax(620px, 1.1fr);
   gap: 28px;
   align-items: start;
 }
@@ -225,144 +225,80 @@
   color: #205b9f;
   font-size: 13px;
   font-weight: 700;
-  white-space: nowrap;
 }
 
-.print-preview-sheets {
+.logical-pages {
   display: grid;
-  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
-.preview-sheet-group {
-  display: grid;
-  gap: 8px;
-}
-
-.preview-sheet-label {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.preview-sheet {
+.logical-page {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
-  width: 100%;
-  aspect-ratio: 297 / 210;
+  aspect-ratio: 148 / 210;
   background: white;
-  border: 1px solid #cbd8e6;
-  border-radius: 8px;
+  border: 1px solid #dbe7f3;
+  border-radius: 7px;
   overflow: hidden;
-  box-shadow: 0 6px 18px rgba(15, 53, 90, 0.12);
+  box-shadow: 0 4px 12px rgba(15, 53, 90, 0.08);
 }
 
-.preview-half {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  background: white;
-}
-
-.preview-fold {
-  background: #cbd8e6;
-  z-index: 3;
-}
-
-.preview-page-number {
+.page-label {
   position: absolute;
   top: 8px;
   left: 9px;
-  z-index: 5;
-  min-width: 21px;
-  height: 21px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
+  z-index: 2;
+  padding: 4px 7px;
+  border-radius: 5px;
   background: rgba(255, 255, 255, 0.92);
   color: #205b9f;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-.preview-page-number.light {
-  color: #205b9f;
-}
-
-.preview-cover img {
+.cover-page img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
 }
 
-.preview-text-page,
-.preview-menu {
-  padding: 30px 28px;
+.text-page {
+  padding: 38px 18px 18px;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
 }
 
-.preview-text-page h3,
-.preview-menu h3 {
-  margin: 0 0 16px;
-  padding-bottom: 10px;
+.text-page h3 {
+  margin: 0 0 12px;
+  padding-bottom: 8px;
   border-bottom: 2px solid #b8d5ef;
   color: #205b9f;
-  font-size: 23px;
-  line-height: 1.15;
-  text-align: center;
+  font-size: 18px;
 }
 
-.preview-page-text {
+.page-text {
   color: #334155;
-  font-size: 17px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.48;
+  white-space: normal;
   overflow: hidden;
-  max-height: calc(100% - 62px);
-  text-align: center;
-  white-space: pre-line;
 }
 
-.preview-page-empty,
-.preview-blank {
-  color: #94a3b8;
-  font-size: 15px;
-  line-height: 1.5;
-  text-align: center;
-}
-
-.preview-blank {
+.page-placeholder {
   height: 100%;
   display: grid;
   place-items: center;
-  padding: 28px;
+  padding: 25px;
   box-sizing: border-box;
+  color: #94a3b8;
   text-align: center;
+  font-size: 14px;
 }
 
-.preview-instruction {
-  margin-top: 14px;
-  padding: 11px 13px;
-  border-radius: 9px;
-  background: #eef6ff;
-  color: #52677e;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.print-booklet {
+.no-screen {
   display: none;
 }
 
-@media (max-width: 1120px) {
+@media (max-width: 1050px) {
   .booklets-layout {
     grid-template-columns: 1fr;
   }
@@ -379,7 +315,7 @@
     margin: 0 !important;
     padding: 0 !important;
     width: 297mm;
-    min-height: 210mm;
+    height: 210mm;
     background: white !important;
   }
 
@@ -392,76 +328,76 @@
     visibility: visible !important;
   }
 
-  .booklets-screen {
-    width: 297mm !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
+  .no-screen {
+    display: block;
   }
 
   .print-booklet {
-    display: block !important;
-    width: 297mm !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    width: 297mm;
+    margin: 0;
   }
 
   .print-sheet {
-    width: 297mm !important;
-    height: 210mm !important;
-    display: flex !important;
-    flex-direction: row !important;
-    page-break-after: always !important;
-    break-after: page !important;
-    overflow: hidden !important;
+    width: 297mm;
+    height: 210mm;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    page-break-after: always;
+    break-after: page;
   }
 
   .print-sheet:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
+    page-break-after: auto;
+    break-after: auto;
   }
 
   .print-page {
     position: relative;
-    width: 148.5mm !important;
-    height: 210mm !important;
-    flex: 0 0 148.5mm !important;
+    width: 148.5mm;
+    height: 210mm;
     box-sizing: border-box;
     overflow: hidden;
-    padding: 18mm 16mm;
-    background: white !important;
-    color: #1f2937 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    text-align: center !important;
+    padding: 15mm;
+    border: 0;
+    background: white;
+    color: #1f2937;
+  }
+
+  .print-page + .print-page {
+    border-left: 0.25mm dashed #cbd5e1;
+  }
+
+  .print-page-number {
+    position: absolute;
+    top: 5mm;
+    left: 5mm;
+    color: #94a3b8;
+    font-size: 7pt;
+    font-weight: 700;
   }
 
   .print-page h2 {
-    margin: 0 0 7mm;
-    padding-bottom: 3mm;
+    margin: 0 0 6mm;
+    padding-bottom: 2mm;
     border-bottom: 0.5mm solid #9ec5e8;
     color: #205b9f;
-    font-size: 23pt;
-    line-height: 1.15;
-    text-align: center;
+    font-size: 16pt;
   }
 
   .print-text {
-    font-size: 16pt;
-    line-height: 1.55;
-    text-align: center;
-    white-space: pre-line;
+    font-size: 9.5pt;
+    line-height: 1.42;
+    white-space: normal;
   }
 
   .print-cover {
-    padding: 0 !important;
+    padding: 0;
   }
 
   .print-cover img {
-    width: 148.5mm !important;
-    height: 210mm !important;
+    width: 148.5mm;
+    height: 210mm;
     object-fit: cover;
-    display: block !important;
+    display: block;
   }
 }

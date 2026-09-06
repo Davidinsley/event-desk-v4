@@ -1,6 +1,6 @@
 // Players.tsx
 // Event Desk - Players Management
-// Revision: CSV + Excel + Start List merge + Home Club / Tee Time / Group preservation + Event capacity + PDF Export + Home Club verification
+// Revision: CSV + Excel + Start List merge + Home Club / Tee Time / Group preservation + Event capacity + PDF Export + Home Club verification + Legacy Club compatibility
 
 import { useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -33,6 +33,7 @@ type DisplayPlayer = Player & {
   teeTime?: string;
   group?: string;
   homeClub?: string;
+  club?: string;
 };
 
 export default function Players({
@@ -68,6 +69,29 @@ export default function Players({
 
   const [paid, setPaid] = useState(false);
   const [notes, setNotes] = useState("");
+
+  // --------------------------------------------------
+  // Clear All Players
+  // --------------------------------------------------
+
+  function clearAllPlayers() {
+    if (players.length === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Clear all ${players.length} players from this event?\n\n` +
+        "This removes the players currently entered in this event only. " +
+        "It does not delete members from any master/member database.\n\n" +
+        "This action cannot be undone."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setPlayers([]);
+  }
 
   // --------------------------------------------------
   // Summary Values
@@ -210,6 +234,19 @@ export default function Players({
     }
 
     return "";
+  }
+
+  // Home Club compatibility helper. Older player records may have stored
+  // the value as `club` rather than `homeClub`. Always prefer the current
+  // `homeClub` field, but fall back to the legacy field so existing data is
+  // not lost and the Players table / Start List export can display it.
+  function getPlayerHomeClub(player: Player): string {
+    const displayPlayer = player as DisplayPlayer;
+    return (
+      displayPlayer.homeClub?.trim() ||
+      displayPlayer.club?.trim() ||
+      ""
+    );
   }
 
   function parsePaidValue(value: string): boolean {
@@ -365,6 +402,8 @@ export default function Players({
         "Golf Club",
         "Home Golf Club",
         "Club",
+        "Club Affiliation",
+        "Home Club Name",
       ]);
 
       const notesValue =
@@ -499,9 +538,9 @@ export default function Players({
               ...(importedDisplay.group !== undefined
                 ? { group: importedDisplay.group }
                 : {}),
-              ...(importedDisplay.homeClub !== undefined
-                ? { homeClub: importedDisplay.homeClub }
-                : {}),
+              ...(importedDisplay.homeClub?.trim()
+                ? { homeClub: importedDisplay.homeClub.trim() }
+                : { homeClub: getPlayerHomeClub(existing) }),
             } as Player;
 
             updatedCount += 1;
@@ -675,9 +714,9 @@ export default function Players({
               ...(importedDisplay.group !== undefined
                 ? { group: importedDisplay.group }
                 : {}),
-              ...(importedDisplay.homeClub !== undefined
-                ? { homeClub: importedDisplay.homeClub }
-                : {}),
+              ...(importedDisplay.homeClub?.trim()
+                ? { homeClub: importedDisplay.homeClub.trim() }
+                : { homeClub: getPlayerHomeClub(existing) }),
             } as Player;
 
             updatedCount += 1;
@@ -1066,7 +1105,10 @@ export default function Players({
                   : existing.notes,
               teeTime: imported.teeTime,
               group: imported.group,
-              homeClub: imported.homeClub,
+              homeClub:
+                imported.homeClub?.trim()
+                  ? imported.homeClub.trim()
+                  : getPlayerHomeClub(existing),
             };
 
             next[existingIndex] = updatedPlayer as Player;
@@ -1260,7 +1302,7 @@ export default function Players({
         teeTime: startListPlayer.teeTime || "",
         group: startListPlayer.group || "",
         name: `${player.firstName} ${player.lastName}`.trim(),
-        homeClub: startListPlayer.homeClub || "",
+        homeClub: getPlayerHomeClub(player),
         handicap: player.handicapIndex.toFixed(1),
         status:
           player.status === "Waiting"
@@ -1521,6 +1563,14 @@ export default function Players({
         title="Export"
         onClick={handleExport}
       />
+
+      <ActionTile
+        icon={Trash2}
+        subtitle="Clear"
+        title="All Players"
+        onClick={clearAllPlayers}
+        disabled={players.length === 0}
+      />
     </div>
   );
 
@@ -1623,7 +1673,7 @@ export default function Players({
                       </td>
 
                       <td>
-                        {startListPlayer.homeClub || ""}
+                        {getPlayerHomeClub(player)}
                       </td>
 
                     <td>

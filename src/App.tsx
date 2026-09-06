@@ -1,4 +1,4 @@
-// App.tsx — Revision: Restore Event Desk countdown tile\n// Revision: Multi-poster Event Media support — up to 3 posters per event
+// Revision: Multi-poster Event Media support — up to 3 posters per event
 import { useEffect, useState } from "react";
 
 import "./App.css";
@@ -15,6 +15,7 @@ import HandicapUpdate from "./components/HandicapUpdate";
 import FieldManagement from "./components/FieldManagement";
 import Catering from "./components/Catering";
 import Financials from "./components/Financials";
+import Booklets from "./components/Booklets";
 import Posters from "./components/Posters";
 import PosterPreview from "./components/PosterPreview";
 import ReviewPublish from "./components/ReviewPublish";
@@ -712,6 +713,18 @@ export default function App() {
         lastPublishedAt: now,
       };
 
+      const publishedEvent = {
+        ...event,
+        status: "published" as const,
+      };
+
+      const publishedSnapshot: PublishedSnapshot = {
+        event: publishedEvent,
+        players,
+        attachedPosterId,
+        attachedPosterIds,
+      };
+
       localStorage.setItem(
         PUBLISHED_EVENT_KEY,
         "true"
@@ -719,7 +732,7 @@ export default function App() {
 
       localStorage.setItem(
         PUBLISHED_SNAPSHOT_KEY,
-        JSON.stringify(currentSnapshot)
+        JSON.stringify(publishedSnapshot)
       );
 
       localStorage.setItem(
@@ -727,8 +740,31 @@ export default function App() {
         JSON.stringify(updatedMeta)
       );
 
+      setEvent(publishedEvent);
+
+      setEventRecords((records) => {
+        const updatedRecords = records.map((record) =>
+          record.id === activeEventId
+            ? {
+                ...record,
+                event: publishedEvent,
+                published: true,
+                publishedSnapshot,
+                publicationMeta: updatedMeta,
+              }
+            : record
+        );
+
+        localStorage.setItem(
+          EVENT_RECORDS_KEY,
+          JSON.stringify(updatedRecords)
+        );
+
+        return updatedRecords;
+      });
+
       setPublishedSnapshot(
-        currentSnapshot
+        publishedSnapshot
       );
 
       setPublicationMeta(
@@ -736,32 +772,6 @@ export default function App() {
       );
 
       setPublished(true);
-
-      const publishedRecord: EventRecord = {
-        ...buildCurrentRecord(),
-        published: true,
-        publishedSnapshot: currentSnapshot,
-        publicationMeta: updatedMeta,
-      };
-
-      setEventRecords((records) =>
-        records.map((record) =>
-          record.id === activeEventId
-            ? publishedRecord
-            : record
-        )
-      );
-
-      localStorage.setItem(
-        EVENT_RECORDS_KEY,
-        JSON.stringify(
-          eventRecords.map((record) =>
-            record.id === activeEventId
-              ? publishedRecord
-              : record
-          )
-        )
-      );
     } catch (error) {
       console.error(
         "Failed to publish event",
@@ -971,98 +981,6 @@ export default function App() {
     );
 
     return String(highestNumber + 1).padStart(4, "0");
-  };
-
-  const isPastCompletedEvent = (record: EventRecord) => {
-    if (!record.archived || !record.event.eventDate) {
-      return false;
-    }
-
-    const rawDate = record.event.eventDate.trim();
-    let eventDate: Date | null = null;
-
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
-      const [day, month, year] = rawDate.split("/").map(Number);
-      eventDate = new Date(year, month - 1, day);
-    } else {
-      const parsed = new Date(`${rawDate}T00:00:00`);
-      eventDate = Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    if (!eventDate || Number.isNaN(eventDate.getTime())) {
-      return false;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    eventDate.setHours(0, 0, 0, 0);
-
-    return eventDate < today;
-  };
-
-  /*
-   * EVENT COUNTDOWN
-   *
-   * Displays the number of calendar days until each event.
-   * No calendar icon is used. The countdown sits immediately
-   * beside the Event Reference tile in Event Desk.
-   */
-  const parseEventDate = (eventDateValue: string): Date | null => {
-    const rawDate = eventDateValue.trim();
-
-    const match = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
-
-    if (match) {
-      const day = Number(match[1]);
-      const month = Number(match[2]);
-      let year = Number(match[3]);
-
-      if (match[3].length === 2) {
-        year += year >= 70 ? 1900 : 2000;
-      }
-
-      const eventDate = new Date(year, month - 1, day);
-
-      if (
-        eventDate.getFullYear() === year &&
-        eventDate.getMonth() === month - 1 &&
-        eventDate.getDate() === day
-      ) {
-        return eventDate;
-      }
-
-      return null;
-    }
-
-    if (rawDate) {
-      const parsed = new Date(`${rawDate}T00:00:00`);
-      return Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    return null;
-  };
-
-  const getEventCountdown = (eventDateValue: string) => {
-    const eventDate = parseEventDate(eventDateValue);
-
-    if (!eventDate) {
-      return { label: "DAYS", value: "—" };
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    eventDate.setHours(0, 0, 0, 0);
-
-    const days = Math.ceil(
-      (eventDate.getTime() - today.getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-
-    if (days < 0) {
-      return { label: "PAST", value: "✓" };
-    }
-
-    return { label: "DAYS", value: days };
   };
 
   const handleOpenEventManager = () => {
@@ -1285,6 +1203,33 @@ export default function App() {
     setCurrentPage(page);
   };
 
+  const isPastCompletedEvent = (record: EventRecord) => {
+    if (!record.archived || !record.event.eventDate) {
+      return false;
+    }
+
+    const rawDate = record.event.eventDate.trim();
+    let eventDate: Date | null = null;
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+      const [day, month, year] = rawDate.split("/").map(Number);
+      eventDate = new Date(year, month - 1, day);
+    } else {
+      const parsed = new Date(`${rawDate}T00:00:00`);
+      eventDate = Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    if (!eventDate || Number.isNaN(eventDate.getTime())) {
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    eventDate.setHours(0, 0, 0, 0);
+
+    return eventDate < today;
+  };
+
   /*
    * ARCHIVED SETUP PAGES
    *
@@ -1303,7 +1248,8 @@ export default function App() {
       currentPage === "handicap" ||
       currentPage === "field" ||
       currentPage === "catering" ||
-      currentPage === "financials"
+      currentPage === "financials" ||
+      currentPage === "booklets"
     );
 
   /*
@@ -1349,29 +1295,36 @@ export default function App() {
 
         </div>
 
-        {eventOpen && (
-          <button
-            type="button"
-            onClick={handleOpenEventManager}
-            style={{
-              position: "absolute",
-              right: "28px",
-              bottom: "18px",
-              border: "1px solid #2f6db5",
-              borderRadius: "10px",
-              padding: "10px 16px",
-              background: "white",
-              color: "#1f5b9f",
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-            }}
-          >
-            📋 Event Desk
-          </button>
-        )}
+        <img
+          src={logo}
+          alt="Ramsdale Park Golf Club"
+          className="logo logo-right"
+        />
 
       </header>
+
+      {eventOpen && (
+        <button
+          type="button"
+          onClick={handleOpenEventManager}
+          style={{
+            position: "fixed",
+            right: "28px",
+            bottom: "48px",
+            zIndex: 1000,
+            border: "1px solid #2f6db5",
+            borderRadius: "10px",
+            padding: "10px 16px",
+            background: "white",
+            color: "#1f5b9f",
+            fontWeight: 700,
+            cursor: "pointer",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+          }}
+        >
+          📋 Event Desk
+        </button>
+      )}
 
       {eventOpen && (
 
@@ -1487,7 +1440,16 @@ export default function App() {
               £ Financials
             </li>
 
-            <li>
+            <li
+              className={
+                currentPage === "booklets"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                handleNavigate("booklets")
+              }
+            >
               📖 Booklets
             </li>
 
@@ -1573,9 +1535,7 @@ export default function App() {
                       fontSize: "38px",
                     }}
                   >
-                    {recentEventsOnly
-                      ? "Recent Events"
-                      : "Event Desk"}
+                    {recentEventsOnly ? "Recent Events" : "Event Desk"}
                   </h1>
                   <p
                     style={{
@@ -1590,29 +1550,43 @@ export default function App() {
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={
-                    recentEventsOnly
-                      ? () => handleNavigate("dashboard")
-                      : handleNewEvent
-                  }
-                  style={{
-                    border: "none",
-                    borderRadius: "10px",
-                    padding: "14px 22px",
-                    background: "#2468b3",
-                    color: "white",
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    boxShadow: "0 3px 8px rgba(36,104,179,0.25)",
-                  }}
-                >
-                  {recentEventsOnly
-                    ? "← Main Menu"
-                    : "+ New Event"}
-                </button>
+                {recentEventsOnly ? (
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate("dashboard")}
+                    style={{
+                      border: "1px solid #b8d5ef",
+                      borderRadius: "10px",
+                      padding: "13px 22px",
+                      background: "white",
+                      color: "#205b9f",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      boxShadow: "0 2px 6px rgba(31,91,159,0.08)",
+                    }}
+                  >
+                    ← Main Menu
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleNewEvent}
+                    style={{
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "14px 22px",
+                      background: "#2468b3",
+                      color: "white",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      boxShadow: "0 3px 8px rgba(36,104,179,0.25)",
+                    }}
+                  >
+                    + New Event
+                  </button>
+                )}
               </div>
 
               <div
@@ -1621,11 +1595,27 @@ export default function App() {
                   gap: "16px",
                 }}
               >
+                {recentEventsOnly &&
+                  !eventRecords.some(isPastCompletedEvent) && (
+                    <div
+                      style={{
+                        background: "white",
+                        border: "1px solid #dbe7f3",
+                        borderRadius: "14px",
+                        padding: "28px",
+                        textAlign: "center",
+                        color: "#64748b",
+                        fontSize: "17px",
+                      }}
+                    >
+                      No past and completed events are currently available.
+                    </div>
+                  )}
+
                 {eventRecords
                   .filter(
                     (record) =>
-                      !recentEventsOnly ||
-                      isPastCompletedEvent(record)
+                      !recentEventsOnly || isPastCompletedEvent(record)
                   )
                   .slice()
                   .sort((a, b) =>
@@ -1633,17 +1623,16 @@ export default function App() {
                     Number.parseInt(a.event.eventNumber, 10)
                   )
                   .map((record) => {
+                    const recordCurrentSnapshot: PublishedSnapshot = {
+                      event: record.event,
+                      players: record.players,
+                      attachedPosterId: record.attachedPosterId,
+                      attachedPosterIds: record.attachedPosterIds,
+                    };
+
                     const recordHasUnpublishedChanges =
                       record.publishedSnapshot === null ||
-                      JSON.stringify({
-                        event: record.event,
-                        players: record.players,
-                        attachedPosterId: record.attachedPosterId,
-                        attachedPosterIds: record.attachedPosterIds ??
-                          (record.attachedPosterId
-                            ? [record.attachedPosterId]
-                            : []),
-                      }) !==
+                      JSON.stringify(recordCurrentSnapshot) !==
                         JSON.stringify(record.publishedSnapshot);
 
                     const recordIsCurrentlyPublished =
@@ -1678,7 +1667,7 @@ export default function App() {
                           borderRadius: "14px",
                           padding: "20px 24px",
                           display: "grid",
-                          gridTemplateColumns: "90px 90px 1fr auto",
+                          gridTemplateColumns: "90px 1fr auto",
                           alignItems: "center",
                           gap: "22px",
                           boxShadow: "0 2px 8px rgba(31,91,159,0.06)",
@@ -1697,24 +1686,6 @@ export default function App() {
                           <div style={{ fontSize: "12px" }}>EVENT</div>
                           <div style={{ fontSize: "22px" }}>
                             {record.event.eventNumber}
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            background: "#eef6ff",
-                            color: "#205b9f",
-                            borderRadius: "10px",
-                            padding: "12px 8px",
-                            textAlign: "center",
-                            fontWeight: 800,
-                          }}
-                        >
-                          <div style={{ fontSize: "12px", letterSpacing: "0.3px" }}>
-                            {getEventCountdown(record.event.eventDate).label}
-                          </div>
-                          <div style={{ fontSize: "22px", lineHeight: 1.1 }}>
-                            {getEventCountdown(record.event.eventDate).value}
                           </div>
                         </div>
 
@@ -1777,44 +1748,29 @@ export default function App() {
                             {record.archived ? "View" : "Open"}
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteEvent(record)}
-                            title="Permanently delete this event"
-                            aria-label={`Delete Event ${record.event.eventNumber}`}
-                            style={{
-                              border: "1px solid #d6dee8",
-                              borderRadius: "9px",
-                              padding: "9px 11px",
-                              background: "white",
-                              color: "#b42318",
-                              fontWeight: 700,
-                              cursor: "pointer",
-                            }}
-                          >
-                            🗑 Delete
-                          </button>
+                          {!recentEventsOnly && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEvent(record)}
+                              title="Permanently delete this event"
+                              aria-label={`Delete Event ${record.event.eventNumber}`}
+                              style={{
+                                border: "1px solid #d6dee8",
+                                borderRadius: "9px",
+                                padding: "9px 11px",
+                                background: "white",
+                                color: "#b42318",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              🗑 Delete
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
                   })}
-
-                {recentEventsOnly &&
-                  eventRecords.filter(isPastCompletedEvent).length === 0 && (
-                    <div
-                      style={{
-                        padding: "36px 24px",
-                        border: "1px solid #dbe7f3",
-                        borderRadius: "14px",
-                        background: "white",
-                        textAlign: "center",
-                        color: "#64748b",
-                        fontSize: "17px",
-                      }}
-                    >
-                      No past and completed events are currently available.
-                    </div>
-                  )}
               </div>
             </div>
           )}
@@ -1831,8 +1787,6 @@ export default function App() {
             <NewEvent
               event={event}
               players={players}
-              published={isCurrentlyPublished}
-              archived={archived}
               setEvent={setEvent}
               attachedPosterIds={
                 attachedPosterIds
@@ -1850,6 +1804,8 @@ export default function App() {
               canDelete={
                 !archived && !published
               }
+              published={isCurrentlyPublished}
+              archived={archived}
             />
           )}
 
@@ -1895,6 +1851,15 @@ export default function App() {
           {currentPage === "financials" && (
               <Financials
                 players={players}
+              />
+            )}
+
+          {currentPage === "booklets" && (
+              <Booklets
+                event={event}
+                attachedPosterIds={attachedPosterIds}
+                readOnly={archived}
+                onBack={() => handleNavigate("new")}
               />
             )}
 
