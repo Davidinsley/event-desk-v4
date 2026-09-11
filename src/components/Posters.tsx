@@ -329,6 +329,24 @@ export default function Posters({
       <ActionTile
         icon={Download}
         title="Export"
+        onClick={() => {
+          if (!selectedPoster) {
+            window.alert("Select a poster first.");
+            return;
+          }
+
+          const extension =
+            selectedPoster.fileType.toLowerCase() === "jpeg"
+              ? "jpg"
+              : selectedPoster.fileType.toLowerCase();
+
+          const link = document.createElement("a");
+          link.href = selectedPoster.image;
+          link.download = `${selectedPoster.title}.${extension}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }}
       />
       <ActionTile
         icon={Replace}

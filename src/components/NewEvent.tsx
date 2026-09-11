@@ -187,7 +187,7 @@ const getWeekday = (
 
   const match = dateValue.match(
 
-    /^(\d{2})\/(\d{2})\/(\d{2}|\d{4})$/
+    /^(\d{2})\/(\d{2})\/(\d{4})$/
 
   );
 
@@ -201,8 +201,7 @@ const getWeekday = (
 
   const month = Number(match[2]);
 
-  const yearPart = Number(match[3]);
-  const year = match[3].length === 2 ? 2000 + yearPart : yearPart;
+  const year = Number(match[3]);
 
   const date = new Date(
 
@@ -407,6 +406,22 @@ export default function NewEvent({
     }
 
   }, [venues]);
+
+  useEffect(() => {
+
+    if (!event.venue.trim()) {
+
+      setEvent((current) => ({
+
+        ...current,
+
+        venue: DEFAULT_VENUE,
+
+      }));
+
+    }
+
+  }, [event.venue, setEvent]);
 
   useEffect(() => {
 
@@ -853,20 +868,18 @@ export default function NewEvent({
       }).format(value);
 
     const parseReportDate = (value: string) => {
-      const ddmmyyyy = value.match(/^(\d{2})\/(\d{2})\/(\d{2}|\d{4})$/);
+      const ddmmyyyy = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
 
       if (ddmmyyyy) {
-        const [, day, month, yearText] = ddmmyyyy;
-        const yearNumber = Number(yearText);
-        const year = yearText.length === 2 ? 2000 + yearNumber : yearNumber;
+        const [, day, month, year] = ddmmyyyy;
         const date = new Date(
-          year,
+          Number(year),
           Number(month) - 1,
           Number(day)
         );
 
         if (
-          date.getFullYear() === year &&
+          date.getFullYear() === Number(year) &&
           date.getMonth() === Number(month) - 1 &&
           date.getDate() === Number(day)
         ) {

@@ -1,10 +1,10 @@
-import { useState } from "react";
-
+import { useEffect, useState } from "react";
 import "./PosterPreview.css";
 
 import PageLayout from "../layout/PageLayout";
 import SummaryCard from "../ui/SummaryCard";
 import ActionTile from "../ui/ActionTile";
+import { getPosterLibrary, type PosterItem } from "../posterStorage";
 
 import {
   ArrowLeft,
@@ -18,17 +18,6 @@ interface PosterPreviewProps {
   posterId: string | null;
   onBack: () => void;
 }
-
-interface PosterItem {
-  id: string;
-  title: string;
-  fileType: string;
-  dateAdded: string;
-  attachedEvent: string;
-  image: string;
-}
-
-const STORAGE_KEY = "posterLibrary";
 
 export default function PosterPreview({
   posterId,
@@ -49,26 +38,49 @@ export default function PosterPreview({
   };
 
   //--------------------------------------------------
-  // Poster Lookup
-  // IMPORTANT: this must use the same storage key and
-  // image property as the Poster Library.
+  // Poster Lookup — use the same IndexedDB library as Posters
   //--------------------------------------------------
 
-  let posters: PosterItem[] = [];
+  const [selectedPoster, setSelectedPoster] =
+    useState<PosterItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    posters = stored ? JSON.parse(stored) : [];
-  } catch (error) {
-    console.error(
-      "Failed to load poster library for preview",
-      error
-    );
-  }
+  useEffect(() => {
+    let cancelled = false;
 
-  const selectedPoster = posters.find(
-    (poster) => poster.id === posterId
-  );
+    const loadPoster = async () => {
+      setIsLoading(true);
+
+      try {
+        const posters = await getPosterLibrary();
+        if (cancelled) return;
+
+        const poster = posters.find(
+          (item) => item.id === posterId
+        ) ?? null;
+
+        setSelectedPoster(poster);
+      } catch (error) {
+        console.error(
+          "Failed to load poster library for preview",
+          error
+        );
+        if (!cancelled) {
+          setSelectedPoster(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadPoster();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [posterId]);
 
   //--------------------------------------------------
   // Print
@@ -241,7 +253,17 @@ export default function PosterPreview({
                 transform: `scale(${zoom / 100})`,
               }}
             >
-              {selectedPoster ? (
+              {isLoading ? (
+                <div
+                  style={{
+                    padding: "4rem",
+                    textAlign: "center",
+                    color: "#666",
+                  }}
+                >
+                  Loading poster…
+                </div>
+              ) : selectedPoster ? (
                 <img
                   src={selectedPoster.image}
                   alt={selectedPoster.title}

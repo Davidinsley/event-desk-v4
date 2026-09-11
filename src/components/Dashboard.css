@@ -15,13 +15,13 @@
   width: 100%;
   max-width: 1320px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 42px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 28px;
 }
 
 .dashboard-card {
   width: 100%;
-  height: 430px;
+  height: 400px;
   min-width: 0;
   padding: 34px 34px;
   border: 2px solid #a9cef0;

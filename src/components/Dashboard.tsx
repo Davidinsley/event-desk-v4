@@ -8,6 +8,7 @@ interface DashboardProps {
   onNewEvent: () => void;
   onContinueEvent: () => void;
   onRecentEvents: () => void;
+  onMatchBooklets: () => void;
 }
 
 function NewEventIcon() {
@@ -28,6 +29,19 @@ function FolderIcon() {
   );
 }
 
+function HistoryIcon() {
+  return (
+    <svg className="dashboard-icon" viewBox="0 0 100 80" aria-hidden="true">
+      <circle cx="58" cy="40" r="24" />
+      <line x1="58" y1="40" x2="58" y2="25" />
+      <line x1="58" y1="40" x2="69" y2="47" />
+
+      <line x1="31" y1="40" x2="12" y2="40" />
+      <polyline points="19,32 11,40 19,48" />
+    </svg>
+  );
+}
+
 function OpenBookIcon() {
   return (
     <svg className="dashboard-icon dashboard-book-icon" viewBox="0 0 100 80" aria-hidden="true">
@@ -44,6 +58,7 @@ function Dashboard({
   onNewEvent,
   onContinueEvent,
   onRecentEvents,
+  onMatchBooklets,
 }: DashboardProps) {
   return (
     <section className="dashboard-screen">
@@ -77,10 +92,24 @@ function Dashboard({
           onClick={onRecentEvents}
         >
           <span className="dashboard-card-content">
-            <OpenBookIcon />
-            <span className="dashboard-card-title">Recent Events</span>
+            <HistoryIcon />
+            <span className="dashboard-card-title">Past Events</span>
             <span className="dashboard-card-description">
-              View and reopen recently created events.
+              View and reopen previously created events.
+            </span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className="dashboard-card"
+          onClick={onMatchBooklets}
+        >
+          <span className="dashboard-card-content">
+            <OpenBookIcon />
+            <span className="dashboard-card-title">Match Booklets</span>
+            <span className="dashboard-card-description">
+              Create and print booklets for home matches.
             </span>
           </span>
         </button>
