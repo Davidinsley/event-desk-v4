@@ -20,6 +20,11 @@ type MatchBookletView = "overview" | "seasonCover" | "startSheet" | "orderDay" |
 const SEASON_COVER_KEY = "eventDeskMatchBookletsSeasonCover";
 const ORDER_DAY_KEY = "eventDeskMatchBookletsOrderDay";
 const MATCH_INFO_KEY = "eventDeskMatchBookletsMatchInfo";
+const ACTIVE_BOOKLET_KEY = "eventDeskMatchBookletsActiveId";
+const MATCH_BOOKLETS_DB = "eventDeskMatchBookletLibrary";
+const MATCH_BOOKLETS_DB_VERSION = 1;
+const BOOKLETS_STORE = "booklets";
+const DRAFTS_STORE = "drafts";
 
 const DEFAULT_ORDER_DAY = [
   { label: "Arrival / Coffee", time: "" },
@@ -36,6 +41,103 @@ const DEFAULT_MATCH_INFO = {
   notes: "",
 };
 
+
+type MatchBookletRecord = {
+  id: string;
+  title: string;
+  matchDate: string;
+  updatedAt: string;
+  seasonCover: string | null;
+  startSheetPreview: string | null;
+  orderDayRows: typeof DEFAULT_ORDER_DAY;
+  orderDayNotes: string;
+  matchInfo: typeof DEFAULT_MATCH_INFO;
+};
+
+type MatchBookletDraft = {
+  id: "current";
+  activeBookletId: string | null;
+  title: string;
+  matchDate: string;
+  startSheetPreview: string | null;
+};
+
+const openMatchBookletDb = () =>
+  new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(MATCH_BOOKLETS_DB, MATCH_BOOKLETS_DB_VERSION);
+
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(BOOKLETS_STORE)) {
+        database.createObjectStore(BOOKLETS_STORE, { keyPath: "id" });
+      }
+      if (!database.objectStoreNames.contains(DRAFTS_STORE)) {
+        database.createObjectStore(DRAFTS_STORE, { keyPath: "id" });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+const idbGet = async <T,>(storeName: string, key: IDBValidKey) => {
+  const database = await openMatchBookletDb();
+  try {
+    return await new Promise<T | undefined>((resolve, reject) => {
+      const transaction = database.transaction(storeName, "readonly");
+      const request = transaction.objectStore(storeName).get(key);
+      request.onsuccess = () => resolve(request.result as T | undefined);
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    database.close();
+  }
+};
+
+const idbGetAll = async <T,>(storeName: string) => {
+  const database = await openMatchBookletDb();
+  try {
+    return await new Promise<T[]>((resolve, reject) => {
+      const transaction = database.transaction(storeName, "readonly");
+      const request = transaction.objectStore(storeName).getAll();
+      request.onsuccess = () => resolve((request.result || []) as T[]);
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    database.close();
+  }
+};
+
+const idbPut = async <T,>(storeName: string, value: T) => {
+  const database = await openMatchBookletDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(storeName, "readwrite");
+      transaction.objectStore(storeName).put(value);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  } finally {
+    database.close();
+  }
+};
+
+const idbDelete = async (storeName: string, key: IDBValidKey) => {
+  const database = await openMatchBookletDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(storeName, "readwrite");
+      transaction.objectStore(storeName).delete(key);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  } finally {
+    database.close();
+  }
+};
+
 function MatchBooklets({ onBack }: MatchBookletsProps) {
   const [view, setView] = useState<MatchBookletView>("overview");
   const [seasonCover, setSeasonCover] = useState<string | null>(null);
@@ -45,6 +147,12 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
   const [orderDayRows, setOrderDayRows] = useState(DEFAULT_ORDER_DAY);
   const [orderDayNotes, setOrderDayNotes] = useState("");
   const [matchInfo, setMatchInfo] = useState(DEFAULT_MATCH_INFO);
+  const [bookletTitle, setBookletTitle] = useState("");
+  const [matchDate, setMatchDate] = useState("");
+  const [activeBookletId, setActiveBookletId] = useState<string | null>(null);
+  const [librarySelectionId, setLibrarySelectionId] = useState("");
+  const [savedBooklets, setSavedBooklets] = useState<MatchBookletRecord[]>([]);
+  const [persistenceReady, setPersistenceReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -78,6 +186,241 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
       console.error("Failed to load Match Booklets data", error);
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPersistentMatchBooklets = async () => {
+      try {
+        const [draft, records] = await Promise.all([
+          idbGet<MatchBookletDraft>(DRAFTS_STORE, "current"),
+          idbGetAll<MatchBookletRecord>(BOOKLETS_STORE),
+        ]);
+
+        if (cancelled) return;
+
+        const sortedRecords = [...records].sort((a, b) =>
+          b.updatedAt.localeCompare(a.updatedAt)
+        );
+        setSavedBooklets(sortedRecords);
+
+        if (draft) {
+          setStartSheetPreview(draft.startSheetPreview ?? null);
+          setBookletTitle(draft.title ?? "");
+          setMatchDate(draft.matchDate ?? "");
+          setActiveBookletId(draft.activeBookletId ?? null);
+          setLibrarySelectionId(draft.activeBookletId ?? "");
+        } else {
+          const storedActiveId = localStorage.getItem(ACTIVE_BOOKLET_KEY);
+          if (storedActiveId) {
+            setActiveBookletId(storedActiveId);
+            setLibrarySelectionId(storedActiveId);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load persistent Match Booklet library", error);
+      } finally {
+        if (!cancelled) setPersistenceReady(true);
+      }
+    };
+
+    void loadPersistentMatchBooklets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!persistenceReady) return;
+
+    const timer = window.setTimeout(() => {
+      const draft: MatchBookletDraft = {
+        id: "current",
+        activeBookletId,
+        title: bookletTitle,
+        matchDate,
+        startSheetPreview,
+      };
+
+      void idbPut(DRAFTS_STORE, draft).catch((error) => {
+        console.error("Failed to save Match Booklet working draft", error);
+      });
+    }, 150);
+
+    return () => window.clearTimeout(timer);
+  }, [persistenceReady, activeBookletId, bookletTitle, matchDate, startSheetPreview]);
+
+  useEffect(() => {
+    if (!persistenceReady || !activeBookletId) return;
+
+    const timer = window.setTimeout(() => {
+      const record: MatchBookletRecord = {
+        id: activeBookletId,
+        title: bookletTitle.trim() || "Untitled Match Booklet",
+        matchDate,
+        updatedAt: new Date().toISOString(),
+        seasonCover,
+        startSheetPreview,
+        orderDayRows,
+        orderDayNotes,
+        matchInfo,
+      };
+
+      void idbPut(BOOKLETS_STORE, record)
+        .then(() => {
+          setSavedBooklets((current) => {
+            const others = current.filter((item) => item.id !== record.id);
+            return [record, ...others].sort((a, b) =>
+              b.updatedAt.localeCompare(a.updatedAt)
+            );
+          });
+        })
+        .catch((error) => {
+          console.error("Failed to auto-save Match Booklet", error);
+        });
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    persistenceReady,
+    activeBookletId,
+    bookletTitle,
+    matchDate,
+    seasonCover,
+    startSheetPreview,
+    orderDayRows,
+    orderDayNotes,
+    matchInfo,
+  ]);
+
+  const refreshSavedBooklets = async () => {
+    const records = await idbGetAll<MatchBookletRecord>(BOOKLETS_STORE);
+    setSavedBooklets(
+      [...records].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    );
+  };
+
+  const handleSaveCurrentBooklet = async () => {
+    const title = bookletTitle.trim();
+    if (!title) {
+      window.alert("Please enter a booklet name before saving this match booklet.");
+      return;
+    }
+
+    try {
+      const id =
+        activeBookletId ||
+        (typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `match-booklet-${Date.now()}`);
+
+      const record: MatchBookletRecord = {
+        id,
+        title,
+        matchDate,
+        updatedAt: new Date().toISOString(),
+        seasonCover,
+        startSheetPreview,
+        orderDayRows,
+        orderDayNotes,
+        matchInfo,
+      };
+
+      await idbPut(BOOKLETS_STORE, record);
+      setActiveBookletId(id);
+      setLibrarySelectionId(id);
+      localStorage.setItem(ACTIVE_BOOKLET_KEY, id);
+      await refreshSavedBooklets();
+      window.alert(`Match booklet saved: ${title}`);
+    } catch (error) {
+      console.error("Failed to save Match Booklet", error);
+      window.alert("The match booklet could not be saved. Please try again.");
+    }
+  };
+
+  const loadMatchBooklet = async (id: string) => {
+    if (!id) return;
+
+    try {
+      const record = await idbGet<MatchBookletRecord>(BOOKLETS_STORE, id);
+      if (!record) {
+        window.alert("That saved match booklet could not be found.");
+        await refreshSavedBooklets();
+        return;
+      }
+
+      setBookletTitle(record.title);
+      setMatchDate(record.matchDate);
+      setSeasonCover(record.seasonCover);
+      setStartSheetPreview(record.startSheetPreview);
+      setOrderDayRows(record.orderDayRows);
+      setOrderDayNotes(record.orderDayNotes);
+      setMatchInfo(record.matchInfo);
+      setActiveBookletId(record.id);
+      setLibrarySelectionId(record.id);
+
+      if (record.seasonCover) {
+        localStorage.setItem(SEASON_COVER_KEY, record.seasonCover);
+      } else {
+        localStorage.removeItem(SEASON_COVER_KEY);
+      }
+      localStorage.setItem(
+        ORDER_DAY_KEY,
+        JSON.stringify({ rows: record.orderDayRows, notes: record.orderDayNotes })
+      );
+      localStorage.setItem(MATCH_INFO_KEY, JSON.stringify(record.matchInfo));
+      localStorage.setItem(ACTIVE_BOOKLET_KEY, record.id);
+    } catch (error) {
+      console.error("Failed to open saved Match Booklet", error);
+      window.alert("The saved match booklet could not be opened.");
+    }
+  };
+
+  const handleNewMatchBooklet = () => {
+    const confirmed = window.confirm(
+      "Start a new match booklet?\n\nThe annual Season Cover will be retained. Save the current booklet first if you want to keep it in the library."
+    );
+    if (!confirmed) return;
+
+    const rows = DEFAULT_ORDER_DAY.map((row) => ({ ...row }));
+    setBookletTitle("");
+    setMatchDate("");
+    setStartSheetPreview(null);
+    setOrderDayRows(rows);
+    setOrderDayNotes("");
+    setMatchInfo({ ...DEFAULT_MATCH_INFO });
+    setActiveBookletId(null);
+    setLibrarySelectionId("");
+
+    localStorage.removeItem(ACTIVE_BOOKLET_KEY);
+    localStorage.setItem(ORDER_DAY_KEY, JSON.stringify({ rows, notes: "" }));
+    localStorage.removeItem(MATCH_INFO_KEY);
+  };
+
+  const handleDeleteSavedBooklet = async () => {
+    if (!librarySelectionId) return;
+    const selected = savedBooklets.find((item) => item.id === librarySelectionId);
+    if (!selected) return;
+
+    const confirmed = window.confirm(
+      `Delete saved match booklet "${selected.title}"?\n\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await idbDelete(BOOKLETS_STORE, selected.id);
+      if (activeBookletId === selected.id) {
+        setActiveBookletId(null);
+        localStorage.removeItem(ACTIVE_BOOKLET_KEY);
+      }
+      setLibrarySelectionId("");
+      await refreshSavedBooklets();
+    } catch (error) {
+      console.error("Failed to delete saved Match Booklet", error);
+      window.alert("The saved match booklet could not be deleted.");
+    }
+  };
 
   const handleSeasonCoverFile = async (
     event: ChangeEvent<HTMLInputElement>
@@ -2841,6 +3184,174 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
 
       <div
         style={{
+          marginBottom: "22px",
+          padding: "18px 20px",
+          background: "#f8fbff",
+          border: "1px solid #dbe7f3",
+          borderRadius: "14px",
+          boxShadow: "0 2px 8px rgba(31,91,159,0.04)",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(260px, 1.6fr) minmax(160px, 0.7fr) auto auto",
+            gap: "12px",
+            alignItems: "end",
+          }}
+        >
+          <label style={{ display: "grid", gap: "6px", color: "#1e4f89", fontWeight: 700 }}>
+            Booklet Name / Opponent
+            <input
+              type="text"
+              value={bookletTitle}
+              onChange={(event) => setBookletTitle(event.target.value)}
+              placeholder="e.g. Ramsdale v Oakmere Park"
+              style={{
+                width: "100%",
+                border: "1px solid #cbd5e1",
+                borderRadius: "9px",
+                padding: "10px 12px",
+                font: "inherit",
+                boxSizing: "border-box",
+              }}
+            />
+          </label>
+
+          <label style={{ display: "grid", gap: "6px", color: "#1e4f89", fontWeight: 700 }}>
+            Match Date
+            <input
+              type="date"
+              value={matchDate}
+              onChange={(event) => setMatchDate(event.target.value)}
+              style={{
+                width: "100%",
+                border: "1px solid #cbd5e1",
+                borderRadius: "9px",
+                padding: "9px 10px",
+                font: "inherit",
+                boxSizing: "border-box",
+              }}
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={handleSaveCurrentBooklet}
+            style={{
+              border: "none",
+              borderRadius: "10px",
+              padding: "11px 16px",
+              background: "#205b9f",
+              color: "white",
+              fontSize: "14px",
+              fontWeight: 800,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            💾 Save Booklet
+          </button>
+
+          <button
+            type="button"
+            onClick={handleNewMatchBooklet}
+            style={{
+              border: "1px solid #2f6db5",
+              borderRadius: "10px",
+              padding: "10px 16px",
+              background: "white",
+              color: "#205b9f",
+              fontSize: "14px",
+              fontWeight: 800,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            ＋ New Booklet
+          </button>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(300px, 1fr) auto auto",
+            gap: "12px",
+            alignItems: "center",
+            marginTop: "14px",
+            paddingTop: "14px",
+            borderTop: "1px solid #dbe7f3",
+          }}
+        >
+          <select
+            value={librarySelectionId}
+            onChange={(event) => setLibrarySelectionId(event.target.value)}
+            style={{
+              width: "100%",
+              border: "1px solid #cbd5e1",
+              borderRadius: "9px",
+              padding: "10px 12px",
+              background: "white",
+              font: "inherit",
+              color: "#334155",
+            }}
+          >
+            <option value="">Saved Match Booklets ({savedBooklets.length})</option>
+            {savedBooklets.map((booklet) => (
+              <option key={booklet.id} value={booklet.id}>
+                {booklet.matchDate ? `${booklet.matchDate} — ` : ""}{booklet.title}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            disabled={!librarySelectionId}
+            onClick={() => void loadMatchBooklet(librarySelectionId)}
+            style={{
+              border: "1px solid #7f9e78",
+              borderRadius: "10px",
+              padding: "10px 16px",
+              background: librarySelectionId ? "#f4f8f2" : "#f1f5f9",
+              color: librarySelectionId ? "#4f6f52" : "#94a3b8",
+              fontSize: "14px",
+              fontWeight: 800,
+              cursor: librarySelectionId ? "pointer" : "default",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Open Saved
+          </button>
+
+          <button
+            type="button"
+            disabled={!librarySelectionId}
+            onClick={() => void handleDeleteSavedBooklet()}
+            style={{
+              border: "1px solid #d9a6a6",
+              borderRadius: "10px",
+              padding: "10px 16px",
+              background: "white",
+              color: librarySelectionId ? "#9f3f3f" : "#94a3b8",
+              fontSize: "14px",
+              fontWeight: 800,
+              cursor: librarySelectionId ? "pointer" : "default",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Delete Saved
+          </button>
+        </div>
+
+        <div style={{ marginTop: "10px", color: "#64748b", fontSize: "13px" }}>
+          {activeBookletId
+            ? "This saved booklet will continue to update automatically as you edit it."
+            : "Working changes are retained after refresh. Use Save Booklet to add this match to the permanent booklet library."}
+        </div>
+      </div>
+
+      <div
+        style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
           gap: "18px",
@@ -3028,8 +3539,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
             Match Day Information
           </h2>
           <p style={{ margin: 0, color: "#64748b", lineHeight: 1.5 }}>
-            Flexible page for match-specific notes, menu details, dress information,
-            prizes or other instructions.
+            Flexible page for match-specific notes, menu details, prizes or other instructions.
           </p>
         </button>
       </div>
