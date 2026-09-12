@@ -1965,7 +1965,7 @@ export default function App() {
 
           {currentPage === "matchBooklets" && (
             <MatchBooklets
-              onBack={() => handleNavigate("dashboard")}
+              onBack={handleOpenEventManager}
             />
           )}
 
