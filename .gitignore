@@ -27,3 +27,5 @@ dist-ssr/
 # Misc
 coverage/
 *.local
+# Electron build output
+release/
