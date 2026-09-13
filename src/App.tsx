@@ -119,7 +119,7 @@ const loadInitialEventRecords = (): EventRecord[] => {
            lock a newly created or recently opened event. */
         const today = new Date();
 
-        return parsed.map((record) => {
+        const normalisedRecords = parsed.map((record) => {
           const migratedPosterIds = Array.isArray(record?.attachedPosterIds)
             ? record.attachedPosterIds.filter((id: unknown): id is string => typeof id === "string")
             : record?.attachedPosterId
@@ -154,6 +154,8 @@ const loadInitialEventRecords = (): EventRecord[] => {
             ? record
             : { ...record, archived: false, archivedAt: null };
         });
+
+        return normalisedRecords;
       }
     }
 
