@@ -625,13 +625,13 @@ export default function Booklets({
   };
 
   const buildOpenTeeTimesPageHtml = () => {
-    const groups = openStartGroups.slice(0, 34);
+    const groups = openStartGroups.slice(0, 30);
     const padded: Array<OpenStartGroup | null> = Array.from(
-      { length: 34 },
+      { length: 30 },
       (_, index) => groups[index] ?? null,
     );
-    const left = padded.slice(0, 17);
-    const right = padded.slice(17, 34);
+    const left = padded.slice(0, 15);
+    const right = padded.slice(15, 30);
 
     const rowsHtml = (rows: Array<OpenStartGroup | null>) =>
       rows
@@ -676,7 +676,7 @@ export default function Booklets({
     `;
 
     return `
-      <section class="digital-page open-page" style="padding:6mm 6mm 5mm;background:linear-gradient(180deg,#f8fbf8 0%,#ffffff 34%);color:#263b2e;">
+      <section class="digital-page open-page" style="padding:4mm 6mm 3mm;background:linear-gradient(180deg,#f8fbf8 0%,#ffffff 34%);color:#263b2e;">
         ${buildOpenHeaderHtml("TEE TIMES")}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:3.2mm;align-items:start;">
           ${tableHtml(left)}
@@ -1839,7 +1839,7 @@ export default function Booklets({
                   {openGroupsUsed} tee groups • {openPlayersUsed} players
                 </strong>
                 <span style={{ display: "block", lineHeight: 1.5 }}>
-                  Groups 01–17 will print in the left column and Groups 18–34 in
+                  Groups 01–15 will print in the left column and Groups 16–30 in
                   the right column. Tee times and names refresh automatically whenever
                   the Start List changes.
                 </span>
@@ -1855,7 +1855,7 @@ export default function Booklets({
                     No current Start List tee times are available yet.
                   </span>
                 )}
-                {openStartGroups.length > 34 && (
+                {openStartGroups.length > 30 && (
                   <span
                     style={{
                       display: "block",
@@ -1864,8 +1864,8 @@ export default function Booklets({
                       color: "#9a3d2f",
                     }}
                   >
-                    This Open Booklet supports a maximum of 34 groups / 136 players.
-                    Only the first 34 groups will be printed.
+                    This Open Booklet supports a maximum of 30 groups / 120 players.
+                    Only the first 30 groups will be printed.
                   </span>
                 )}
               </div>

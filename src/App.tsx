@@ -2055,6 +2055,7 @@ export default function App() {
           {currentPage === "booklets" && (
             <Booklets
               event={event}
+              players={players}
               attachedPosterIds={attachedPosterIds}
               readOnly={archived}
               onBack={() => handleNavigate("new")}
