@@ -427,3 +427,39 @@
     min-height: 145px;
   }
 }
+
+/* ============================================================
+   OPEN BOOKLET
+   Purpose-built annual Open booklet editor additions.
+   Existing Special Event Booklet styles above remain unchanged.
+   ============================================================ */
+
+.open-booklets-editor .booklet-panel {
+  border-color: #b7cfbe;
+}
+
+.open-booklets-editor textarea {
+  border-color: #b7cfbe;
+  background: #fbfdfb;
+}
+
+.open-booklets-editor textarea:focus {
+  border-color: #3d7a52;
+  box-shadow: 0 0 0 3px rgba(61, 122, 82, 0.12);
+  outline: none;
+}
+
+.open-booklets-editor .poster-choice.selected {
+  border-color: #3d7a52;
+  box-shadow: 0 0 0 2px rgba(61, 122, 82, 0.12);
+}
+
+.open-booklets-editor .booklets-import-button {
+  border-color: #83ad91;
+  color: #285b3c;
+}
+
+.open-booklets-editor .booklets-import-button:hover {
+  background: #f1f7f3;
+}
+

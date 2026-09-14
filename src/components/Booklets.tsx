@@ -5,12 +5,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import type { Event } from "../types/Event";
+import type { Player } from "../types/Player";
+import clubLogo from "../assets/Emblem.png";
 import * as pdfjsLib from "pdfjs-dist";
 import { getPosterLibrary, type PosterItem } from "../posterStorage";
 import "./Booklets.css";
 
 interface BookletsProps {
   event: Event;
+  players?: Player[];
   attachedPosterIds: string[];
   readOnly?: boolean;
   onBack: () => void;
@@ -23,6 +26,114 @@ interface BookletData {
   includeMenu: boolean;
   menu: string;
 }
+
+interface OpenBookletData {
+  orderOfDay: string;
+  prizes: string;
+}
+
+type BookletType = "special" | "open";
+
+interface OpenStartGroup {
+  group: string;
+  teeTime: string;
+  players: Player[];
+}
+
+const OPEN_BOOKLET_KEY_PREFIX = "eventDeskOpenBookletV1:";
+
+const createDefaultOpenBookletData = (): OpenBookletData => ({
+  orderOfDay: "",
+  prizes: "",
+});
+
+const loadOpenBookletData = (eventNumber: string): OpenBookletData => {
+  try {
+    const saved = localStorage.getItem(
+      `${OPEN_BOOKLET_KEY_PREFIX}${eventNumber}`,
+    );
+
+    if (!saved) return createDefaultOpenBookletData();
+
+    const parsed = JSON.parse(saved) as Partial<OpenBookletData>;
+
+    return {
+      orderOfDay:
+        typeof parsed.orderOfDay === "string" ? parsed.orderOfDay : "",
+      prizes: typeof parsed.prizes === "string" ? parsed.prizes : "",
+    };
+  } catch {
+    return createDefaultOpenBookletData();
+  }
+};
+
+const isOpenEvent = (event: Event): boolean => {
+  const extendedEvent = event as Event & Record<string, unknown>;
+  const candidates = [
+    event.eventName,
+    event.competition,
+    extendedEvent.eventType,
+    extendedEvent.type,
+    extendedEvent.category,
+  ];
+
+  return candidates.some(
+    (value) =>
+      typeof value === "string" &&
+      /(^|\s)open(\s|$)/i.test(value.trim()),
+  );
+};
+
+const formatOpenBookletDate = (value: string): string => {
+  const raw = value.trim();
+  if (!raw) return "";
+
+  let parsed: Date | null = null;
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    parsed = new Date(
+      Number(isoMatch[1]),
+      Number(isoMatch[2]) - 1,
+      Number(isoMatch[3]),
+    );
+  } else {
+    const ukMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+    if (ukMatch) {
+      let year = Number(ukMatch[3]);
+      if (ukMatch[3].length === 2) year += year >= 70 ? 1900 : 2000;
+      parsed = new Date(year, Number(ukMatch[2]) - 1, Number(ukMatch[1]));
+    }
+  }
+
+  if (!parsed || Number.isNaN(parsed.getTime())) return raw;
+
+  return parsed.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+};
+
+const shortPlayerName = (player: Player): string => {
+  const initial = player.firstName.trim().charAt(0).toUpperCase();
+  const surname = player.lastName.trim();
+  return `${initial ? `${initial}.` : ""}${surname}`.trim();
+};
+
+const getOpenTextFontSize = (value: string): number => {
+  const length = value.trim().length;
+  const lines = value.split(/\r?\n/).length;
+  const weighted = Math.max(length, lines * 42);
+
+  if (weighted <= 240) return 17;
+  if (weighted <= 420) return 15;
+  if (weighted <= 650) return 13;
+  if (weighted <= 900) return 11.5;
+  if (weighted <= 1200) return 10;
+  return 8.8;
+};
 
 const BOOKLET_KEY_PREFIX = "eventDeskBookletV1:";
 const ACTIVE_EVENT_ID_KEY = "eventDeskActiveEventId";
@@ -222,6 +333,7 @@ const loadBookletData = (
 
 export default function Booklets({
   event,
+  players = [],
   attachedPosterIds,
   readOnly = false,
   onBack,
@@ -230,6 +342,13 @@ export default function Booklets({
   const [data, setData] = useState<BookletData>(() =>
     loadBookletData(event.eventNumber, attachedPosterIds),
   );
+  const [openData, setOpenData] = useState<OpenBookletData>(() =>
+    loadOpenBookletData(event.eventNumber),
+  );
+  const [bookletType, setBookletType] = useState<BookletType>(() =>
+    isOpenEvent(event) ? "open" : "special",
+  );
+  const [clubLogoDataUrl, setClubLogoDataUrl] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importTarget, setImportTarget] = useState<
     "orderOfDay" | "prizes" | "menu" | null
@@ -243,6 +362,38 @@ export default function Booklets({
   useEffect(() => {
     setData(loadBookletData(event.eventNumber, attachedPosterIds));
   }, [event.eventNumber, attachedPosterIds]);
+
+  useEffect(() => {
+    setOpenData(loadOpenBookletData(event.eventNumber));
+    setBookletType(isOpenEvent(event) ? "open" : "special");
+  }, [event.eventNumber, event.eventName, event.competition]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(clubLogo)
+      .then((response) => response.blob())
+      .then(
+        (blob) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result ?? ""));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          }),
+      )
+      .then((dataUrl) => {
+        if (!cancelled) setClubLogoDataUrl(dataUrl);
+      })
+      .catch((error) => {
+        console.error("Failed to prepare club emblem for booklet export", error);
+        if (!cancelled) setClubLogoDataUrl("");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     getPosterLibrary()
@@ -266,6 +417,19 @@ export default function Booklets({
     }
   }, [data, event.eventNumber, readOnly]);
 
+  useEffect(() => {
+    if (readOnly) return;
+
+    try {
+      localStorage.setItem(
+        `${OPEN_BOOKLET_KEY_PREFIX}${event.eventNumber}`,
+        JSON.stringify(openData),
+      );
+    } catch (error) {
+      console.error("Failed to save Open booklet data", error);
+    }
+  }, [openData, event.eventNumber, readOnly]);
+
   const attachedPosters = useMemo(
     () =>
       attachedPosterIds
@@ -273,6 +437,42 @@ export default function Booklets({
         .filter((poster): poster is PosterItem => Boolean(poster)),
     [attachedPosterIds, posters],
   );
+
+  const openStartGroups = useMemo<OpenStartGroup[]>(() => {
+    const registered = players.filter(
+      (player) =>
+        player.status === "Registered" &&
+        Boolean(player.teeTime?.trim()) &&
+        Boolean(player.group?.trim()),
+    );
+
+    const groupMap = new Map<string, OpenStartGroup>();
+
+    registered.forEach((player) => {
+      const group = player.group?.trim() ?? "";
+      const teeTime = player.teeTime?.trim() ?? "";
+      const existing = groupMap.get(group);
+
+      if (existing) {
+        existing.players.push(player);
+        if (teeTime && (!existing.teeTime || teeTime < existing.teeTime)) {
+          existing.teeTime = teeTime;
+        }
+      } else {
+        groupMap.set(group, {
+          group,
+          teeTime,
+          players: [player],
+        });
+      }
+    });
+
+    return Array.from(groupMap.values()).sort(
+      (a, b) =>
+        a.teeTime.localeCompare(b.teeTime, undefined, { numeric: true }) ||
+        a.group.localeCompare(b.group, undefined, { numeric: true }),
+    );
+  }, [players]);
 
   const selectedPoster =
     attachedPosters.find((poster) => poster.id === data.coverPosterId) ??
@@ -352,6 +552,14 @@ export default function Booklets({
     setData((current) => ({ ...current, [field]: value }));
   };
 
+  const updateOpenField = <K extends keyof OpenBookletData>(
+    field: K,
+    value: OpenBookletData[K],
+  ) => {
+    if (readOnly) return;
+    setOpenData((current) => ({ ...current, [field]: value }));
+  };
+
   const handleImportText = (target: "orderOfDay" | "prizes" | "menu") => {
     if (readOnly) return;
     setImportTarget(target);
@@ -385,6 +593,118 @@ export default function Booklets({
   const outputTextHtml = (value: string) =>
     escapeOutputHtml(value || "—").replace(/\r?\n/g, "<br />");
 
+  const buildOpenHeaderHtml = (pageTitle: string) => {
+    const safeEventName = escapeOutputHtml(
+      (event.eventName || "Seniors Open").toUpperCase(),
+    );
+    const safeDate = escapeOutputHtml(formatOpenBookletDate(event.eventDate));
+    const logoHtml = clubLogoDataUrl
+      ? `<img src="${clubLogoDataUrl}" alt="Ramsdale Park Golf Club" style="width:13mm;height:13mm;object-fit:contain;display:block;" />`
+      : `<div style="width:13mm;height:13mm;border:0.5mm solid #2f6b45;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#2f6b45;font-size:6pt;font-weight:800;">RPGC</div>`;
+
+    return `
+      <div style="display:flex;align-items:center;justify-content:center;padding-bottom:1.4mm;border-bottom:0.5mm solid #7aa888;text-align:center;">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          ${logoHtml}
+          <div style="margin-top:0.3mm;">
+            <div style="font-size:6.4pt;letter-spacing:0.45px;color:#2f6b45;font-weight:900;">RAMSDALE PARK GOLF CLUB</div>
+            <div style="font-size:5.7pt;letter-spacing:0.3px;color:#5f7e69;font-weight:800;margin-top:0.15mm;">SENIORS SECTION</div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;padding:4mm 0 3.5mm;">
+        <div style="font-size:12.5pt;line-height:1.05;color:#24583a;font-weight:900;letter-spacing:0.35px;">${safeEventName}</div>
+        <div style="font-size:16pt;line-height:1.05;color:#1d4b30;font-weight:900;margin-top:1.8mm;">${escapeOutputHtml(pageTitle)}</div>
+        ${
+          safeDate
+            ? `<div style="font-size:7.4pt;color:#66806d;font-weight:700;margin-top:1.8mm;">${safeDate}</div>`
+            : ""
+        }
+      </div>
+    `;
+  };
+
+  const buildOpenTeeTimesPageHtml = () => {
+    const groups = openStartGroups.slice(0, 34);
+    const padded: Array<OpenStartGroup | null> = Array.from(
+      { length: 34 },
+      (_, index) => groups[index] ?? null,
+    );
+    const left = padded.slice(0, 17);
+    const right = padded.slice(17, 34);
+
+    const rowsHtml = (rows: Array<OpenStartGroup | null>) =>
+      rows
+        .map((row, index) => {
+          const displayNumber = row
+            ? String(row.group || index + 1).padStart(2, "0")
+            : "";
+          const playerNames = row
+            ? row.players
+                .slice(0, 4)
+                .map(shortPlayerName)
+                .filter(Boolean)
+            : [];
+
+          const firstPlayerLine = playerNames.slice(0, 2).join(" / ");
+          const secondPlayerLine = playerNames.slice(2, 4).join(" / ");
+
+          return `
+            <tr style="height:5.25mm;">
+              <td style="width:9mm;padding:0.7mm 0.7mm;border-bottom:0.25mm solid #c8d9ce;font-weight:800;color:#28573a;font-size:6.1pt;white-space:nowrap;">${row ? escapeOutputHtml(row.teeTime) : ""}</td>
+              <td style="width:6mm;padding:0.7mm 0.5mm;border-bottom:0.25mm solid #c8d9ce;text-align:center;font-weight:900;color:#1f4f33;font-size:6.1pt;">${escapeOutputHtml(displayNumber)}</td>
+              <td style="padding:0.45mm 0.65mm;border-bottom:0.25mm solid #c8d9ce;color:#273d2f;font-size:5.5pt;line-height:1.18;font-weight:700;overflow:visible;">
+                <div style="white-space:nowrap;">${escapeOutputHtml(firstPlayerLine)}</div>
+                <div style="white-space:nowrap;">${escapeOutputHtml(secondPlayerLine)}</div>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+
+    const tableHtml = (rows: Array<OpenStartGroup | null>) => `
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;border:0.35mm solid #9ebbaa;background:#ffffff;">
+        <thead>
+          <tr style="background:#e5f0e8;color:#214f33;">
+            <th style="width:9mm;padding:1.1mm 0.7mm;border-bottom:0.45mm solid #7fa28b;font-size:6.1pt;text-align:left;">TIME</th>
+            <th style="width:6mm;padding:1.1mm 0.5mm;border-bottom:0.45mm solid #7fa28b;font-size:6.1pt;text-align:center;">GRP</th>
+            <th style="padding:1.1mm 0.65mm;border-bottom:0.45mm solid #7fa28b;font-size:6.1pt;text-align:left;">PLAYERS</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml(rows)}</tbody>
+      </table>
+    `;
+
+    return `
+      <section class="digital-page open-page" style="padding:6mm 6mm 5mm;background:linear-gradient(180deg,#f8fbf8 0%,#ffffff 34%);color:#263b2e;">
+        ${buildOpenHeaderHtml("TEE TIMES")}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3.2mm;align-items:start;">
+          ${tableHtml(left)}
+          ${tableHtml(right)}
+        </div>
+        
+      </section>
+    `;
+  };
+
+  const buildOpenTextPageHtml = (
+    title: "ORDER OF THE DAY" | "PRIZES LIST",
+    value: string,
+  ) => {
+    const safeText = outputTextHtml(value);
+    const fontSize = getOpenTextFontSize(value);
+
+    return `
+      <section class="digital-page open-page" style="padding:6mm;background:linear-gradient(180deg,#f8fbf8 0%,#ffffff 34%);color:#263b2e;">
+        ${buildOpenHeaderHtml(title)}
+        <div style="height:102mm;display:flex;align-items:center;justify-content:center;padding:4mm 7mm 7mm;text-align:center;overflow:hidden;">
+          <div style="width:100%;max-height:100%;overflow:hidden;white-space:normal;font-size:${fontSize}pt;line-height:1.34;color:#294334;font-weight:650;">${safeText}</div>
+        </div>
+        
+      </section>
+    `;
+  };
+
   const buildDigitalPages = () => {
     const page1 = selectedPosterImage
       ? `
@@ -394,19 +714,42 @@ export default function Booklets({
         `
       : `<section class="digital-page blank-page"><div class="missing-page">No front cover selected</div></section>`;
 
-    const page2 = `
-      <section class="digital-page text-page">
-        <h2>ORDER OF THE DAY</h2>
-        <div class="page-text">${outputTextHtml(data.orderOfDay)}</div>
-      </section>
-    `;
+    if (bookletType === "open") {
+      const page2 = buildOpenTeeTimesPageHtml();
+      const page3 = buildOpenTextPageHtml(
+        "ORDER OF THE DAY",
+        openData.orderOfDay,
+      );
+      const page4 = buildOpenTextPageHtml(
+        "PRIZES LIST",
+        openData.prizes,
+      );
 
-    const page3 = `
-      <section class="digital-page text-page">
-        <h2>PRIZES &amp; DETAILS</h2>
-        <div class="page-text">${outputTextHtml(data.prizes)}</div>
-      </section>
-    `;
+      return [page1, page2, page3, page4];
+    }
+
+    const specialTextPage = (title: string, value: string) => {
+      const fontSize = getOpenTextFontSize(value);
+
+      return `
+        <section class="digital-page text-page">
+          <h2 style="text-align:center;">${title}</h2>
+          <div style="height:102mm;display:flex;align-items:center;justify-content:center;padding:2mm 4mm 6mm;text-align:center;overflow:hidden;">
+            <div class="page-text" style="width:100%;max-height:100%;overflow:hidden;white-space:normal;font-size:${fontSize}pt;line-height:1.34;font-weight:650;">${outputTextHtml(value)}</div>
+          </div>
+        </section>
+      `;
+    };
+
+    const page2 = specialTextPage(
+      "ORDER OF THE DAY",
+      data.orderOfDay,
+    );
+
+    const page3 = specialTextPage(
+      "PRIZES &amp; DETAILS",
+      data.prizes,
+    );
 
     const page4 = cateringMenuImage
       ? `
@@ -415,12 +758,7 @@ export default function Booklets({
           </section>
         `
       : data.includeMenu
-        ? `
-            <section class="digital-page menu-page">
-              <h2>MENU</h2>
-              <div class="page-text">${outputTextHtml(data.menu)}</div>
-            </section>
-          `
+        ? specialTextPage("MENU", data.menu)
         : `<section class="digital-page blank-page"><div class="missing-page">Menu not required</div></section>`;
 
     return [page1, page2, page3, page4];
@@ -683,12 +1021,11 @@ export default function Booklets({
 
           <script>
             var pages = ${serializedPages};
-            var titles = [
-              "Front Cover",
-              "Order of the Day",
-              "Prizes & Details",
-              "Menu"
-            ];
+            var titles = ${
+              bookletType === "open"
+                ? `["Front Cover","Tee Times","Order of the Day","Prizes List"]`
+                : `["Front Cover","Order of the Day","Prizes & Details","Menu"]`
+            };
             var currentPage = 0;
             var pageWrap = document.getElementById("pageWrap");
             var bookPage = document.getElementById("bookPage");
@@ -958,7 +1295,113 @@ export default function Booklets({
     pdfWindow.document.close();
   };
 
+  const handlePrintOpen = () => {
+    const [page1, page2, page3, page4] = buildDigitalPages();
+    const printWindow = window.open("", "_blank", "width=1200,height=900");
+
+    if (!printWindow) {
+      window.alert("Please allow pop-ups for Event Desk to print the Open booklet.");
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>${escapeOutputHtml(event.eventName || "Open Booklet")}</title>
+          <style>
+            @page { size: A4 portrait; margin: 0; }
+            * { box-sizing: border-box; }
+            html, body {
+              margin: 0;
+              padding: 0;
+              background: white;
+              width: 210mm;
+              min-width: 210mm;
+              font-family: Arial, Helvetica, sans-serif;
+            }
+            .sheet {
+              width: 210mm;
+              height: 296mm;
+              position: relative;
+              display: block;
+              page-break-after: always;
+              break-after: page;
+              overflow: hidden;
+            }
+            .booklet-row {
+              width: 210mm;
+              height: 148mm;
+              position: absolute;
+              left: 0;
+              display: flex;
+              overflow: hidden;
+            }
+            .sheet .booklet-row:first-child { top: 0; }
+            .sheet .booklet-row:last-child { top: 148mm; }
+            .sheet:last-child {
+              page-break-after: auto;
+              break-after: auto;
+            }
+            .digital-page {
+              width: 105mm !important;
+              height: 148mm !important;
+              flex: 0 0 105mm;
+              overflow: hidden;
+              position: relative;
+              background: white;
+            }
+            .cover-page { padding: 0 !important; }
+            .cover-page img {
+              display: block;
+              width: 105mm;
+              height: 148mm;
+              object-fit: cover;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="sheet">
+            <div class="booklet-row">${page4}${page1}</div>
+            <div class="booklet-row">${page4}${page1}</div>
+          </div>
+          <div class="sheet">
+            <div class="booklet-row">${page2}${page3}</div>
+            <div class="booklet-row">${page2}${page3}</div>
+          </div>
+          <script>
+            window.addEventListener("load", function () {
+              var images = Array.from(document.images);
+              Promise.all(
+                images.map(function (img) {
+                  if (img.complete) return Promise.resolve();
+                  return new Promise(function (resolve) {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                  });
+                })
+              ).then(function () {
+                setTimeout(function () {
+                  window.focus();
+                  window.print();
+                }, 350);
+              });
+            });
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const handlePrint = () => {
+    if (bookletType === "open") {
+      handlePrintOpen();
+      return;
+    }
+
     const printWindow = window.open("", "_blank", "width=1200,height=900");
 
     if (!printWindow) {
@@ -977,6 +1420,19 @@ export default function Booklets({
     const textHtml = (value: string) =>
       escapeHtml(value).replace(/\r?\n/g, "<br />");
 
+    const printTextPage = (title: string, value: string) => {
+      const fontSize = getOpenTextFontSize(value);
+
+      return `
+        <section class="page text-page">
+          <h2 style="text-align:center;">${title}</h2>
+          <div style="height:102mm;display:flex;align-items:center;justify-content:center;padding:2mm 4mm 6mm;text-align:center;overflow:hidden;">
+            <div class="page-text" style="width:100%;max-height:100%;overflow:hidden;white-space:normal;font-size:${fontSize}pt;line-height:1.34;font-weight:650;">${textHtml(value)}</div>
+          </div>
+        </section>
+      `;
+    };
+
     const menuPage = cateringMenuImage
       ? `
           <section class="page menu-page catering-menu-page">
@@ -984,12 +1440,7 @@ export default function Booklets({
           </section>
         `
       : data.includeMenu
-        ? `
-            <section class="page menu-page">
-              <h2>MENU</h2>
-              <div class="page-text">${textHtml(data.menu)}</div>
-            </section>
-          `
+        ? printTextPage("MENU", data.menu)
         : `<section class="page blank-page"></section>`;
 
     const coverPage = selectedPosterImage
@@ -1000,19 +1451,15 @@ export default function Booklets({
         `
       : `<section class="page blank-page"></section>`;
 
-    const orderPage = `
-      <section class="page text-page">
-        <h2>ORDER OF THE DAY</h2>
-        <div class="page-text">${textHtml(data.orderOfDay)}</div>
-      </section>
-    `;
+    const orderPage = printTextPage(
+      "ORDER OF THE DAY",
+      data.orderOfDay,
+    );
 
-    const prizesPage = `
-      <section class="page text-page">
-        <h2>PRIZES &amp; DETAILS</h2>
-        <div class="page-text">${textHtml(data.prizes)}</div>
-      </section>
-    `;
+    const prizesPage = printTextPage(
+      "PRIZES &amp; DETAILS",
+      data.prizes,
+    );
 
     printWindow.document.open();
     printWindow.document.write(`
@@ -1169,6 +1616,12 @@ export default function Booklets({
     maybeStartPrint();
   };
 
+  const openEventAvailable = isOpenEvent(event);
+  const openGroupsUsed = Math.min(openStartGroups.length, 34);
+  const openPlayersUsed = openStartGroups
+    .slice(0, 34)
+    .reduce((total, group) => total + Math.min(group.players.length, 4), 0);
+
   return (
     <section className="booklets-screen">
       <input
@@ -1181,9 +1634,11 @@ export default function Booklets({
 
       <div className="booklets-header no-print">
         <div>
-          <h1>Booklet</h1>
+          <h1>Booklets</h1>
           <p>
-            Four-page event booklet — two identical booklets per A4 sheet, double-sided.
+            {bookletType === "open"
+              ? "Purpose-built four-page Open booklet — two identical booklets per A4 sheet, double-sided."
+              : "Four-page event booklet — two identical booklets per A4 sheet, double-sided."}
           </p>
         </div>
 
@@ -1229,178 +1684,422 @@ export default function Booklets({
         </div>
       </div>
 
+      {openEventAvailable && (
+        <div
+          className="no-print"
+          style={{
+            display: "flex",
+            gap: "10px",
+            marginBottom: "18px",
+            padding: "10px",
+            border: "1px solid #dbe7f3",
+            borderRadius: "12px",
+            background: "#f8fbfd",
+          }}
+        >
+          <button
+            type="button"
+            className="booklets-secondary-button"
+            onClick={() => setBookletType("special")}
+            style={
+              bookletType === "special"
+                ? {
+                    background: "#2468b3",
+                    color: "white",
+                    borderColor: "#2468b3",
+                  }
+                : undefined
+            }
+          >
+            Special Event Booklet
+          </button>
+          <button
+            type="button"
+            className="booklets-secondary-button"
+            onClick={() => setBookletType("open")}
+            style={
+              bookletType === "open"
+                ? {
+                    background: "#2f6b45",
+                    color: "white",
+                    borderColor: "#2f6b45",
+                  }
+                : undefined
+            }
+          >
+            Open Booklet
+          </button>
+        </div>
+      )}
+
       <div className="booklets-layout no-print">
-        <div className="booklets-editor">
-          <div className="booklet-panel">
-            <div className="booklet-panel-heading">
-              <div>
-                <span className="booklet-panel-number">1</span>
+        {bookletType === "open" && openEventAvailable ? (
+          <div className="booklets-editor open-booklets-editor">
+            <div
+              className="booklet-panel"
+              style={{ borderColor: "#b7cfbe", boxShadow: "0 2px 8px rgba(47,107,69,0.08)" }}
+            >
+              <div className="booklet-panel-heading">
                 <div>
-                  <h2>Front Cover</h2>
-                  <p>Select one of this event's attached posters.</p>
+                  <span
+                    className="booklet-panel-number"
+                    style={{ background: "#eaf3ed", color: "#2f6b45" }}
+                  >
+                    1
+                  </span>
+                  <div>
+                    <h2 style={{ color: "#285b3c" }}>Advertising Poster / Front Cover</h2>
+                    <p>Select one of this event&apos;s attached posters from the Poster Library.</p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {attachedPosters.length > 0 ? (
-              <div className="poster-choice-grid">
-                {attachedPosters.map((poster) => {
-                  const posterImage =
-                    posterPreviewImages[poster.id] ??
-                    (isPdfPoster(poster) ? null : poster.image);
+              {attachedPosters.length > 0 ? (
+                <div className="poster-choice-grid">
+                  {attachedPosters.map((poster) => {
+                    const posterImage =
+                      posterPreviewImages[poster.id] ??
+                      (isPdfPoster(poster) ? null : poster.image);
 
-                  return (
-                    <button
-                      type="button"
-                      key={poster.id}
-                      className={`poster-choice ${
-                        selectedPoster?.id === poster.id ? "selected" : ""
-                      }`}
-                      onClick={() => updateField("coverPosterId", poster.id)}
-                      disabled={readOnly}
-                    >
-                      {posterImage ? (
-                        <img src={posterImage} alt={poster.title} />
-                      ) : (
-                        <div
-                          style={{
-                            minHeight: "120px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: "10px",
-                            color: "#64748b",
-                            textAlign: "center",
-                          }}
-                        >
-                          Rendering PDF…
-                        </div>
-                      )}
-                      <span>{poster.title}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="booklet-empty-state">
-                No poster is currently attached to this event. Attach a poster
-                in Posters first.
-              </div>
-            )}
-          </div>
-
-          <div className="booklet-panel">
-            <div className="booklet-panel-heading">
-              <div>
-                <span className="booklet-panel-number">2</span>
-                <div>
-                  <h2>Order of the Day</h2>
-                  <p>Paste, type or import your itinerary.</p>
+                    return (
+                      <button
+                        type="button"
+                        key={poster.id}
+                        className={`poster-choice ${
+                          selectedPoster?.id === poster.id ? "selected" : ""
+                        }`}
+                        onClick={() => updateField("coverPosterId", poster.id)}
+                        disabled={readOnly}
+                        style={
+                          selectedPoster?.id === poster.id
+                            ? { borderColor: "#3d7a52", boxShadow: "0 0 0 2px rgba(61,122,82,0.12)" }
+                            : undefined
+                        }
+                      >
+                        {posterImage ? (
+                          <img src={posterImage} alt={poster.title} />
+                        ) : (
+                          <div
+                            style={{
+                              minHeight: "120px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              padding: "10px",
+                              color: "#64748b",
+                              textAlign: "center",
+                            }}
+                          >
+                            Rendering PDF…
+                          </div>
+                        )}
+                        <span>{poster.title}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-              {!readOnly && (
-                <button
-                  type="button"
-                  className="booklets-import-button"
-                  onClick={() => handleImportText("orderOfDay")}
-                >
-                  Import Text
-                </button>
-              )}
-            </div>
-            <textarea
-              value={data.orderOfDay}
-              onChange={(e) => updateField("orderOfDay", e.target.value)}
-              placeholder={
-                "08:30  Arrival & Registration\n09:15  Welcome & Briefing\n10:00  First Tee Time\n..."
-              }
-              disabled={readOnly}
-            />
-          </div>
-
-          <div className="booklet-panel">
-            <div className="booklet-panel-heading">
-              <div>
-                <span className="booklet-panel-number">3</span>
-                <div>
-                  <h2>Prizes & Details</h2>
-                  <p>Manually enter the prizes and any supporting details.</p>
+              ) : (
+                <div className="booklet-empty-state">
+                  No poster is currently attached to this event. Attach a poster
+                  in Posters first.
                 </div>
-              </div>
-              {!readOnly && (
-                <button
-                  type="button"
-                  className="booklets-import-button"
-                  onClick={() => handleImportText("prizes")}
-                >
-                  Import Text
-                </button>
-              )}
-            </div>
-            <textarea
-              value={data.prizes}
-              onChange={(e) => updateField("prizes", e.target.value)}
-              placeholder={
-                "1st Prize — ...\n2nd Prize — ...\nNearest the Pin — ...\nOther prize details — ..."
-              }
-              disabled={readOnly}
-            />
-          </div>
-
-          <div className="booklet-panel">
-            <div className="booklet-panel-heading">
-              <div>
-                <span className="booklet-panel-number">4</span>
-                <div>
-                  <h2>Menu</h2>
-                  <p>Uses the selected Catering Bespoke menu automatically when available.</p>
-                </div>
-              </div>
-              <label className="menu-toggle">
-                <input
-                  type="checkbox"
-                  checked={data.includeMenu}
-                  onChange={(e) => updateField("includeMenu", e.target.checked)}
-                  disabled={readOnly}
-                />
-                <span>Include Menu</span>
-              </label>
-              {!readOnly && data.includeMenu && (
-                <button
-                  type="button"
-                  className="booklets-import-button"
-                  onClick={() => handleImportText("menu")}
-                >
-                  Import Text
-                </button>
               )}
             </div>
 
-            {cateringMenuImage ? (
-              <div className="booklet-menu-disabled">
-                The selected Catering Bespoke menu will be used automatically for Page 4.
+            <div
+              className="booklet-panel"
+              style={{ borderColor: "#b7cfbe", boxShadow: "0 2px 8px rgba(47,107,69,0.08)" }}
+            >
+              <div className="booklet-panel-heading">
+                <div>
+                  <span
+                    className="booklet-panel-number"
+                    style={{ background: "#eaf3ed", color: "#2f6b45" }}
+                  >
+                    2
+                  </span>
+                  <div>
+                    <h2 style={{ color: "#285b3c" }}>Tee Times / Start Sheet</h2>
+                    <p>Generated automatically from the current Players Start List.</p>
+                  </div>
+                </div>
               </div>
-            ) : data.includeMenu ? (
+
+              <div
+                style={{
+                  minHeight: "132px",
+                  border: "1px solid #c4d8ca",
+                  borderRadius: "9px",
+                  background: "#f7fbf8",
+                  padding: "16px",
+                  color: "#385a44",
+                }}
+              >
+                <strong style={{ display: "block", fontSize: "16px", marginBottom: "8px" }}>
+                  {openGroupsUsed} tee groups • {openPlayersUsed} players
+                </strong>
+                <span style={{ display: "block", lineHeight: 1.5 }}>
+                  Groups 01–17 will print in the left column and Groups 18–34 in
+                  the right column. Tee times and names refresh automatically whenever
+                  the Start List changes.
+                </span>
+                {openStartGroups.length === 0 && (
+                  <span
+                    style={{
+                      display: "block",
+                      marginTop: "10px",
+                      fontWeight: 700,
+                      color: "#9a651f",
+                    }}
+                  >
+                    No current Start List tee times are available yet.
+                  </span>
+                )}
+                {openStartGroups.length > 34 && (
+                  <span
+                    style={{
+                      display: "block",
+                      marginTop: "10px",
+                      fontWeight: 700,
+                      color: "#9a3d2f",
+                    }}
+                  >
+                    This Open Booklet supports a maximum of 34 groups / 136 players.
+                    Only the first 34 groups will be printed.
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div
+              className="booklet-panel"
+              style={{ borderColor: "#b7cfbe", boxShadow: "0 2px 8px rgba(47,107,69,0.08)" }}
+            >
+              <div className="booklet-panel-heading">
+                <div>
+                  <span
+                    className="booklet-panel-number"
+                    style={{ background: "#eaf3ed", color: "#2f6b45" }}
+                  >
+                    3
+                  </span>
+                  <div>
+                    <h2 style={{ color: "#285b3c" }}>Order of the Day</h2>
+                    <p>Enter the wording exactly as you want it centred on Page 3.</p>
+                  </div>
+                </div>
+              </div>
               <textarea
-                value={data.menu}
-                onChange={(e) => updateField("menu", e.target.value)}
-                placeholder={"STARTER\n...\n\nMAIN COURSE\n...\n\nDESSERT\n..."}
+                value={openData.orderOfDay}
+                onChange={(e) => updateOpenField("orderOfDay", e.target.value)}
+                placeholder={
+                  "Registration from 08:00\nFirst tee time 08:30\nMeal and prize presentation after play\n..."
+                }
+                disabled={readOnly}
+                style={{ minHeight: "170px", height: "170px", textAlign: "center" }}
+              />
+            </div>
+
+            <div
+              className="booklet-panel"
+              style={{ borderColor: "#b7cfbe", boxShadow: "0 2px 8px rgba(47,107,69,0.08)" }}
+            >
+              <div className="booklet-panel-heading">
+                <div>
+                  <span
+                    className="booklet-panel-number"
+                    style={{ background: "#eaf3ed", color: "#2f6b45" }}
+                  >
+                    4
+                  </span>
+                  <div>
+                    <h2 style={{ color: "#285b3c" }}>Prizes List</h2>
+                    <p>Enter the final prize list manually; the booklet will centre and size it automatically.</p>
+                  </div>
+                </div>
+              </div>
+              <textarea
+                value={openData.prizes}
+                onChange={(e) => updateOpenField("prizes", e.target.value)}
+                placeholder={
+                  "1st Team — ...\n2nd Team — ...\nNearest the Pin — ...\nHole in One — ..."
+                }
+                disabled={readOnly}
+                style={{ minHeight: "170px", height: "170px", textAlign: "center" }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="booklets-editor">
+            <div className="booklet-panel">
+              <div className="booklet-panel-heading">
+                <div>
+                  <span className="booklet-panel-number">1</span>
+                  <div>
+                    <h2>Front Cover</h2>
+                    <p>Select one of this event&apos;s attached posters.</p>
+                  </div>
+                </div>
+              </div>
+
+              {attachedPosters.length > 0 ? (
+                <div className="poster-choice-grid">
+                  {attachedPosters.map((poster) => {
+                    const posterImage =
+                      posterPreviewImages[poster.id] ??
+                      (isPdfPoster(poster) ? null : poster.image);
+
+                    return (
+                      <button
+                        type="button"
+                        key={poster.id}
+                        className={`poster-choice ${
+                          selectedPoster?.id === poster.id ? "selected" : ""
+                        }`}
+                        onClick={() => updateField("coverPosterId", poster.id)}
+                        disabled={readOnly}
+                      >
+                        {posterImage ? (
+                          <img src={posterImage} alt={poster.title} />
+                        ) : (
+                          <div
+                            style={{
+                              minHeight: "120px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              padding: "10px",
+                              color: "#64748b",
+                              textAlign: "center",
+                            }}
+                          >
+                            Rendering PDF…
+                          </div>
+                        )}
+                        <span>{poster.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="booklet-empty-state">
+                  No poster is currently attached to this event. Attach a poster
+                  in Posters first.
+                </div>
+              )}
+            </div>
+
+            <div className="booklet-panel">
+              <div className="booklet-panel-heading">
+                <div>
+                  <span className="booklet-panel-number">2</span>
+                  <div>
+                    <h2>Order of the Day</h2>
+                    <p>Paste, type or import your itinerary.</p>
+                  </div>
+                </div>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="booklets-import-button"
+                    onClick={() => handleImportText("orderOfDay")}
+                  >
+                    Import Text
+                  </button>
+                )}
+              </div>
+              <textarea
+                value={data.orderOfDay}
+                onChange={(e) => updateField("orderOfDay", e.target.value)}
+                placeholder={
+                  "08:30  Arrival & Registration\n09:15  Welcome & Briefing\n10:00  First Tee Time\n..."
+                }
                 disabled={readOnly}
               />
-            ) : (
-              <div className="booklet-menu-disabled">
-                Page 4 will remain blank unless <strong>Include Menu</strong> is
-                selected.
+            </div>
+
+            <div className="booklet-panel">
+              <div className="booklet-panel-heading">
+                <div>
+                  <span className="booklet-panel-number">3</span>
+                  <div>
+                    <h2>Prizes & Details</h2>
+                    <p>Manually enter the prizes and any supporting details.</p>
+                  </div>
+                </div>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="booklets-import-button"
+                    onClick={() => handleImportText("prizes")}
+                  >
+                    Import Text
+                  </button>
+                )}
               </div>
-            )}
-            {cateringMenuError ? (
-              <div className="booklet-menu-disabled">{cateringMenuError}</div>
-            ) : null}
+              <textarea
+                value={data.prizes}
+                onChange={(e) => updateField("prizes", e.target.value)}
+                placeholder={
+                  "1st Prize — ...\n2nd Prize — ...\nNearest the Pin — ...\nOther prize details — ..."
+                }
+                disabled={readOnly}
+              />
+            </div>
+
+            <div className="booklet-panel">
+              <div className="booklet-panel-heading">
+                <div>
+                  <span className="booklet-panel-number">4</span>
+                  <div>
+                    <h2>Menu</h2>
+                    <p>Uses the selected Catering Bespoke menu automatically when available.</p>
+                  </div>
+                </div>
+                <label className="menu-toggle">
+                  <input
+                    type="checkbox"
+                    checked={data.includeMenu}
+                    onChange={(e) => updateField("includeMenu", e.target.checked)}
+                    disabled={readOnly}
+                  />
+                  <span>Include Menu</span>
+                </label>
+                {!readOnly && data.includeMenu && (
+                  <button
+                    type="button"
+                    className="booklets-import-button"
+                    onClick={() => handleImportText("menu")}
+                  >
+                    Import Text
+                  </button>
+                )}
+              </div>
+
+              {cateringMenuImage ? (
+                <div className="booklet-menu-disabled">
+                  The selected Catering Bespoke menu will be used automatically for Page 4.
+                </div>
+              ) : data.includeMenu ? (
+                <textarea
+                  value={data.menu}
+                  onChange={(e) => updateField("menu", e.target.value)}
+                  placeholder={"STARTER\n...\n\nMAIN COURSE\n...\n\nDESSERT\n..."}
+                  disabled={readOnly}
+                />
+              ) : (
+                <div className="booklet-menu-disabled">
+                  Page 4 will remain blank unless <strong>Include Menu</strong> is
+                  selected.
+                </div>
+              )}
+              {cateringMenuError ? (
+                <div className="booklet-menu-disabled">{cateringMenuError}</div>
+              ) : null}
+            </div>
           </div>
-        </div>
-
+        )}
       </div>
-
     </section>
   );
 }

@@ -57,6 +57,8 @@ export default function Competition({
   const [showSaved, setShowSaved] = useState(false);
   const [customFormats, setCustomFormats] =
     useState<string[]>(loadCustomFormats);
+  const [showAddFormat, setShowAddFormat] = useState(false);
+  const [newFormatName, setNewFormatName] = useState("");
 
   const updateEvent = (changes: Partial<Event>) => {
     setEvent((current) => ({
@@ -77,43 +79,8 @@ export default function Competition({
 
   const handleCompetitionFormatChange = (value: string) => {
     if (value === "__add_format__") {
-      const entered = window.prompt("Enter the new competition format:");
-      if (entered === null) return;
-
-      const newFormat = entered.trim();
-
-      if (!newFormat) {
-        window.alert("Please enter a competition format.");
-        return;
-      }
-
-      const existingFormat = [...BUILT_IN_FORMATS, ...customFormats].find(
-        (format) => format.toLowerCase() === newFormat.toLowerCase(),
-      );
-
-      if (existingFormat) {
-        window.alert(
-          `"${existingFormat}" is already in the Competition Format list.`,
-        );
-        updateEvent({ competitionFormat: existingFormat });
-        return;
-      }
-
-      const nextCustomFormats = [...customFormats, newFormat];
-
-      try {
-        localStorage.setItem(
-          CUSTOM_FORMATS_KEY,
-          JSON.stringify(nextCustomFormats),
-        );
-      } catch (error) {
-        console.error("Failed to save custom competition format", error);
-        window.alert("The new competition format could not be saved.");
-        return;
-      }
-
-      setCustomFormats(nextCustomFormats);
-      updateEvent({ competitionFormat: newFormat });
+      setNewFormatName("");
+      setShowAddFormat(true);
       return;
     }
 
@@ -177,6 +144,52 @@ export default function Competition({
     }
 
     updateEvent({ competitionFormat: value });
+  };
+
+  const handleAddCustomFormat = () => {
+    const newFormat = newFormatName.trim();
+
+    if (!newFormat) {
+      window.alert("Please enter a competition format.");
+      return;
+    }
+
+    const existingFormat = [...BUILT_IN_FORMATS, ...customFormats].find(
+      (format) => format.toLowerCase() === newFormat.toLowerCase(),
+    );
+
+    if (existingFormat) {
+      window.alert(
+        `"${existingFormat}" is already in the Competition Format list.`,
+      );
+      updateEvent({ competitionFormat: existingFormat });
+      setShowAddFormat(false);
+      setNewFormatName("");
+      return;
+    }
+
+    const nextCustomFormats = [...customFormats, newFormat];
+
+    try {
+      localStorage.setItem(
+        CUSTOM_FORMATS_KEY,
+        JSON.stringify(nextCustomFormats),
+      );
+    } catch (error) {
+      console.error("Failed to save custom competition format", error);
+      window.alert("The new competition format could not be saved.");
+      return;
+    }
+
+    setCustomFormats(nextCustomFormats);
+    updateEvent({ competitionFormat: newFormat });
+    setShowAddFormat(false);
+    setNewFormatName("");
+  };
+
+  const handleCancelAddFormat = () => {
+    setShowAddFormat(false);
+    setNewFormatName("");
   };
 
   type CompetitionStatus = "draft" | "published" | "archived";
@@ -392,6 +405,83 @@ export default function Competition({
                 − Delete Custom Format...
               </option>
             </select>
+
+            {showAddFormat && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  padding: "12px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "10px",
+                  background: "#f8fafc",
+                }}
+              >
+                <label
+                  htmlFor="newCompetitionFormat"
+                  style={{
+                    display: "block",
+                    marginBottom: "7px",
+                    fontWeight: 700,
+                    color: "#334155",
+                  }}
+                >
+                  New Competition Format
+                </label>
+
+                <input
+                  id="newCompetitionFormat"
+                  type="text"
+                  autoFocus
+                  value={newFormatName}
+                  placeholder="Type the new format name..."
+                  onChange={(e) => setNewFormatName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddCustomFormat();
+                    }
+
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      handleCancelAddFormat();
+                    }
+                  }}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    marginTop: "10px",
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={handleAddCustomFormat}
+                    style={{ padding: "8px 14px" }}
+                  >
+                    Add Format
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCancelAddFormat}
+                    style={{
+                      padding: "8px 14px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "8px",
+                      background: "white",
+                      color: "#475569",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="field">
