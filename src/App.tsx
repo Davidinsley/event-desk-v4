@@ -1,9 +1,11 @@
+// App.tsx — Revision: Sync Event Desk Published/Draft status with published snapshot
 // App.tsx — Revision: Restore Event Desk countdown tile
 // Revision: Multi-poster Event Media support — up to 3 posters per event
 import { useEffect, useState } from "react";
 
 import "./App.css";
 import logo from "./assets/Emblem.png";
+import splashImage from "./assets/EventDeskSplash.png";
 
 import type { Player } from "./types/Player";
 import type { Event } from "./types/Event";
@@ -227,6 +229,19 @@ const loadInitialEventRecords = (): EventRecord[] => {
 };
 
 export default function App() {
+
+  const [showSplash, setShowSplash] =
+    useState(true);
+
+  useEffect(() => {
+    const splashTimer = window.setTimeout(() => {
+      setShowSplash(false);
+    }, 4000);
+
+    return () => {
+      window.clearTimeout(splashTimer);
+    };
+  }, []);
 
   const [currentPage, setCurrentPage] =
     useState("dashboard");
@@ -1071,11 +1086,38 @@ export default function App() {
   };
 
   const handleOpenEventManager = () => {
+    /*
+     * Before showing Event Desk, copy the live active-event state back into
+     * the EventRecord collection. The Event Desk cards are rendered from
+     * eventRecords, while Event Details is rendered from the live state.
+     * Keeping the two in step here prevents a stale Published badge appearing
+     * in Event Desk when the live event has become Draft.
+     */
+    const currentRecord = buildCurrentRecord();
+
+    setEventRecords((records) =>
+      records.map((record) =>
+        record.id === activeEventId
+          ? currentRecord
+          : record
+      )
+    );
+
     setRecentEventsOnly(false);
     setCurrentPage("eventManager");
   };
 
   const handleOpenRecentEvents = () => {
+    const currentRecord = buildCurrentRecord();
+
+    setEventRecords((records) =>
+      records.map((record) =>
+        record.id === activeEventId
+          ? currentRecord
+          : record
+      )
+    );
+
     setRecentEventsOnly(true);
     setCurrentPage("eventManager");
   };
@@ -1245,25 +1287,29 @@ export default function App() {
   };
 
   const handleOpenEvent = (record: EventRecord) => {
-    if (record.id === activeEventId) {
-      setCurrentPage(
-        record.archived ? "reviewPublish" : "new"
+    /*
+     * Always hydrate the live event state from the Event Desk record,
+     * even when the selected card is already the active event. Previously
+     * the same-event early return could leave Event Details using older live
+     * publication state while the Event Desk card showed the newer record.
+     */
+    if (record.id !== activeEventId) {
+      setEventRecords((records) =>
+        records.map((item) =>
+          item.id === activeEventId
+            ? buildCurrentRecord()
+            : item
+        )
       );
-      return;
     }
-
-    setEventRecords((records) =>
-      records.map((item) =>
-        item.id === activeEventId
-          ? buildCurrentRecord()
-          : item
-      )
-    );
 
     setActiveEventId(record.id);
     setEvent(record.event);
     setPlayers(record.players);
-    setAttachedPosterIds(record.attachedPosterIds ?? (record.attachedPosterId ? [record.attachedPosterId] : []));
+    setAttachedPosterIds(
+      record.attachedPosterIds ??
+        (record.attachedPosterId ? [record.attachedPosterId] : [])
+    );
     setPreviewPosterId(null);
     setDrawPreviewData(null);
     setPublished(record.published);
@@ -1335,6 +1381,33 @@ export default function App() {
       : eventOpen
       ? "event-mode"
       : "dashboard-mode";
+
+  if (showSplash) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          width: "100vw",
+          height: "100vh",
+          overflow: "hidden",
+          background: "#dbeafe",
+        }}
+      >
+        <img
+          src={splashImage}
+          alt="Ramsdale Seniors Event Desk"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            objectPosition: "center",
+            display: "block",
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`app ${appMode}`}>
@@ -1652,21 +1725,44 @@ export default function App() {
                     Number.parseInt(a.event.eventNumber, 10)
                   )
                   .map((record) => {
+                    /*
+                     * Keep the Event Desk status badge in step with the
+                     * opened event. A record is only currently Published
+                     * when its live event/player/poster data still matches
+                     * the last published snapshot.
+                     */
+                    const recordCurrentSnapshot: PublishedSnapshot = {
+                      event: record.event,
+                      players: record.players,
+                      attachedPosterId: record.attachedPosterId,
+                      attachedPosterIds: record.attachedPosterIds,
+                    };
+
+                    const recordHasUnpublishedChanges =
+                      record.publishedSnapshot === null ||
+                      JSON.stringify(recordCurrentSnapshot) !==
+                        JSON.stringify(record.publishedSnapshot);
+
+                    const recordIsCurrentlyPublished =
+                      record.published &&
+                      !recordHasUnpublishedChanges &&
+                      !record.archived;
+
                     const status = record.archived
                       ? "Archived"
-                      : record.published
+                      : recordIsCurrentlyPublished
                       ? "Published"
                       : "Draft";
 
                     const statusBackground = record.archived
                       ? "#f1f5f9"
-                      : record.published
+                      : recordIsCurrentlyPublished
                       ? "#ecfdf3"
                       : "#fff7ed";
 
                     const statusColor = record.archived
                       ? "#64748b"
-                      : record.published
+                      : recordIsCurrentlyPublished
                       ? "#15803d"
                       : "#c2410c";
 

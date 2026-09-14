@@ -1,6 +1,6 @@
 // Booklets.tsx
 // Ramsdale Seniors Event Desk
-// Revision: Competition booklet with clean editor, flip book, HTML/PDF export and print
+// Revision: Competition booklet with PDF poster cover rendering, flip book, HTML/PDF export and print
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
@@ -127,6 +127,61 @@ async function renderPdfFirstPageToDataUrl(blob: Blob): Promise<string> {
   return dataUrl;
 }
 
+function dataUrlToUint8Array(dataUrl: string): Uint8Array {
+  const commaIndex = dataUrl.indexOf(",");
+  if (commaIndex === -1) {
+    throw new Error("Invalid poster data URL.");
+  }
+
+  const header = dataUrl.slice(0, commaIndex);
+  const body = dataUrl.slice(commaIndex + 1);
+
+  if (header.includes(";base64")) {
+    const binary = atob(body);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    return bytes;
+  }
+
+  return new TextEncoder().encode(decodeURIComponent(body));
+}
+
+function isPdfPoster(poster: PosterItem): boolean {
+  return poster.fileType.toLowerCase().includes("pdf");
+}
+
+async function renderPosterPdfFirstPageToDataUrl(
+  dataUrl: string,
+): Promise<string> {
+  const bytes = dataUrlToUint8Array(dataUrl);
+  const loadingTask = pdfjsLib.getDocument({ data: bytes });
+  const pdf = await loadingTask.promise;
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) {
+    page.cleanup();
+    await loadingTask.destroy();
+    throw new Error("Unable to create a canvas for the poster PDF.");
+  }
+
+  await page.render({ canvas, canvasContext: context, viewport }).promise;
+  const rendered = canvas.toDataURL("image/png");
+
+  page.cleanup();
+  await loadingTask.destroy();
+
+  return rendered;
+}
+
 const createDefaultData = (attachedPosterIds: string[]): BookletData => ({
   coverPosterId: attachedPosterIds[0] ?? null,
   orderOfDay: "",
@@ -181,6 +236,9 @@ export default function Booklets({
   >(null);
   const [cateringMenuImage, setCateringMenuImage] = useState<string | null>(null);
   const [cateringMenuError, setCateringMenuError] = useState<string | null>(null);
+  const [posterPreviewImages, setPosterPreviewImages] = useState<
+    Record<string, string>
+  >({});
 
   useEffect(() => {
     setData(loadBookletData(event.eventNumber, attachedPosterIds));
@@ -220,6 +278,47 @@ export default function Booklets({
     attachedPosters.find((poster) => poster.id === data.coverPosterId) ??
     attachedPosters[0] ??
     null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPosterPreviews = async () => {
+      const entries = await Promise.all(
+        attachedPosters.map(async (poster) => {
+          if (!isPdfPoster(poster)) {
+            return [poster.id, poster.image] as const;
+          }
+
+          try {
+            const image = await renderPosterPdfFirstPageToDataUrl(poster.image);
+            return [poster.id, image] as const;
+          } catch (error) {
+            console.error("Failed to render booklet PDF poster", error);
+            return [poster.id, ""] as const;
+          }
+        }),
+      );
+
+      if (!cancelled) {
+        const nextImages: Record<string, string> = {};
+        entries.forEach(([id, image]) => {
+          if (image) nextImages[id] = image;
+        });
+        setPosterPreviewImages(nextImages);
+      }
+    };
+
+    void loadPosterPreviews();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attachedPosters]);
+
+  const selectedPosterImage = selectedPoster
+    ? posterPreviewImages[selectedPoster.id] ??
+      (isPdfPoster(selectedPoster) ? null : selectedPoster.image)
+    : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -287,10 +386,10 @@ export default function Booklets({
     escapeOutputHtml(value || "—").replace(/\r?\n/g, "<br />");
 
   const buildDigitalPages = () => {
-    const page1 = selectedPoster
+    const page1 = selectedPosterImage
       ? `
           <section class="digital-page cover-page">
-            <img src="${selectedPoster.image}" alt="Front cover" />
+            <img src="${selectedPosterImage}" alt="Front cover" />
           </section>
         `
       : `<section class="digital-page blank-page"><div class="missing-page">No front cover selected</div></section>`;
@@ -893,10 +992,10 @@ export default function Booklets({
           `
         : `<section class="page blank-page"></section>`;
 
-    const coverPage = selectedPoster
+    const coverPage = selectedPosterImage
       ? `
           <section class="page cover-page">
-            <img src="${selectedPoster.image}" alt="Front cover" />
+            <img src="${selectedPosterImage}" alt="Front cover" />
           </section>
         `
       : `<section class="page blank-page"></section>`;
@@ -1145,20 +1244,42 @@ export default function Booklets({
 
             {attachedPosters.length > 0 ? (
               <div className="poster-choice-grid">
-                {attachedPosters.map((poster) => (
-                  <button
-                    type="button"
-                    key={poster.id}
-                    className={`poster-choice ${
-                      selectedPoster?.id === poster.id ? "selected" : ""
-                    }`}
-                    onClick={() => updateField("coverPosterId", poster.id)}
-                    disabled={readOnly}
-                  >
-                    <img src={poster.image} alt={poster.title} />
-                    <span>{poster.title}</span>
-                  </button>
-                ))}
+                {attachedPosters.map((poster) => {
+                  const posterImage =
+                    posterPreviewImages[poster.id] ??
+                    (isPdfPoster(poster) ? null : poster.image);
+
+                  return (
+                    <button
+                      type="button"
+                      key={poster.id}
+                      className={`poster-choice ${
+                        selectedPoster?.id === poster.id ? "selected" : ""
+                      }`}
+                      onClick={() => updateField("coverPosterId", poster.id)}
+                      disabled={readOnly}
+                    >
+                      {posterImage ? (
+                        <img src={posterImage} alt={poster.title} />
+                      ) : (
+                        <div
+                          style={{
+                            minHeight: "120px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: "10px",
+                            color: "#64748b",
+                            textAlign: "center",
+                          }}
+                        >
+                          Rendering PDF…
+                        </div>
+                      )}
+                      <span>{poster.title}</span>
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <div className="booklet-empty-state">

@@ -1,4 +1,9 @@
+// PosterPreview.tsx
+// Revision: PDF-aware Poster Preview
+// 14 September 2026
+
 import { useEffect, useState } from "react";
+import * as pdfjsLib from "pdfjs-dist";
 import "./PosterPreview.css";
 
 import PageLayout from "../layout/PageLayout";
@@ -13,6 +18,44 @@ import {
   Printer,
   Download,
 } from "lucide-react";
+
+// --------------------------------------------------
+// PDF.js worker
+// Same method already used successfully in Posters.tsx
+// --------------------------------------------------
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
+
+// --------------------------------------------------
+// Convert stored data URL into bytes for PDF.js
+// --------------------------------------------------
+
+const dataUrlToUint8Array = (dataUrl: string): Uint8Array => {
+  const commaIndex = dataUrl.indexOf(",");
+
+  if (commaIndex === -1) {
+    throw new Error("Invalid poster data URL.");
+  }
+
+  const header = dataUrl.slice(0, commaIndex);
+  const body = dataUrl.slice(commaIndex + 1);
+
+  if (header.includes(";base64")) {
+    const binary = atob(body);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    return bytes;
+  }
+
+  return new TextEncoder().encode(decodeURIComponent(body));
+};
 
 interface PosterPreviewProps {
   posterId: string | null;
@@ -38,12 +81,24 @@ export default function PosterPreview({
   };
 
   //--------------------------------------------------
-  // Poster Lookup — use the same IndexedDB library as Posters
+  // Poster State
   //--------------------------------------------------
 
   const [selectedPoster, setSelectedPoster] =
     useState<PosterItem | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
+
+  // For PDFs this contains the PNG generated from page 1.
+  // For PNG/JPG posters it remains null.
+  const [pdfPreview, setPdfPreview] =
+    useState<string | null>(null);
+
+  const [pdfFailed, setPdfFailed] = useState(false);
+
+  //--------------------------------------------------
+  // Poster Lookup
+  //--------------------------------------------------
 
   useEffect(() => {
     let cancelled = false;
@@ -53,18 +108,19 @@ export default function PosterPreview({
 
       try {
         const posters = await getPosterLibrary();
+
         if (cancelled) return;
 
-        const poster = posters.find(
-          (item) => item.id === posterId
-        ) ?? null;
+        const poster =
+          posters.find((item) => item.id === posterId) ?? null;
 
         setSelectedPoster(poster);
       } catch (error) {
         console.error(
           "Failed to load poster library for preview",
-          error
+          error,
         );
+
         if (!cancelled) {
           setSelectedPoster(null);
         }
@@ -83,13 +139,126 @@ export default function PosterPreview({
   }, [posterId]);
 
   //--------------------------------------------------
+  // Render PDF poster to PNG for on-screen preview
+  //--------------------------------------------------
+
+  useEffect(() => {
+    let cancelled = false;
+
+    let loadingTask:
+      | ReturnType<typeof pdfjsLib.getDocument>
+      | null = null;
+
+    const renderPdfPreview = async () => {
+      setPdfPreview(null);
+      setPdfFailed(false);
+
+      if (!selectedPoster) {
+        return;
+      }
+
+      const isPdf =
+        selectedPoster.fileType.toUpperCase() === "PDF";
+
+      if (!isPdf) {
+        return;
+      }
+
+      try {
+        const pdfData =
+          dataUrlToUint8Array(selectedPoster.image);
+
+        loadingTask = pdfjsLib.getDocument({
+          data: pdfData,
+        });
+
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+
+        // Higher scale than thumbnail so full A4 preview is sharp.
+        const viewport = page.getViewport({
+          scale: 2,
+        });
+
+        const canvas =
+          document.createElement("canvas");
+
+        const context =
+          canvas.getContext("2d");
+
+        if (!context) {
+          throw new Error(
+            "Unable to create PDF poster preview canvas.",
+          );
+        }
+
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+
+        await page.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+        }).promise;
+
+        if (!cancelled) {
+          setPdfPreview(
+            canvas.toDataURL("image/png"),
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Failed to render PDF poster preview",
+          error,
+        );
+
+        if (!cancelled) {
+          setPdfFailed(true);
+        }
+      }
+    };
+
+    void renderPdfPreview();
+
+    return () => {
+      cancelled = true;
+      void loadingTask?.destroy();
+    };
+  }, [selectedPoster]);
+
+  //--------------------------------------------------
+  // Determine image used for on-screen preview
+  //--------------------------------------------------
+
+  const isPdf =
+    selectedPoster?.fileType.toUpperCase() === "PDF";
+
+  const displayImage =
+    selectedPoster && !isPdf
+      ? selectedPoster.image
+      : pdfPreview;
+
+  //--------------------------------------------------
   // Print
   //--------------------------------------------------
 
   const handlePrint = () => {
     if (!selectedPoster) return;
 
-    const printWindow = window.open("", "_blank");
+    // For PDFs print the rendered page.
+    // For image posters print the original image.
+    const imageToPrint =
+      isPdf ? pdfPreview : selectedPoster.image;
+
+    if (!imageToPrint) {
+      window.alert(
+        "The poster preview is not ready to print yet.",
+      );
+      return;
+    }
+
+    const printWindow =
+      window.open("", "_blank");
 
     if (!printWindow) return;
 
@@ -109,17 +278,14 @@ export default function PosterPreview({
               margin: 0;
               padding: 0;
               width: 210mm;
-              height: 0;
+              height: 297mm;
               overflow: hidden;
               background: #ffffff;
             }
 
             .print-page {
-              position: absolute;
-              left: 0;
-              top: 0;
               width: 210mm;
-              height: 296mm;
+              height: 297mm;
               overflow: hidden;
             }
 
@@ -131,6 +297,7 @@ export default function PosterPreview({
             }
           </style>
         </head>
+
         <body>
           <div class="print-page">
             <img
@@ -146,7 +313,7 @@ export default function PosterPreview({
 
     const printImage =
       printWindow.document.getElementById(
-        "print-poster"
+        "print-poster",
       ) as HTMLImageElement | null;
 
     if (!printImage) {
@@ -163,7 +330,7 @@ export default function PosterPreview({
       printWindow.close();
     };
 
-    printImage.src = selectedPoster.image;
+    printImage.src = imageToPrint;
   };
 
   //--------------------------------------------------
@@ -173,9 +340,19 @@ export default function PosterPreview({
   const handleExport = () => {
     if (!selectedPoster) return;
 
+    // Export the ORIGINAL poster file.
+    // Therefore a PDF remains a PDF.
+    const extension =
+      selectedPoster.fileType.toLowerCase() === "jpeg"
+        ? "jpg"
+        : selectedPoster.fileType.toLowerCase();
+
     const link = document.createElement("a");
+
     link.href = selectedPoster.image;
-    link.download = `${selectedPoster.title}.png`;
+    link.download =
+      `${selectedPoster.title}.${extension}`;
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -187,10 +364,25 @@ export default function PosterPreview({
 
   const summary = (
     <div className="page-summary">
-      <SummaryCard title="Template" value="Current" />
-      <SummaryCard title="Preview" value="A4" />
-      <SummaryCard title="Zoom" value={`${zoom}%`} />
-      <SummaryCard title="Status" value="Draft" />
+      <SummaryCard
+        title="Template"
+        value="Current"
+      />
+
+      <SummaryCard
+        title="Preview"
+        value="A4"
+      />
+
+      <SummaryCard
+        title="Zoom"
+        value={`${zoom}%`}
+      />
+
+      <SummaryCard
+        title="Status"
+        value="Draft"
+      />
     </div>
   );
 
@@ -263,16 +455,7 @@ export default function PosterPreview({
                 >
                   Loading poster…
                 </div>
-              ) : selectedPoster ? (
-                <img
-                  src={selectedPoster.image}
-                  alt={selectedPoster.title}
-                  style={{
-                    width: "100%",
-                    display: "block",
-                  }}
-                />
-              ) : (
+              ) : !selectedPoster ? (
                 <div
                   style={{
                     padding: "4rem",
@@ -282,7 +465,36 @@ export default function PosterPreview({
                 >
                   No poster selected
                 </div>
-              )}
+              ) : isPdf && !displayImage && !pdfFailed ? (
+                <div
+                  style={{
+                    padding: "4rem",
+                    textAlign: "center",
+                    color: "#666",
+                  }}
+                >
+                  Rendering PDF…
+                </div>
+              ) : pdfFailed ? (
+                <div
+                  style={{
+                    padding: "4rem",
+                    textAlign: "center",
+                    color: "#a33",
+                  }}
+                >
+                  PDF preview unavailable
+                </div>
+              ) : displayImage ? (
+                <img
+                  src={displayImage}
+                  alt={selectedPoster.title}
+                  style={{
+                    width: "100%",
+                    display: "block",
+                  }}
+                />
+              ) : null}
             </div>
           </div>
         </div>

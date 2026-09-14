@@ -211,7 +211,7 @@ const MENU_PDF_STORE = "menus";
 
 const openMenuPdfDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open(MENU_PDF_DB, 1);
+    const request = indexedDB.open(MENU_PDF_DB, 2);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(MENU_PDF_STORE)) {
@@ -435,23 +435,50 @@ export default function Catering({ players }: CateringProps) {
     menuPdfLibrary.find((item) => item.id === data.bespokeMenuPdfId) || null;
 
   const addMenuPdf = async (file: File) => {
-    if (locked || file.type !== "application/pdf") {
+    if (locked) {
       return;
     }
 
-    const record: MenuPdfRecord = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-      name: file.name,
-      blob: file,
-      addedAt: Date.now(),
-    };
+    // Packaged Electron/macOS can supply a selected PDF with an empty or
+    // non-standard MIME type, so also accept the .pdf filename extension.
+    const isPdf =
+      file.type === "application/pdf" ||
+      file.name.toLowerCase().endsWith(".pdf");
+
+    if (!isPdf) {
+      window.alert("Please select a PDF menu.");
+      return;
+    }
 
     try {
+      // Store a plain Blob rather than the Electron/File object itself.
+      const pdfBytes = await file.arrayBuffer();
+      const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
+
+      const record: MenuPdfRecord = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        name: file.name,
+        blob: pdfBlob,
+        addedAt: Date.now(),
+      };
+
       await saveMenuPdfToLibrary(record);
-      setMenuPdfLibrary((current) => [record, ...current]);
-      updateData((current) => ({ ...current, bespokeMenuPdfId: record.id }));
+
+      // Read it back so the screen only reports success after IndexedDB
+      // has genuinely stored the menu.
+      const refreshedLibrary = await loadMenuPdfLibrary();
+      setMenuPdfLibrary(refreshedLibrary);
+
+      setData((current) => {
+        const next = { ...current, bespokeMenuPdfId: record.id };
+        saveCatering(next);
+        return next;
+      });
     } catch (error) {
       console.error("Failed to add menu PDF", error);
+      window.alert(
+        "Event Desk could not save this PDF to the Menu Library. Please try again."
+      );
     }
   };
 
@@ -476,8 +503,12 @@ export default function Catering({ players }: CateringProps) {
   const openMenuPdfForPrint = () => {
     if (!selectedMenuPdf) return;
 
+    // Safari's built-in PDF viewer does not reliably render a blob URL when the
+    // PDF is embedded inside an about:blank iframe. Open the stored PDF blob
+    // directly instead. This gives Safari its normal PDF viewer and avoids the
+    // blank print window while leaving the IndexedDB menu library untouched.
     const url = URL.createObjectURL(selectedMenuPdf.blob);
-    const printWindow = window.open("", "_blank", "width=900,height=1200");
+    const printWindow = window.open(url, "_blank");
 
     if (!printWindow) {
       URL.revokeObjectURL(url);
@@ -485,81 +516,12 @@ export default function Catering({ players }: CateringProps) {
       return;
     }
 
-    printWindow.document.open();
-    printWindow.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <title>${selectedMenuPdf.name}</title>
-          <style>
-            @page { size: A4 portrait; margin: 0; }
-            html, body {
-              margin: 0;
-              padding: 0;
-              width: 210mm;
-              height: 297mm;
-              background: #fff;
-              overflow: hidden;
-            }
-            .print-page {
-              position: relative;
-              width: 210mm;
-              height: 297mm;
-              margin: 0;
-              padding: 0;
-              overflow: hidden;
-            }
-            iframe {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 210mm;
-              height: 297mm;
-              border: 0;
-              display: block;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="print-page">
-            <iframe id="menu-pdf" title="${selectedMenuPdf.name}"></iframe>
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    printWindow.focus();
 
-    const iframe = printWindow.document.getElementById("menu-pdf") as HTMLIFrameElement | null;
-    if (!iframe) {
-      printWindow.close();
-      URL.revokeObjectURL(url);
-      return;
-    }
-
-    iframe.src = url;
-
-    // Safari does not reliably expose a useful load event for its PDF viewer.
-    // Allow the embedded PDF viewer to render, then print the iframe's document
-    // rather than the surrounding Event Desk page.
-    window.setTimeout(() => {
-      try {
-        printWindow.focus();
-        if (iframe.contentWindow) {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-        } else {
-          printWindow.print();
-        }
-      } catch (error) {
-        console.error("Unable to open the PDF print panel", error);
-      }
-    }, 1800);
-
-    printWindow.onafterprint = () => {
-      printWindow.close();
-    };
-
-    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    // Keep the object URL alive long enough for Safari's PDF viewer to finish
+    // loading. The PDF can then be printed normally with the browser print
+    // command (Command-P) or Safari's Print control.
+    window.setTimeout(() => URL.revokeObjectURL(url), 120000);
   };
 
   const exportSelectedMenuPdf = () => {

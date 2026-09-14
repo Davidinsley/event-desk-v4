@@ -1,3 +1,4 @@
+// Revision: Event Media PDF thumbnail rendering for attached posters
 // Revision: Core Event Details report reads live Catering V4 data
 // NewEvent.tsx
 
@@ -6,6 +7,7 @@
 // Revision: Add Meeting-Ready Event Preview
 
 import { useEffect, useMemo, useState } from "react";
+import * as pdfjsLib from "pdfjs-dist";
 
 import "./NewEvent.css";
 
@@ -68,6 +70,151 @@ const EVENT_RECORDS_KEY = "eventDeskEventRecords";
 const ACTIVE_EVENT_ID_KEY = "eventDeskActiveEventId";
 
 const VENUE_STORAGE_KEY = "eventDeskVenues";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
+
+const dataUrlToUint8Array = (dataUrl: string): Uint8Array => {
+  const commaIndex = dataUrl.indexOf(",");
+  if (commaIndex === -1) {
+    throw new Error("Invalid poster data URL.");
+  }
+
+  const header = dataUrl.slice(0, commaIndex);
+  const body = dataUrl.slice(commaIndex + 1);
+
+  if (header.includes(";base64")) {
+    const binary = atob(body);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    return bytes;
+  }
+
+  return new TextEncoder().encode(decodeURIComponent(body));
+};
+
+function EventMediaThumbnail({
+  poster,
+  single,
+}: {
+  poster: PosterItem;
+  single: boolean;
+}) {
+  const [pdfPreview, setPdfPreview] = useState<string | null>(null);
+  const [pdfFailed, setPdfFailed] = useState(false);
+
+  const isPdf = poster.fileType.toUpperCase() === "PDF";
+
+  useEffect(() => {
+    let cancelled = false;
+    let loadingTask: ReturnType<typeof pdfjsLib.getDocument> | null = null;
+
+    const renderPdfPreview = async () => {
+      if (!isPdf) {
+        setPdfPreview(null);
+        setPdfFailed(false);
+        return;
+      }
+
+      try {
+        setPdfPreview(null);
+        setPdfFailed(false);
+
+        const pdfData = dataUrlToUint8Array(poster.image);
+        loadingTask = pdfjsLib.getDocument({ data: pdfData });
+
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.5 });
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        if (!context) {
+          throw new Error("Unable to create Event Media PDF preview canvas.");
+        }
+
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+
+        await page.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+        }).promise;
+
+        if (!cancelled) {
+          setPdfPreview(canvas.toDataURL("image/png"));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to render attached PDF poster", error);
+          setPdfFailed(true);
+        }
+      }
+    };
+
+    void renderPdfPreview();
+
+    return () => {
+      cancelled = true;
+      void loadingTask?.destroy();
+    };
+  }, [isPdf, poster.image]);
+
+  const imageStyle: React.CSSProperties = {
+    display: "block",
+    width: "100%",
+    maxHeight: single ? "420px" : "300px",
+    objectFit: "contain",
+    borderRadius: "6px",
+    background: "#f5f7fa",
+  };
+
+  if (!isPdf) {
+    return (
+      <img
+        src={poster.image}
+        alt={poster.title}
+        style={imageStyle}
+      />
+    );
+  }
+
+  if (pdfPreview) {
+    return (
+      <img
+        src={pdfPreview}
+        alt={`${poster.title} PDF preview`}
+        style={imageStyle}
+      />
+    );
+  }
+
+  return (
+    <div
+      style={{
+        ...imageStyle,
+        minHeight: single ? "220px" : "170px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        padding: "12px",
+        boxSizing: "border-box",
+        color: pdfFailed ? "#a33" : "#666",
+      }}
+    >
+      {pdfFailed ? "PDF preview unavailable" : "Rendering PDF…"}
+    </div>
+  );
+}
 
 const getStoredVenues = (): string[] => {
 
@@ -2873,20 +3020,9 @@ export default function NewEvent({
                             "0 2px 8px rgba(31,91,159,0.08)",
                         }}
                       >
-                        <img
-                          src={poster.image}
-                          alt={poster.title}
-                          style={{
-                            display: "block",
-                            width: "100%",
-                            maxHeight:
-                              attachedPosters.length === 1
-                                ? "420px"
-                                : "300px",
-                            objectFit: "contain",
-                            borderRadius: "6px",
-                            background: "#f5f7fa",
-                          }}
+                        <EventMediaThumbnail
+                          poster={poster}
+                          single={attachedPosters.length === 1}
                         />
                         <div
                           style={{

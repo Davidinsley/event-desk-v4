@@ -42,6 +42,9 @@ export default function DrawPreview({
   const hasBracket =
     (data.matches?.length ?? 0) > 0;
 
+  const isPairsDraw =
+    data.title === "Pairs Draw";
+
   async function handleShare() {
     const shareText = [
       event.eventName ||
@@ -66,7 +69,7 @@ export default function DrawPreview({
           )
         : (data.rows ?? []).map(
             (row) =>
-              `Group ${row.group}: ${row.player}${
+              `${isPairsDraw ? "Pair" : "Group"} ${row.group}: ${row.player}${
                 row.homeClub
                   ? ` — ${row.homeClub}`
                   : ""
@@ -428,7 +431,7 @@ export default function DrawPreview({
                     color: "#3f4d63",
                   }}
                 >
-                  Group
+                  {isPairsDraw ? "Pair" : "Group"}
                 </th>
 
                 <th
@@ -527,7 +530,13 @@ export default function DrawPreview({
                           "1px solid #e5e7eb",
                       }}
                     >
-                      {row.player}
+                      {row.player === "Pending Ghost" ? (
+                        <strong style={{ color: "#c62828" }}>
+                          Pending Ghost
+                        </strong>
+                      ) : (
+                        row.player
+                      )}
                     </td>
 
                     <td
@@ -549,7 +558,9 @@ export default function DrawPreview({
                           "1px solid #e5e7eb",
                       }}
                     >
-                      {row.hi ?? ""}
+                      {row.player === "Pending Ghost"
+                        ? "—"
+                        : row.hi ?? ""}
                     </td>
 
                     {data.rows?.some(

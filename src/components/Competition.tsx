@@ -1,4 +1,5 @@
 // Competition.tsx
+// Revision: User-addable and deletable persistent Competition Formats
 
 import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
@@ -19,6 +20,31 @@ import {
   Copy,
 } from "lucide-react";
 
+const CUSTOM_FORMATS_KEY = "eventDeskCustomCompetitionFormats";
+
+const BUILT_IN_FORMATS = [
+  "Stableford",
+  "Betterball Stableford",
+  "Medal",
+  "Texas Scramble",
+  "Greensomes",
+  "4BBB",
+];
+
+const loadCustomFormats = (): string[] => {
+  try {
+    const stored = localStorage.getItem(CUSTOM_FORMATS_KEY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string =>
+          typeof item === "string" && item.trim().length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+};
+
 interface CompetitionProps {
   event: Event;
   setEvent: Dispatch<SetStateAction<Event>>;
@@ -29,6 +55,8 @@ export default function Competition({
   setEvent,
 }: CompetitionProps) {
   const [showSaved, setShowSaved] = useState(false);
+  const [customFormats, setCustomFormats] =
+    useState<string[]>(loadCustomFormats);
 
   const updateEvent = (changes: Partial<Event>) => {
     setEvent((current) => ({
@@ -45,6 +73,110 @@ export default function Competition({
     window.setTimeout(() => {
       setShowSaved(false);
     }, 2000);
+  };
+
+  const handleCompetitionFormatChange = (value: string) => {
+    if (value === "__add_format__") {
+      const entered = window.prompt("Enter the new competition format:");
+      if (entered === null) return;
+
+      const newFormat = entered.trim();
+
+      if (!newFormat) {
+        window.alert("Please enter a competition format.");
+        return;
+      }
+
+      const existingFormat = [...BUILT_IN_FORMATS, ...customFormats].find(
+        (format) => format.toLowerCase() === newFormat.toLowerCase(),
+      );
+
+      if (existingFormat) {
+        window.alert(
+          `"${existingFormat}" is already in the Competition Format list.`,
+        );
+        updateEvent({ competitionFormat: existingFormat });
+        return;
+      }
+
+      const nextCustomFormats = [...customFormats, newFormat];
+
+      try {
+        localStorage.setItem(
+          CUSTOM_FORMATS_KEY,
+          JSON.stringify(nextCustomFormats),
+        );
+      } catch (error) {
+        console.error("Failed to save custom competition format", error);
+        window.alert("The new competition format could not be saved.");
+        return;
+      }
+
+      setCustomFormats(nextCustomFormats);
+      updateEvent({ competitionFormat: newFormat });
+      return;
+    }
+
+    if (value === "__delete_format__") {
+      if (customFormats.length === 0) {
+        window.alert("There are no custom competition formats to delete.");
+        return;
+      }
+
+      const customFormatList = customFormats
+        .map((format, index) => `${index + 1}. ${format}`)
+        .join("\n");
+
+      const entered = window.prompt(
+        `Enter the number of the custom format to delete:\n\n${customFormatList}`,
+      );
+
+      if (entered === null) return;
+
+      const selectedNumber = Number(entered.trim());
+
+      if (
+        !Number.isInteger(selectedNumber) ||
+        selectedNumber < 1 ||
+        selectedNumber > customFormats.length
+      ) {
+        window.alert("Please enter a valid number from the list.");
+        return;
+      }
+
+      const formatToDelete = customFormats[selectedNumber - 1];
+
+      const confirmed = window.confirm(
+        `Delete "${formatToDelete}" from the Competition Format list?`,
+      );
+
+      if (!confirmed) return;
+
+      const nextCustomFormats = customFormats.filter(
+        (format) => format !== formatToDelete,
+      );
+
+      try {
+        localStorage.setItem(
+          CUSTOM_FORMATS_KEY,
+          JSON.stringify(nextCustomFormats),
+        );
+      } catch (error) {
+        console.error("Failed to delete custom competition format", error);
+        window.alert("The competition format could not be deleted.");
+        return;
+      }
+
+      setCustomFormats(nextCustomFormats);
+
+      if (event.competitionFormat === formatToDelete) {
+        updateEvent({ competitionFormat: "" });
+      }
+
+      return;
+    }
+
+    updateEvent({ competitionFormat: value });
   };
 
   type CompetitionStatus = "draft" | "published" | "archived";
@@ -235,35 +367,29 @@ export default function Competition({
               id="competitionFormat"
               value={event.competitionFormat}
               onChange={(e) =>
-                updateEvent({
-                  competitionFormat: e.target.value,
-                })
+                handleCompetitionFormatChange(e.target.value)
               }
             >
               <option value="">Select...</option>
 
-              <option value="Stableford">
-                Stableford
+              {BUILT_IN_FORMATS.map((format) => (
+                <option key={format} value={format}>
+                  {format}
+                </option>
+              ))}
+
+              {customFormats.map((format) => (
+                <option key={format} value={format}>
+                  {format}
+                </option>
+              ))}
+
+              <option value="__add_format__">
+                + Add Format...
               </option>
 
-              <option value="Betterball Stableford">
-                Betterball Stableford
-              </option>
-
-              <option value="Medal">
-                Medal
-              </option>
-
-              <option value="Texas Scramble">
-                Texas Scramble
-              </option>
-
-              <option value="Greensomes">
-                Greensomes
-              </option>
-
-              <option value="4BBB">
-                4BBB
+              <option value="__delete_format__">
+                − Delete Custom Format...
               </option>
             </select>
           </div>

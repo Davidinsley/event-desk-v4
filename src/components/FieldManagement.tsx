@@ -1,3 +1,4 @@
+// Revision: Adds ordinary Pairs Draw with red Pending Ghost for odd fields.
 import { useState } from "react";
 import "./NewEvent.css";
 
@@ -34,6 +35,7 @@ type DrawMethod =
   | "nett"
   | "balanced"
   | "singles"
+  | "pairDraw"
   | "pairs";
 
 interface DrawnPlayer extends Player {
@@ -119,6 +121,7 @@ const drawMethods: {
   { key: "nett", title: "Championship Nett", icon: Trophy },
   { key: "balanced", title: "Balanced", icon: Scale },
   { key: "singles", title: "Singles Knockout", icon: Swords },
+  { key: "pairDraw", title: "Pairs Draw", icon: Users },
   { key: "pairs", title: "Pairs Knockout", icon: Users },
 ];
 
@@ -648,6 +651,40 @@ function createRoundTwoGrossDraw(
       index += 1;
     }
   });
+
+  return result;
+}
+
+function createPairsDraw(
+  players: Player[]
+): DrawnPlayer[] {
+  const shuffled = shufflePlayers(players);
+  const result: DrawnPlayer[] = [];
+
+  shuffled.forEach((player, index) => {
+    result.push({
+      ...player,
+      groupNumber: Math.floor(index / 2) + 1,
+      positionInGroup: (index % 2) + 1,
+    });
+  });
+
+  if (shuffled.length % 2 === 1) {
+    const pairNumber = Math.floor(shuffled.length / 2) + 1;
+
+    result.push({
+      id: `pending-ghost-${pairNumber}`,
+      firstName: "Pending",
+      lastName: "Ghost",
+      handicapIndex: 0,
+      status: "Registered",
+      source: "Manual",
+      paid: false,
+      notes: "Vacant pairs-draw position",
+      groupNumber: pairNumber,
+      positionInGroup: 2,
+    } as DrawnPlayer);
+  }
 
   return result;
 }
@@ -1447,6 +1484,33 @@ export default function FieldManagement({
       return;
     }
 
+    if (method === "pairDraw") {
+      const nextDraw =
+        createPairsDraw(
+          registeredPlayers
+        );
+
+      setProposedDraw(nextDraw);
+      setGrossStage("round1");
+      setGrossScores([]);
+      setNettStage("round1");
+      setNettScores([]);
+
+      persistState({
+        selectedMethod: method,
+        proposedDraw: nextDraw,
+        confirmedDraw: [],
+        roundOneConfirmed: false,
+        drawConfirmed: false,
+        grossStage: "round1",
+        grossScores: [],
+        nettStage: "round1",
+        nettScores: [],
+      });
+
+      return;
+    }
+
     if (method === "balanced") {
       const nextDraw =
         createBalancedDraw(
@@ -2016,6 +2080,8 @@ export default function FieldManagement({
   const groupCount =
     isUsingExistingStartList
       ? new Set(existingStartList.map((row) => row.group)).size
+      : selectedMethod === "pairDraw"
+      ? Math.ceil(playerCount / 2)
       : getGroupSizes(
           playerCount,
           true
@@ -2284,13 +2350,17 @@ export default function FieldManagement({
         group:
           player.groupNumber.toString(),
         player:
-          `${player.firstName} ${player.lastName}`.trim(),
+          player.id.startsWith("pending-ghost-")
+            ? "Pending Ghost"
+            : `${player.firstName} ${player.lastName}`.trim(),
         homeClub:
           player.homeClub?.trim() ?? "",
         hi:
-          formatHI(
-            player.handicapIndex
-          ),
+          player.id.startsWith("pending-ghost-")
+            ? "—"
+            : formatHI(
+                player.handicapIndex
+              ),
         score:
           selectedMethod === "gross" &&
           grossStage === "round2"
@@ -2804,7 +2874,7 @@ export default function FieldManagement({
                 : "Round 1 Gross"}
             </th>
           )}
-          <th>Group</th>
+          <th>{selectedMethod === "pairDraw" ? "Pair" : "Group"}</th>
           <th>Status</th>
         </tr>
       </thead>
@@ -2874,14 +2944,24 @@ export default function FieldManagement({
               key={player.id}
             >
               <td>
-                {player.firstName}{" "}
-                {player.lastName}
+                {player.id.startsWith("pending-ghost-") ? (
+                  <strong style={{ color: "#c62828" }}>
+                    Pending Ghost
+                  </strong>
+                ) : (
+                  <>
+                    {player.firstName}{" "}
+                    {player.lastName}
+                  </>
+                )}
               </td>
 
               <td>
-                {formatHI(
-                  player.handicapIndex
-                )}
+                {player.id.startsWith("pending-ghost-")
+                  ? "—"
+                  : formatHI(
+                      player.handicapIndex
+                    )}
               </td>
 
               {(showingGrossRoundTwo ||
@@ -2947,7 +3027,9 @@ export default function FieldManagement({
               <thead>
                 <tr>
                   <th>Tee Time</th>
-                  <th>Group</th>
+                  <th>
+                {selectedMethod === "pairDraw" ? "Pair" : "Group"}
+              </th>
                   <th>Player</th>
                   <th>Home Club</th>
                   <th>HI</th>

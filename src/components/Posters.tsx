@@ -1,7 +1,8 @@
-// Revision: Multi-poster attachment selection — up to 3 posters per event
+// Revision: PDF poster thumbnail rendering for standalone Event Desk
 // Poster files are stored in IndexedDB so large PDFs/images do not disappear.
 
 import { useEffect, useRef, useState } from "react";
+import * as pdfjsLib from "pdfjs-dist";
 import type { Event } from "../types/Event";
 
 import "./Posters.css";
@@ -25,6 +26,135 @@ import {
   Replace,
   Trash2,
 } from "lucide-react";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
+
+const dataUrlToUint8Array = (dataUrl: string): Uint8Array => {
+  const commaIndex = dataUrl.indexOf(",");
+  if (commaIndex === -1) {
+    throw new Error("Invalid poster data URL.");
+  }
+
+  const header = dataUrl.slice(0, commaIndex);
+  const body = dataUrl.slice(commaIndex + 1);
+
+  if (header.includes(";base64")) {
+    const binary = atob(body);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    return bytes;
+  }
+
+  return new TextEncoder().encode(decodeURIComponent(body));
+};
+
+function PosterThumbnail({ poster }: { poster: PosterItem }) {
+  const [pdfPreview, setPdfPreview] = useState<string | null>(null);
+  const [pdfFailed, setPdfFailed] = useState(false);
+
+  const isPdf = poster.fileType.toUpperCase() === "PDF";
+
+  useEffect(() => {
+    let cancelled = false;
+    let loadingTask: ReturnType<typeof pdfjsLib.getDocument> | null = null;
+
+    const renderPdfPreview = async () => {
+      if (!isPdf) {
+        setPdfPreview(null);
+        setPdfFailed(false);
+        return;
+      }
+
+      try {
+        setPdfPreview(null);
+        setPdfFailed(false);
+
+        const pdfData = dataUrlToUint8Array(poster.image);
+        loadingTask = pdfjsLib.getDocument({ data: pdfData });
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.5 });
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        if (!context) {
+          throw new Error("Unable to create PDF poster preview canvas.");
+        }
+
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+
+        await page.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+        }).promise;
+
+        if (!cancelled) {
+          setPdfPreview(canvas.toDataURL("image/png"));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to render PDF poster thumbnail", error);
+          setPdfFailed(true);
+        }
+      }
+    };
+
+    void renderPdfPreview();
+
+    return () => {
+      cancelled = true;
+      void loadingTask?.destroy();
+    };
+  }, [isPdf, poster.image]);
+
+  if (!isPdf) {
+    return (
+      <img
+        src={poster.image}
+        alt={poster.title}
+        className="poster-image"
+      />
+    );
+  }
+
+  if (pdfPreview) {
+    return (
+      <img
+        src={pdfPreview}
+        alt={`${poster.title} PDF preview`}
+        className="poster-image"
+      />
+    );
+  }
+
+  return (
+    <div
+      className="poster-image"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        padding: "12px",
+        boxSizing: "border-box",
+        color: pdfFailed ? "#a33" : "#666",
+        background: "#f5f7fa",
+      }}
+    >
+      {pdfFailed ? "PDF preview unavailable" : "Rendering PDF…"}
+    </div>
+  );
+}
 
 interface PostersProps {
   event: Event;
@@ -432,11 +562,7 @@ export default function Posters({
                 </div>
 
                 <div className="poster-thumbnail">
-                  <img
-                    src={poster.image}
-                    alt={poster.title}
-                    className="poster-image"
-                  />
+                  <PosterThumbnail poster={poster} />
                 </div>
 
                 <div className="poster-details">
