@@ -1963,6 +1963,9 @@ export default function App() {
                 players={players}
                 setPlayers={handlePlayersChange}
                 playerLimit={event.playerLimit}
+                applyHandicapCaps={Boolean(event.applyHandicapCaps)}
+                maleMaxHI={event.maleMaxHI}
+                femaleMaxHI={event.femaleMaxHI}
               />
             )}
 

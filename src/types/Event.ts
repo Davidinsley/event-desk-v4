@@ -29,7 +29,17 @@ export interface Event {
 
   handicapAllowance: number;
 
+  // Optional competition handicap-cap settings.
+  // Optional fields preserve compatibility with existing saved events.
+  applyHandicapCaps?: boolean;
+  maleMaxHI?: number;
+  femaleMaxHI?: number;
+
+  // Existing tee colour retained as the men's tee colour for compatibility.
   teeColour: string;
+
+  // Optional so existing saved events remain compatible.
+  ladiesTeeColour?: string;
 
   competitionRules: string;
 

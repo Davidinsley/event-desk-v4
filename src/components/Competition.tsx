@@ -59,7 +59,6 @@ export default function Competition({
     useState<string[]>(loadCustomFormats);
   const [showAddFormat, setShowAddFormat] = useState(false);
   const [newFormatName, setNewFormatName] = useState("");
-
   const updateEvent = (changes: Partial<Event>) => {
     setEvent((current) => ({
       ...current,
@@ -242,11 +241,23 @@ export default function Competition({
   };
 
   const summary = (
-    <div className="page-summary">
-      <SummaryCard
-        title="Format"
-        value={event.competitionFormat || "—"}
-      />
+    <>
+      <style>{`
+        .competition-summary .summary-card strong {
+          font-size: 1.55rem;
+          line-height: 1.05;
+        }
+
+        .competition-summary .summary-card:first-child strong {
+          font-size: 1.45rem;
+        }
+      `}</style>
+
+      <div className="page-summary competition-summary">
+        <SummaryCard
+          title="Format"
+          value={event.competitionFormat || "—"}
+        />
 
       <SummaryCard
         title="Rounds"
@@ -254,8 +265,12 @@ export default function Competition({
       />
 
       <SummaryCard
-        title="Tee"
-        value={event.teeColour || "—"}
+        title="Tees"
+        value={
+          event.ladiesTeeColour && event.ladiesTeeColour !== event.teeColour
+            ? `${event.teeColour || "—"} / ${event.ladiesTeeColour}`
+            : event.teeColour || event.ladiesTeeColour || "—"
+        }
       />
 
       <SummaryCard
@@ -263,11 +278,12 @@ export default function Competition({
         value={`${event.handicapAllowance ?? 100}%`}
       />
 
-      <SummaryCard
-        title="Status"
-        value={getStatusLabel(eventStatus)}
-      />
-    </div>
+        <SummaryCard
+          title="Status"
+          value={getStatusLabel(eventStatus)}
+        />
+      </div>
+    </>
   );
 
   const actions = (
@@ -530,9 +546,82 @@ export default function Competition({
             />
           </div>
 
+          <div className="field full-width">
+            <label
+              htmlFor="applyHandicapCaps"
+              style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}
+            >
+              <input
+                id="applyHandicapCaps"
+                type="checkbox"
+                checked={Boolean(event.applyHandicapCaps)}
+                onChange={(e) =>
+                  updateEvent({ applyHandicapCaps: e.target.checked })
+                }
+                style={{ width: "18px", height: "18px" }}
+              />
+              Apply Handicap Caps
+            </label>
+
+            {event.applyHandicapCaps && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  gap: "16px",
+                  marginTop: "12px",
+                  padding: "14px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "10px",
+                  background: "#f8fafc",
+                }}
+              >
+                <div className="field">
+                  <label htmlFor="maleMaxHI">Men – Maximum HI</label>
+                  <input
+                    id="maleMaxHI"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={event.maleMaxHI ?? ""}
+                    placeholder="Enter maximum HI"
+                    onChange={(e) =>
+                      updateEvent({
+                        maleMaxHI:
+                          e.target.value === ""
+                            ? undefined
+                            : Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="femaleMaxHI">Ladies – Maximum HI</label>
+                  <input
+                    id="femaleMaxHI"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={event.femaleMaxHI ?? ""}
+                    placeholder="Enter maximum HI"
+                    onChange={(e) =>
+                      updateEvent({
+                        femaleMaxHI:
+                          e.target.value === ""
+                            ? undefined
+                            : Number(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="field">
             <label htmlFor="teeColour">
-              Tee Colour
+              Men – Tee Colour
             </label>
 
             <select
@@ -544,21 +633,32 @@ export default function Competition({
                 })
               }
             >
-              <option value="Yellow">
-                Yellow
-              </option>
+              <option value="Yellow">Yellow</option>
+              <option value="White">White</option>
+              <option value="Red">Red</option>
+              <option value="Blue">Blue</option>
+            </select>
+          </div>
 
-              <option value="White">
-                White
-              </option>
+          <div className="field">
+            <label htmlFor="ladiesTeeColour">
+              Ladies – Tee Colour
+            </label>
 
-              <option value="Red">
-                Red
-              </option>
-
-              <option value="Blue">
-                Blue
-              </option>
+            <select
+              id="ladiesTeeColour"
+              value={event.ladiesTeeColour || ""}
+              onChange={(e) =>
+                updateEvent({
+                  ladiesTeeColour: e.target.value,
+                })
+              }
+            >
+              <option value="">Select...</option>
+              <option value="Red">Red</option>
+              <option value="Yellow">Yellow</option>
+              <option value="White">White</option>
+              <option value="Blue">Blue</option>
             </select>
           </div>
 

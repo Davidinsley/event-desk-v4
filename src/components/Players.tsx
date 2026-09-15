@@ -1,6 +1,6 @@
 // Players.tsx
 // Event Desk - Players Management
-// Revision: CSV + Excel + Start List merge + Home Club / Tee Time / Group preservation + Event capacity + PDF Export + Home Club verification + Legacy Club compatibility
+// Revision: Gender capture/import + CSV + Excel + Start List merge + Home Club / Tee Time / Group preservation + Event capacity + PDF Export + reserve/payment logic
 
 import { useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -25,6 +25,9 @@ interface PlayersProps {
   players: Player[];
   setPlayers: React.Dispatch<React.SetStateAction<Player[]>>;
   playerLimit: number;
+  applyHandicapCaps?: boolean;
+  maleMaxHI?: number;
+  femaleMaxHI?: number;
 }
 
 type CsvRow = Record<string, string>;
@@ -34,12 +37,17 @@ type DisplayPlayer = Player & {
   group?: string;
   homeClub?: string;
   club?: string;
+  promotedReserve?: boolean;
+  vacantStartListSlot?: boolean;
 };
 
 export default function Players({
   players,
   setPlayers,
   playerLimit,
+  applyHandicapCaps = false,
+  maleMaxHI,
+  femaleMaxHI,
 }: PlayersProps) {
   const [showAddPlayer, setShowAddPlayer] =
     useState(false);
@@ -61,6 +69,8 @@ export default function Players({
   const [lastName, setLastName] = useState("");
   const [handicapIndex, setHandicapIndex] =
     useState("");
+  const [gender, setGender] =
+    useState<"" | "Male" | "Female">("");
 
   const [source, setSource] =
     useState<
@@ -69,6 +79,38 @@ export default function Players({
 
   const [paid, setPaid] = useState(false);
   const [notes, setNotes] = useState("");
+
+  // --------------------------------------------------
+  // Handicap Cap Warnings
+  // --------------------------------------------------
+
+  function getHandicapCapWarning(
+    player: Player
+  ): { cap: number; message: string } | null {
+    if (!applyHandicapCaps || !player.gender) {
+      return null;
+    }
+
+    const cap =
+      player.gender === "Female"
+        ? femaleMaxHI
+        : maleMaxHI;
+
+    if (
+      cap === undefined ||
+      !Number.isFinite(cap) ||
+      player.handicapIndex <= cap
+    ) {
+      return null;
+    }
+
+    return {
+      cap,
+      message: `HI ${player.handicapIndex.toFixed(1)} exceeds ${
+        player.gender === "Female" ? "Ladies" : "Men"
+      } maximum HI ${cap.toFixed(1)}`,
+    };
+  }
 
   // --------------------------------------------------
   // Clear All Players
@@ -97,20 +139,41 @@ export default function Players({
   // Summary Values
   // --------------------------------------------------
 
-  const registeredPlayers = players.filter(
-    (p) => p.status === "Registered"
-  ).length;
+  // Registration totals include everyone entered for the event.
+  // The playing field is the subset currently assigned to a tee-time/group;
+  // Reserves remain registered for the event but are not yet in the field.
+  const playingFieldPlayers = players.filter((p) => {
+    const displayPlayer = p as DisplayPlayer;
+    return p.status === "Registered" && !displayPlayer.vacantStartListSlot;
+  }).length;
 
-  const reservesPlayers = players.filter(
-    (p) => p.status === "Waiting"
-  ).length;
+  const registeredPlayers = players.filter((p) => {
+    const displayPlayer = p as DisplayPlayer;
+    return !displayPlayer.vacantStartListSlot;
+  }).length;
 
-  const paidPlayers = players.filter(
-    (p) => p.paid
-  ).length;
+  // Once an event contains an imported Start List, that list defines the
+  // playing field. Any player added manually must therefore join the
+  // Reserves until promoted into a specific vacant tee-time/group slot.
+  const hasStartList = players.some((p) => {
+    const displayPlayer = p as DisplayPlayer;
+    return p.source === "Start List" || displayPlayer.vacantStartListSlot === true;
+  });
 
-  const outstandingPlayers =
-    players.length - paidPlayers;
+  const reservesPlayers = players.filter((p) => {
+    const displayPlayer = p as DisplayPlayer;
+    return p.status === "Waiting" && !displayPlayer.vacantStartListSlot;
+  }).length;
+
+  const paidPlayers = players.filter((p) => {
+    const displayPlayer = p as DisplayPlayer;
+    return p.status === "Registered" && !displayPlayer.vacantStartListSlot && p.paid;
+  }).length;
+
+  const outstandingPlayers = players.filter((p) => {
+    const displayPlayer = p as DisplayPlayer;
+    return p.status === "Registered" && !displayPlayer.vacantStartListSlot && !p.paid;
+  }).length;
 
   // --------------------------------------------------
   // Helpers
@@ -120,6 +183,7 @@ export default function Players({
     setFirstName("");
     setLastName("");
     setHandicapIndex("");
+    setGender("");
     setSource("Manual");
     setPaid(false);
     setNotes("");
@@ -367,6 +431,20 @@ export default function Players({
           ? parsedHandicap
           : 0;
 
+      const genderValue =
+        getCsvValue(row, [
+          "Gender",
+          "Sex",
+        ]);
+
+      const normalisedGender = genderValue.trim().toLowerCase();
+      const gender: "Male" | "Female" | undefined =
+        ["female", "f", "lady", "ladies", "woman", "women"].includes(normalisedGender)
+          ? "Female"
+          : ["male", "m", "man", "men"].includes(normalisedGender)
+          ? "Male"
+          : undefined;
+
       const statusValue =
         getCsvValue(row, [
           "Status",
@@ -417,6 +495,7 @@ export default function Players({
         firstName,
         lastName,
         handicapIndex,
+        ...(gender ? { gender } : {}),
         status:
           statusValue === ""
             ? "Registered"
@@ -526,6 +605,7 @@ export default function Players({
             next[existingIndex] = {
               ...existing,
               handicapIndex: imported.handicapIndex,
+              ...(imported.gender ? { gender: imported.gender } : {}),
               source: "CSV",
               paid: existing.paid,
               notes:
@@ -702,6 +782,7 @@ export default function Players({
             next[existingIndex] = {
               ...existing,
               handicapIndex: imported.handicapIndex,
+              ...(imported.gender ? { gender: imported.gender } : {}),
               source: "Excel",
               paid: existing.paid,
               notes:
@@ -916,6 +997,14 @@ export default function Players({
             ].includes(header)
         );
 
+        const genderIndex = headers.findIndex(
+          (header) =>
+            [
+              "gender",
+              "sex",
+            ].includes(header)
+        );
+
         const homeClubIndex = headers.findIndex(
           (header) =>
             [
@@ -976,6 +1065,19 @@ export default function Players({
               ? parsedHandicap
               : 0;
 
+          const genderText =
+            genderIndex === -1
+              ? ""
+              : String(row[genderIndex] ?? "").trim();
+
+          const normalisedGender = genderText.toLowerCase();
+          const playerGender: "Male" | "Female" | undefined =
+            ["female", "f", "lady", "ladies", "woman", "women"].includes(normalisedGender)
+              ? "Female"
+              : ["male", "m", "man", "men"].includes(normalisedGender)
+              ? "Male"
+              : undefined;
+
           // Home Club is optional. A blank or missing column is valid and
           // must never cause the Start List import to fail.
           const homeClub =
@@ -1027,6 +1129,7 @@ export default function Players({
             lastName,
             handicapIndex:
               playerHandicap,
+            ...(playerGender ? { gender: playerGender } : {}),
             status: "Registered",
             source: "Start List",
             paid: false,
@@ -1078,12 +1181,20 @@ export default function Players({
                 (player) => player.status === "Registered"
               ).length;
 
+              const joinsPlayingField =
+                registeredCount < EVENT_CAPACITY;
+
               next.push({
                 ...imported,
-                status:
-                  registeredCount < EVENT_CAPACITY
-                    ? "Registered"
-                    : "Waiting",
+                status: joinsPlayingField
+                  ? "Registered"
+                  : "Waiting",
+                teeTime: joinsPlayingField
+                  ? imported.teeTime
+                  : "",
+                group: joinsPlayingField
+                  ? imported.group
+                  : "",
               });
 
               addedCount += 1;
@@ -1098,6 +1209,7 @@ export default function Players({
                 handicapIndex === -1
                   ? existing.handicapIndex
                   : imported.handicapIndex,
+              ...(imported.gender ? { gender: imported.gender } : {}),
               source: "Start List",
               notes:
                 imported.notes.trim() !== ""
@@ -1115,6 +1227,13 @@ export default function Players({
 
             updatedCount += 1;
           });
+
+          // IMPORTANT:
+          // Importing or refreshing a Start List must not promote a player
+          // from the Reserves list simply because a place appears available.
+          // Reserve promotion is handled only when a registered player is
+          // withdrawn, so the promoted reserve can inherit that exact
+          // tee time and group and retain the Promoted Reserve indicator.
 
           return next;
         });
@@ -1167,7 +1286,10 @@ export default function Players({
     playerId: string
   ): number | null {
     const reserveIds = players
-      .filter((player) => player.status === "Waiting")
+      .filter((player) => {
+        const displayPlayer = player as DisplayPlayer;
+        return player.status === "Waiting" && !displayPlayer.vacantStartListSlot;
+      })
       .map((player) => player.id);
 
     const index = reserveIds.indexOf(playerId);
@@ -1190,6 +1312,250 @@ export default function Players({
       return;
     }
 
+    if (applyHandicapCaps && gender === "") {
+      alert(
+        "Please select Male or Female before saving the player because handicap caps are applied to this competition."
+      );
+      return;
+    }
+
+    const storedVacancy = players.find((player) => {
+      const displayPlayer = player as DisplayPlayer;
+      return displayPlayer.vacantStartListSlot === true;
+    }) as DisplayPlayer | undefined;
+
+    // If a Reserve already exists and a Start List vacancy is waiting,
+    // offer that vacancy to Reserve #1 before processing the newly entered player.
+    if (hasStartList && storedVacancy) {
+      const firstExistingReserve = players.find((player) => {
+        const displayPlayer = player as DisplayPlayer;
+        return (
+          player.status === "Waiting" &&
+          !displayPlayer.vacantStartListSlot
+        );
+      });
+
+      if (firstExistingReserve) {
+        const vacancyDetails = [
+          storedVacancy.teeTime ? `Tee Time ${storedVacancy.teeTime}` : "",
+          storedVacancy.group ? `Group ${storedVacancy.group}` : "",
+        ]
+          .filter(Boolean)
+          .join(" • ");
+
+        const reserveName =
+          `${firstExistingReserve.firstName} ${firstExistingReserve.lastName}`.trim();
+
+        const confirmed = window.confirm(
+          `There is already a vacant Start List place${vacancyDetails ? `: ${vacancyDetails}` : ""}.\n\n` +
+            `Reserve #1 ${reserveName} is waiting.\n\n` +
+            `Promote Reserve #1 into that vacant place before adding ${firstName.trim()} ${lastName.trim()}?`
+        );
+
+        if (confirmed) {
+          const reserveDisplay = firstExistingReserve as DisplayPlayer;
+
+          setPlayers((current) => {
+            const withoutVacancy = current.filter(
+              (player) => player.id !== storedVacancy.id
+            );
+
+            return withoutVacancy.map((player) =>
+              player.id === firstExistingReserve.id
+                ? ({
+                    ...player,
+                    status: "Registered",
+                    teeTime:
+                      storedVacancy.teeTime ??
+                      reserveDisplay.teeTime ??
+                      "",
+                    group:
+                      storedVacancy.group ??
+                      reserveDisplay.group ??
+                      "",
+                    promotedReserve: true,
+                  } as Player)
+                : player
+            );
+          });
+
+          // Keep the Add Player form open. The newly entered player has not
+          // yet been saved; clicking Save Player again will now add them as
+          // the next Reserve.
+          return;
+        }
+
+        // Cancel means leave Reserve #1 waiting and do not allow the newly
+        // entered player to jump the queue into the same vacancy.
+        return;
+      }
+    }
+
+    // A vacancy created before vacancy tracking was introduced will not have
+    // an internal vacancy record. Reconstruct such a vacancy from an
+    // under-filled four-player Start List group so older test/live data can
+    // still be repaired correctly.
+    const inferredVacancy = (() => {
+      if (!hasStartList || storedVacancy) return undefined;
+
+      const grouped = new Map<
+        string,
+        { teeTime: string; group: string | number; count: number }
+      >();
+
+      players.forEach((player) => {
+        const displayPlayer = player as DisplayPlayer;
+        if (
+          player.status !== "Registered" ||
+          displayPlayer.vacantStartListSlot ||
+          !displayPlayer.teeTime ||
+          displayPlayer.group === undefined ||
+          displayPlayer.group === null ||
+          String(displayPlayer.group).trim() === ""
+        ) {
+          return;
+        }
+
+        const key = `${displayPlayer.teeTime}|${String(displayPlayer.group)}`;
+        const current = grouped.get(key);
+
+        if (current) {
+          current.count += 1;
+        } else {
+          grouped.set(key, {
+            teeTime: displayPlayer.teeTime,
+            group: displayPlayer.group,
+            count: 1,
+          });
+        }
+      });
+
+      const underFilled = Array.from(grouped.values())
+        .filter((entry) => entry.count < 4)
+        .sort((a, b) => {
+          const timeDifference =
+            teeTimeToMinutes(a.teeTime) - teeTimeToMinutes(b.teeTime);
+          if (timeDifference !== 0) return timeDifference;
+          return Number(a.group) - Number(b.group);
+        })[0];
+
+      if (!underFilled) return undefined;
+
+      return {
+        id: "",
+        firstName: "",
+        lastName: "",
+        handicapIndex: 0,
+        status: "Waiting",
+        source: "Start List",
+        paid: false,
+        notes: "",
+        teeTime: underFilled.teeTime,
+        group: underFilled.group,
+        vacantStartListSlot: true,
+      } as DisplayPlayer;
+    })();
+
+    const vacancy = storedVacancy ?? inferredVacancy;
+
+    // Older data may have a real Start List vacancy without an internal
+    // vacancy record. Once that vacancy has been reconstructed, Reserve #1
+    // must still have priority over the newly entered player.
+    if (hasStartList && vacancy && !storedVacancy) {
+      const firstExistingReserve = players.find((player) => {
+        const displayPlayer = player as DisplayPlayer;
+        return (
+          player.status === "Waiting" &&
+          !displayPlayer.vacantStartListSlot
+        );
+      });
+
+      if (firstExistingReserve) {
+        const vacancyDetails = [
+          vacancy.teeTime ? `Tee Time ${vacancy.teeTime}` : "",
+          vacancy.group ? `Group ${vacancy.group}` : "",
+        ]
+          .filter(Boolean)
+          .join(" • ");
+
+        const reserveName =
+          `${firstExistingReserve.firstName} ${firstExistingReserve.lastName}`.trim();
+
+        const confirmed = window.confirm(
+          `There is already a vacant Start List place${vacancyDetails ? `: ${vacancyDetails}` : ""}.\n\n` +
+            `Reserve #1 ${reserveName} is waiting.\n\n` +
+            `Promote Reserve #1 ${reserveName} into that vacant place?`
+        );
+
+        if (confirmed) {
+          const reserveDisplay = firstExistingReserve as DisplayPlayer;
+
+          setPlayers((current) =>
+            current.map((player) =>
+              player.id === firstExistingReserve.id
+                ? ({
+                    ...player,
+                    status: "Registered",
+                    teeTime: vacancy.teeTime ?? reserveDisplay.teeTime ?? "",
+                    group: vacancy.group ?? reserveDisplay.group ?? "",
+                    promotedReserve: true,
+                  } as Player)
+                : player
+            )
+          );
+        }
+
+        // Whether promoted or cancelled, do not process the newly entered
+        // player in the same click. This prevents anyone jumping Reserve #1.
+        return;
+      }
+    }
+
+    const shouldFillVacancy =
+      hasStartList && vacancy !== undefined;
+
+    if (shouldFillVacancy && vacancy) {
+      const vacancyDetails = [
+        vacancy.teeTime ? `Tee Time ${vacancy.teeTime}` : "",
+        vacancy.group ? `Group ${vacancy.group}` : "",
+      ]
+        .filter(Boolean)
+        .join(" • ");
+
+      const confirmed = window.confirm(
+        `${firstName.trim()} ${lastName.trim()} will be added to the Reserves.\n\n` +
+          `There is already a vacant Start List place${vacancyDetails ? `: ${vacancyDetails}` : ""}.\n\n` +
+          `Promote this player immediately into that vacant place?`
+      );
+
+      if (confirmed) {
+        const promotedPlayer: Player = {
+          id: crypto.randomUUID(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          handicapIndex: Number(handicapIndex) || 0,
+          ...(gender ? { gender } : {}),
+          status: "Registered",
+          source,
+          paid,
+          notes: notes.trim(),
+          teeTime: vacancy.teeTime ?? "",
+          group: vacancy.group ?? "",
+          promotedReserve: true,
+        } as Player;
+
+        setPlayers((current) => [
+          ...current.filter(
+            (player) => !vacancy.id || player.id !== vacancy.id
+          ),
+          promotedPlayer,
+        ]);
+
+        closeModal();
+        return;
+      }
+    }
+
     const newPlayer: Player = {
       id: crypto.randomUUID(),
 
@@ -1199,12 +1565,15 @@ export default function Players({
       handicapIndex:
         Number(handicapIndex) || 0,
 
-      // Registration status is automatic. If the event is at capacity,
-      // the new player joins the bottom of the Reserves list.
+      ...(gender ? { gender } : {}),
+
+      // A Start List defines the actual playing field. Once a Start List
+      // exists, every newly added player joins the Reserves unless they are
+      // explicitly promoted into a preserved vacant Start List slot.
       status:
-        registeredPlayers < EVENT_CAPACITY
-          ? "Registered"
-          : "Waiting",
+        hasStartList || registeredPlayers >= EVENT_CAPACITY
+          ? "Waiting"
+          : "Registered",
 
       source,
 
@@ -1219,6 +1588,20 @@ export default function Players({
     ]);
 
     closeModal();
+  }
+
+  // --------------------------------------------------
+  // Toggle Player Payment
+  // --------------------------------------------------
+
+  function togglePlayerPaid(id: string) {
+    setPlayers((current) =>
+      current.map((player) =>
+        player.id === id
+          ? { ...player, paid: !player.paid }
+          : player
+      )
+    );
   }
 
   // --------------------------------------------------
@@ -1237,9 +1620,52 @@ export default function Players({
     const isRegistered =
       player.status === "Registered";
 
-    const message = isRegistered
-      ? "Withdraw this registered player? If a Reserve is waiting, the first Reserve will automatically take this place."
-      : "Remove this player from the Reserves list?";
+    const withdrawnPlayer =
+      player as DisplayPlayer;
+
+    const firstReserve = isRegistered
+      ? players.find((item) => {
+          const displayItem = item as DisplayPlayer;
+          return item.status === "Waiting" && !displayItem.vacantStartListSlot;
+        })
+      : undefined;
+
+    let message: string;
+
+    if (isRegistered && firstReserve) {
+      const vacancyDetails = [
+        withdrawnPlayer.teeTime
+          ? `Tee Time ${withdrawnPlayer.teeTime}`
+          : "",
+        withdrawnPlayer.group
+          ? `Group ${withdrawnPlayer.group}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" • ");
+
+      message =
+        `${player.firstName} ${player.lastName} will be withdrawn.\n\n` +
+        `Reserve #1 ${firstReserve.firstName} ${firstReserve.lastName} will be promoted to Registered` +
+        (vacancyDetails
+          ? ` and will take the vacant place: ${vacancyDetails}.`
+          : ".") +
+        "\n\nContinue?";
+    } else if (isRegistered) {
+      message =
+        `${player.firstName} ${player.lastName} will be withdrawn.\n\n` +
+        "There are no Reserves waiting. This Start List place will be kept as a vacancy so it can be filled by a later Reserve.\n\nContinue?";
+    } else {
+      const reservePosition =
+        reservePositionForPlayer(player.id);
+
+      message =
+        `Remove ${player.firstName} ${player.lastName}` +
+        (reservePosition
+          ? ` (Reserve #${reservePosition})`
+          : " from the Reserves list") +
+        "?";
+    }
 
     if (!window.confirm(message)) {
       return;
@@ -1254,11 +1680,33 @@ export default function Players({
         return remaining;
       }
 
-      const reserveIndex = remaining.findIndex(
-        (item) => item.status === "Waiting"
-      );
+      const reserveIndex = remaining.findIndex((item) => {
+        const displayItem = item as DisplayPlayer;
+        return item.status === "Waiting" && !displayItem.vacantStartListSlot;
+      });
 
       if (reserveIndex === -1) {
+        if (
+          hasStartList &&
+          (withdrawnPlayer.teeTime || withdrawnPlayer.group)
+        ) {
+          const vacancyRecord: Player = {
+            id: crypto.randomUUID(),
+            firstName: "",
+            lastName: "",
+            handicapIndex: 0,
+            status: "Waiting",
+            source: "Start List",
+            paid: false,
+            notes: "",
+            teeTime: withdrawnPlayer.teeTime ?? "",
+            group: withdrawnPlayer.group ?? "",
+            vacantStartListSlot: true,
+          } as Player;
+
+          return [...remaining, vacancyRecord];
+        }
+
         return remaining;
       }
 
@@ -1268,10 +1716,22 @@ export default function Players({
         return remaining;
       }
 
+      const promotedDisplay =
+        promoted as DisplayPlayer;
+
       remaining[reserveIndex] = {
         ...promoted,
         status: "Registered",
-      };
+        teeTime:
+          withdrawnPlayer.teeTime ??
+          promotedDisplay.teeTime ??
+          "",
+        group:
+          withdrawnPlayer.group ??
+          promotedDisplay.group ??
+          "",
+        promotedReserve: true,
+      } as Player;
 
       return remaining;
     });
@@ -1296,7 +1756,7 @@ export default function Players({
       return;
     }
 
-    const printablePlayers = players.map((player) => {
+    const printablePlayers = displayPlayers.map((player) => {
       const startListPlayer = player as DisplayPlayer;
       return {
         teeTime: startListPlayer.teeTime || "",
@@ -1458,7 +1918,7 @@ export default function Players({
     <div class="summary">
       <span><strong>Registered:</strong> ${registeredPlayers}</span>
       <span><strong>Reserves:</strong> ${reservesPlayers}</span>
-      <span><strong>Total:</strong> ${players.length}</span>
+      <span><strong>Playing Field:</strong> ${playingFieldPlayers}</span>
     </div>
 
     <table>
@@ -1490,6 +1950,40 @@ export default function Players({
   }
 
   // --------------------------------------------------
+  // Player Display Order
+  // --------------------------------------------------
+
+  function teeTimeToMinutes(value?: string): number {
+    const match = (value || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+
+    if (!match) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+
+  const displayPlayers = players
+    .filter((player) => !(player as DisplayPlayer).vacantStartListSlot)
+    .sort((a, b) => {
+    const aDisplay = a as DisplayPlayer;
+    const bDisplay = b as DisplayPlayer;
+
+    if (a.status === "Waiting" && b.status !== "Waiting") return 1;
+    if (a.status !== "Waiting" && b.status === "Waiting") return -1;
+    if (a.status === "Waiting" && b.status === "Waiting") return 0;
+
+    const timeDifference = teeTimeToMinutes(aDisplay.teeTime) - teeTimeToMinutes(bDisplay.teeTime);
+    if (timeDifference !== 0) return timeDifference;
+
+    const aGroup = Number(aDisplay.group);
+    const bGroup = Number(bDisplay.group);
+    if (Number.isFinite(aGroup) && Number.isFinite(bGroup) && aGroup !== bGroup) return aGroup - bGroup;
+
+    return 0;
+  });
+
+  // --------------------------------------------------
   // Summary Cards
   // --------------------------------------------------
 
@@ -1511,13 +2005,13 @@ export default function Players({
       />
 
       <SummaryCard
-        title="Outstanding"
+        title="Payment Outstanding"
         value={outstandingPlayers}
       />
 
       <SummaryCard
         title="Players"
-        value={`${players.length} / ${EVENT_CAPACITY}`}
+        value={`${playingFieldPlayers} / ${EVENT_CAPACITY}`}
       />
     </div>
   );
@@ -1610,7 +2104,7 @@ export default function Players({
         subtitle="Manage player registrations, imports, payments and event participants."
         summary={summary}
         actions={actions}
-        footer={`${registeredPlayers} Registered • ${reservesPlayers} Reserves • ${players.length} Total`}
+        footer={`${registeredPlayers} Registered • ${reservesPlayers} ${reservesPlayers === 1 ? "Reserve" : "Reserves"} • ${playingFieldPlayers} Playing Field`}
       >
         <div className="players-table">
           <table>
@@ -1621,6 +2115,7 @@ export default function Players({
                 <th>Group</th>
                 <th>Name</th>
                 <th>Home Club</th>
+                <th>Gender</th>
                 <th>HI</th>
                 <th>Paid</th>
                 <th>Source</th>
@@ -1633,7 +2128,7 @@ export default function Players({
               {players.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={11}
                     className="empty-table"
                   >
                     <strong>
@@ -1647,12 +2142,48 @@ export default function Players({
                   </td>
                 </tr>
               ) : (
-                players.map((player) => {
+                displayPlayers.map((player, index) => {
                   const startListPlayer =
                     player as DisplayPlayer;
 
-                  return (
-                    <tr key={player.id}>
+                  const previousPlayer = index > 0 ? displayPlayers[index - 1] : undefined;
+                  const startsReserveSection =
+                    player.status === "Waiting" &&
+                    previousPlayer?.status !== "Waiting";
+
+                  return [
+                    startsReserveSection ? (
+                        <tr key={`reserve-divider-${player.id}`}>
+                          <td
+                            colSpan={11}
+                            style={{
+                              padding: "14px 16px",
+                              borderTop: "4px solid #1f5fbf",
+                              borderBottom: "2px solid #9fbfe5",
+                              background: "#eef5fc",
+                              color: "#1f5fbf",
+                              fontWeight: 800,
+                              textAlign: "center",
+                              letterSpacing: "0.02em",
+                            }}
+                          >
+                            PLAYING FIELD ENDS — {playingFieldPlayers} PLAYERS
+                            <span
+                              style={{
+                                display: "block",
+                                marginTop: "4px",
+                                color: "#4b5563",
+                                fontSize: "0.82rem",
+                                fontWeight: 700,
+                              }}
+                            >
+                              RESERVES / WAITING LIST
+                            </span>
+                          </td>
+                        </tr>
+                      ) : null,
+
+                      <tr key={player.id}>
                       <td>
                         {player.status === "Waiting"
                           ? `Reserves #${reservePositionForPlayer(player.id) ?? ""}`
@@ -1668,24 +2199,101 @@ export default function Players({
                       </td>
 
                       <td>
-                        {player.firstName}{" "}
-                        {player.lastName}
+                        <span
+                          style={
+                            startListPlayer.promotedReserve
+                              ? { color: "#9a6700", fontWeight: 800 }
+                              : undefined
+                          }
+                        >
+                          {player.firstName}{" "}
+                          {player.lastName}
+                        </span>
+
+                        {startListPlayer.promotedReserve && (
+                          <span
+                            style={{
+                              display: "block",
+                              marginTop: "2px",
+                              color: "#9a6700",
+                              fontSize: "0.78rem",
+                              fontWeight: 700,
+                            }}
+                          >
+                            Promoted Reserve
+                          </span>
+                        )}
                       </td>
 
                       <td>
                         {getPlayerHomeClub(player)}
                       </td>
 
+                      <td>
+                        {player.gender || "—"}
+                      </td>
+
                     <td>
-                      {player.handicapIndex.toFixed(
-                        1
-                      )}
+                      {(() => {
+                        const capWarning =
+                          getHandicapCapWarning(player);
+
+                        return (
+                          <>
+                            <span
+                              style={
+                                capWarning
+                                  ? {
+                                      color: "#b45309",
+                                      fontWeight: 800,
+                                    }
+                                  : undefined
+                              }
+                            >
+                              {player.handicapIndex.toFixed(
+                                1
+                              )}
+                            </span>
+
+                            {capWarning && (
+                              <span
+                                title={capWarning.message}
+                                style={{
+                                  display: "block",
+                                  marginTop: "3px",
+                                  color: "#b45309",
+                                  fontSize: "0.72rem",
+                                  fontWeight: 800,
+                                  lineHeight: 1.15,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                ⚠ CAP {capWarning.cap.toFixed(1)}
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
                     </td>
 
                     <td>
-                      {player.paid
-                        ? "Yes"
-                        : "No"}
+                      <button
+                        type="button"
+                        onClick={() => togglePlayerPaid(player.id)}
+                        title={player.paid ? "Click to mark payment as outstanding" : "Click to mark player as paid"}
+                        style={{
+                          minWidth: "58px",
+                          padding: "6px 10px",
+                          borderRadius: "999px",
+                          border: player.paid ? "1px solid #86c79a" : "1px solid #cbd5e1",
+                          background: player.paid ? "#e8f6ec" : "#f8fafc",
+                          color: player.paid ? "#176b36" : "#475569",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {player.paid ? "Yes" : "No"}
+                      </button>
                     </td>
 
                     <td>
@@ -1709,8 +2317,8 @@ export default function Players({
                         <Trash2 size={16} />
                         </button>
                       </td>
-                    </tr>
-                  );
+                      </tr>,
+                  ];
                 })
               )}
             </tbody>
@@ -1773,6 +2381,28 @@ export default function Players({
 
               <div>
                 <label>
+                  Gender
+                </label>
+
+                <select
+                  value={gender}
+                  onChange={(e) =>
+                    setGender(
+                      e.target.value as
+                        | ""
+                        | "Male"
+                        | "Female"
+                    )
+                  }
+                >
+                  <option value="">Select...</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+
+              <div>
+                <label>
                   Registration Status
                 </label>
 
@@ -1785,7 +2415,9 @@ export default function Players({
                     color: "#374151",
                   }}
                 >
-                  {registeredPlayers < EVENT_CAPACITY
+                  {hasStartList
+                    ? "Reserves — Start List event"
+                    : registeredPlayers < EVENT_CAPACITY
                     ? "Registered — place available"
                     : "Reserves — event at capacity"}
                 </div>

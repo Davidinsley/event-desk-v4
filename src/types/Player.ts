@@ -14,6 +14,9 @@ export interface Player {
 
   handicapIndex: number;
 
+  // Optional so existing saved player records remain compatible.
+  gender?: "Male" | "Female";
+
   status: "Registered" | "Waiting";
 
   source: "Manual" | "CSV" | "Excel" | "Start List";
