@@ -1966,6 +1966,9 @@ export default function App() {
                 applyHandicapCaps={Boolean(event.applyHandicapCaps)}
                 maleMaxHI={event.maleMaxHI}
                 femaleMaxHI={event.femaleMaxHI}
+                eventName={event.eventName}
+                eventDate={event.eventDate}
+                entryFee={event.entryFee}
               />
             )}
 

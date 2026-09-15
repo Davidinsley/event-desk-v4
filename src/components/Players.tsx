@@ -18,6 +18,7 @@ import {
   FileUp,
   Flag,
   Download,
+  CirclePoundSterling,
   Trash2,
 } from "lucide-react";
 
@@ -28,6 +29,9 @@ interface PlayersProps {
   applyHandicapCaps?: boolean;
   maleMaxHI?: number;
   femaleMaxHI?: number;
+  eventName: string;
+  eventDate: string;
+  entryFee: number;
 }
 
 type CsvRow = Record<string, string>;
@@ -48,6 +52,9 @@ export default function Players({
   applyHandicapCaps = false,
   maleMaxHI,
   femaleMaxHI,
+  eventName,
+  eventDate,
+  entryFee,
 }: PlayersProps) {
   const [showAddPlayer, setShowAddPlayer] =
     useState(false);
@@ -1950,6 +1957,289 @@ export default function Players({
   }
 
   // --------------------------------------------------
+  // Payment Outstanding - Export / Print
+  // --------------------------------------------------
+
+  function handleOutstandingPaymentsExport() {
+    const outstanding = players
+      .filter((player) => {
+        const displayPlayer = player as DisplayPlayer;
+        return (
+          player.status === "Registered" &&
+          !displayPlayer.vacantStartListSlot &&
+          !player.paid
+        );
+      })
+      .sort((a, b) =>
+        `${a.lastName} ${a.firstName}`.localeCompare(
+          `${b.lastName} ${b.firstName}`
+        )
+      );
+
+    if (outstanding.length === 0) {
+      alert("There are no playing-field players with payment outstanding.");
+      return;
+    }
+
+    const fee = Number(entryFee) || 0;
+    const totalOutstanding = outstanding.length * fee;
+
+    const formatMoney = (value: number) =>
+      new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: "GBP",
+      }).format(value);
+
+    const formatEventDate = (value: string): string => {
+      const raw = value.trim();
+
+      if (!raw) {
+        return "";
+      }
+
+      let parsedDate: Date | null = null;
+
+      const ukMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+      if (ukMatch) {
+        parsedDate = new Date(
+          Number(ukMatch[3]),
+          Number(ukMatch[2]) - 1,
+          Number(ukMatch[1])
+        );
+      } else {
+        const parsed = new Date(`${raw}T00:00:00`);
+        if (!Number.isNaN(parsed.getTime())) {
+          parsedDate = parsed;
+        }
+      }
+
+      if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
+        return raw;
+      }
+
+      return new Intl.DateTimeFormat("en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(parsedDate);
+    };
+
+    const rows = outstanding
+      .map(
+        (player, index) => `
+          <tr>
+            <td class="number">${index + 1}</td>
+            <td>${escapeHtml(`${player.firstName} ${player.lastName}`.trim())}</td>
+            <td class="amount">${escapeHtml(formatMoney(fee))}</td>
+          </tr>`
+      )
+      .join("");
+
+    const exportWindow = window.open(
+      "",
+      "_blank",
+      "width=900,height=700"
+    );
+
+    if (!exportWindow) {
+      alert(
+        "The export window could not be opened. Please allow pop-ups for Event Desk and try again."
+      );
+      return;
+    }
+
+    const displayEventName =
+      eventName.trim() || "Untitled Event";
+    const displayEventDate = formatEventDate(eventDate);
+
+    exportWindow.document.open();
+    exportWindow.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Event Desk - Payment Outstanding - ${escapeHtml(displayEventName)}</title>
+  <style>
+    @page { size: A4 portrait; margin: 14mm; }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #1f2937;
+      background: #ffffff;
+      font-size: 11pt;
+    }
+
+    .document {
+      width: 100%;
+      max-width: 180mm;
+      margin: 0 auto;
+    }
+
+    .event-header {
+      border-bottom: 2px solid #dbe6f3;
+      padding-bottom: 6mm;
+      margin-bottom: 7mm;
+    }
+
+    .desk-title {
+      margin: 0 0 4mm;
+      font-size: 11pt;
+      font-weight: 700;
+      color: #64748b;
+      letter-spacing: 0.2px;
+    }
+
+    .event-name {
+      margin: 0;
+      font-size: 24pt;
+      line-height: 1.15;
+      color: #1f5fbf;
+    }
+
+    .event-date {
+      margin: 2mm 0 0;
+      font-size: 12pt;
+      color: #4b5563;
+    }
+
+    .report-heading {
+      margin-bottom: 6mm;
+    }
+
+    .report-heading h2 {
+      margin: 0 0 2mm;
+      font-size: 19pt;
+      color: #1f2937;
+    }
+
+    .report-heading p {
+      margin: 0;
+      color: #6b7280;
+      font-size: 10.5pt;
+    }
+
+    .summary {
+      display: flex;
+      gap: 12mm;
+      padding: 4mm 5mm;
+      margin: 0 0 6mm;
+      background: #f8fafc;
+      border: 1px solid #dbe6f3;
+      border-radius: 6px;
+      color: #374151;
+      font-size: 10.5pt;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th {
+      text-align: left;
+      padding: 3mm 2.5mm;
+      background: #eef5fc;
+      border-bottom: 1px solid #cfdbea;
+      font-size: 9.5pt;
+      color: #3f4d63;
+    }
+
+    td {
+      padding: 2.8mm 2.5mm;
+      border-bottom: 1px solid #e5e7eb;
+      vertical-align: middle;
+    }
+
+    th:nth-child(1), td:nth-child(1) {
+      width: 12%;
+      text-align: center;
+    }
+
+    th:nth-child(2), td:nth-child(2) {
+      width: 63%;
+    }
+
+    th:nth-child(3), td:nth-child(3) {
+      width: 25%;
+      text-align: right;
+    }
+
+    .number {
+      color: #64748b;
+    }
+
+    .amount {
+      font-weight: 700;
+    }
+
+    .footer {
+      margin-top: 7mm;
+      padding-top: 3mm;
+      border-top: 1px solid #dbe6f3;
+      font-size: 9pt;
+      color: #6b7280;
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+      .document { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="document">
+    <header class="event-header">
+      <p class="desk-title">Ramsdale Seniors Event Desk</p>
+      <h1 class="event-name">${escapeHtml(displayEventName)}</h1>
+      ${
+        displayEventDate
+          ? `<p class="event-date">${escapeHtml(displayEventDate)}</p>`
+          : ""
+      }
+    </header>
+
+    <section class="report-heading">
+      <h2>Payment Outstanding</h2>
+      <p>Players in the playing field who have not yet paid.</p>
+    </section>
+
+    <div class="summary">
+      <span><strong>Outstanding payments:</strong> ${outstanding.length}</span>
+      <span><strong>Total amount outstanding:</strong> ${escapeHtml(
+        formatMoney(totalOutstanding)
+      )}</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>No.</th>
+          <th>Player Name</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <footer class="footer">
+      Event Desk — payment outstanding list — playing field only; reserves excluded
+    </footer>
+  </main>
+
+  <div class="no-print" style="position:fixed;right:20px;top:20px;">
+    <button onclick="window.print()" style="padding:10px 16px;font-size:14px;cursor:pointer;">Print / Save as PDF</button>
+  </div>
+</body>
+</html>`);
+    exportWindow.document.close();
+    exportWindow.focus();
+  }
+
+  // --------------------------------------------------
   // Player Display Order
   // --------------------------------------------------
 
@@ -2056,6 +2346,14 @@ export default function Players({
         icon={Download}
         title="Export"
         onClick={handleExport}
+      />
+
+      <ActionTile
+        icon={CirclePoundSterling}
+        subtitle="Payment"
+        title="Outstanding"
+        onClick={handleOutstandingPaymentsExport}
+        disabled={outstandingPlayers === 0}
       />
 
       <ActionTile
