@@ -472,6 +472,9 @@ export default function NewEvent({
 
   ] = useState(false);
 
+  const [showAddVenue, setShowAddVenue] = useState(false);
+  const [newVenueName, setNewVenueName] = useState("");
+
   const currentStatus: EventStatus =
 
     archived
@@ -626,58 +629,39 @@ export default function NewEvent({
 
   ) => {
 
-    if (value === "__ADD_VENUE__") {
-
-      const newVenue = window.prompt(
-
-        "Enter the new venue name:"
-
-      );
-
-      if (!newVenue) {
-
-        return;
-
-      }
-
-      const trimmedVenue =
-
-        newVenue.trim();
-
-      if (!trimmedVenue) {
-
-        return;
-
-      }
-
-      if (!venues.includes(trimmedVenue)) {
-
-        setVenues((current) => [
-
-          ...current,
-
-          trimmedVenue,
-
-        ]);
-
-      }
-
-      updateEvent({
-
-        venue: trimmedVenue,
-
-      });
-
-      return;
-
-    }
-
     updateEvent({
 
       venue: value,
 
     });
 
+  };
+
+  const handleAddVenue = () => {
+    setNewVenueName("");
+    setShowAddVenue(true);
+  };
+
+  const confirmAddVenue = () => {
+    const trimmedVenue = newVenueName.trim();
+
+    if (!trimmedVenue) {
+      return;
+    }
+
+    if (!venues.includes(trimmedVenue)) {
+      setVenues((current) => [
+        ...current,
+        trimmedVenue,
+      ]);
+    }
+
+    updateEvent({
+      venue: trimmedVenue,
+    });
+
+    setNewVenueName("");
+    setShowAddVenue(false);
   };
 
   const handleSaveClick = () => {
@@ -2834,13 +2818,41 @@ export default function NewEvent({
 
                 )}
 
-                <option value="__ADD_VENUE__">
+                </select>
 
-                  + Add Venue
+              <button
 
-                </option>
+                type="button"
 
-              </select>
+                onClick={handleAddVenue}
+
+                style={{
+
+                  marginTop: "8px",
+
+                  padding: "8px 14px",
+
+                  border: "1px solid #2f80d0",
+
+                  borderRadius: "7px",
+
+                  background: "#ffffff",
+
+                  color: "#205b9f",
+
+                  fontSize: "14px",
+
+                  fontWeight: 700,
+
+                  cursor: "pointer",
+
+                }}
+
+              >
+
+                + Add Venue
+
+              </button>
 
             </div>
 
@@ -3117,6 +3129,83 @@ export default function NewEvent({
         </div>
 
       </PageLayout>
+
+      {showAddVenue && (
+        <div
+          className="event-modal-backdrop"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+            background: "rgba(18, 35, 56, 0.42)",
+          }}
+        >
+          <div
+            className="event-modal"
+            style={{
+              width: "min(520px, calc(100vw - 48px))",
+              maxWidth: "520px",
+              margin: 0,
+              padding: "26px 28px",
+              borderRadius: "14px",
+              background: "#ffffff",
+              boxShadow: "0 18px 55px rgba(0, 0, 0, 0.28)",
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>Add Venue</h2>
+            <p>Enter the new venue name. It will be retained in the Venue list for future events.</p>
+            <input
+              type="text"
+              value={newVenueName}
+              autoFocus
+              placeholder="Venue name"
+              onChange={(e) => setNewVenueName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newVenueName.trim()) {
+                  confirmAddVenue();
+                }
+                if (e.key === "Escape") {
+                  setShowAddVenue(false);
+                  setNewVenueName("");
+                }
+              }}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                marginTop: "8px",
+                padding: "10px 12px",
+                border: "1px solid #b9cce3",
+                borderRadius: "7px",
+                fontSize: "15px",
+              }}
+            />
+            <div className="event-modal-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setShowAddVenue(false);
+                  setNewVenueName("");
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={!newVenueName.trim()}
+                onClick={confirmAddVenue}
+              >
+                Add Venue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPosterWarning && (
 
