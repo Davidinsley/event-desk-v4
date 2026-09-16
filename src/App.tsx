@@ -1983,6 +1983,7 @@ export default function App() {
               <FieldManagement
                 event={event}
                 players={players}
+                setPlayers={handlePlayersChange}
                 onExportPrint={(data) => {
                   setDrawPreviewData(data);
                   setCurrentPage("drawPreview");
