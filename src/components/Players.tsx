@@ -43,6 +43,8 @@ type DisplayPlayer = Player & {
   club?: string;
   promotedReserve?: boolean;
   vacantStartListSlot?: boolean;
+  dietaryNeed?: boolean;
+  dietaryNeedType?: string;
 };
 
 export default function Players({
@@ -58,6 +60,10 @@ export default function Players({
 }: PlayersProps) {
   const [showAddPlayer, setShowAddPlayer] =
     useState(false);
+
+  // Reporting preference only. Handicap remains stored and visible in Event Desk.
+  const [includeHandicapInReport, setIncludeHandicapInReport] =
+    useState(true);
 
   const csvInputRef =
     useRef<HTMLInputElement | null>(null);
@@ -85,6 +91,7 @@ export default function Players({
     >("Manual");
 
   const [paid, setPaid] = useState(false);
+  const [dietaryNeed, setDietaryNeed] = useState(false);
   const [notes, setNotes] = useState("");
 
   // --------------------------------------------------
@@ -193,6 +200,7 @@ export default function Players({
     setGender("");
     setSource("Manual");
     setPaid(false);
+    setDietaryNeed(false);
     setNotes("");
   }
 
@@ -1545,6 +1553,7 @@ export default function Players({
           status: "Registered",
           source,
           paid,
+          dietaryNeed,
           notes: notes.trim(),
           teeTime: vacancy.teeTime ?? "",
           group: vacancy.group ?? "",
@@ -1585,6 +1594,7 @@ export default function Players({
       source,
 
       paid,
+      dietaryNeed,
 
       notes: notes.trim(),
     };
@@ -1606,6 +1616,43 @@ export default function Players({
       current.map((player) =>
         player.id === id
           ? { ...player, paid: !player.paid }
+          : player
+      )
+    );
+  }
+
+  // --------------------------------------------------
+  // Toggle Dietary Need
+  // --------------------------------------------------
+
+  function toggleDietaryNeed(id: string) {
+    setPlayers((current) =>
+      current.map((player) => {
+        if (player.id !== id) return player;
+
+        const displayPlayer = player as DisplayPlayer;
+        const nextDietaryNeed = !displayPlayer.dietaryNeed;
+
+        return {
+          ...player,
+          dietaryNeed: nextDietaryNeed,
+          dietaryNeedType: nextDietaryNeed
+            ? displayPlayer.dietaryNeedType || ""
+            : "",
+        } as Player;
+      })
+    );
+  }
+
+  function updateDietaryNeedType(id: string, dietaryNeedType: string) {
+    setPlayers((current) =>
+      current.map((player) =>
+        player.id === id
+          ? ({
+              ...player,
+              dietaryNeed: true,
+              dietaryNeedType,
+            } as Player)
           : player
       )
     );
@@ -1792,7 +1839,7 @@ export default function Players({
             <td>${newGroup ? escapeHtml(player.group) : ""}</td>
             <td>${escapeHtml(player.name)}</td>
             <td>${escapeHtml(player.homeClub)}</td>
-            <td class="handicap">${escapeHtml(player.handicap)}</td>
+            ${includeHandicapInReport ? `<td class="handicap">${escapeHtml(player.handicap)}</td>` : ""}
             <td>${escapeHtml(player.status)}</td>
           </tr>
         `;
@@ -1888,12 +1935,22 @@ export default function Players({
       vertical-align: middle;
     }
 
+    ${includeHandicapInReport
+      ? `
     th:nth-child(1), td:nth-child(1) { width: 16%; }
     th:nth-child(2), td:nth-child(2) { width: 10%; }
     th:nth-child(3), td:nth-child(3) { width: 25%; }
     th:nth-child(4), td:nth-child(4) { width: 25%; }
     th:nth-child(5), td:nth-child(5) { width: 9%; }
     th:nth-child(6), td:nth-child(6) { width: 15%; }
+    `
+      : `
+    th:nth-child(1), td:nth-child(1) { width: 17%; }
+    th:nth-child(2), td:nth-child(2) { width: 11%; }
+    th:nth-child(3), td:nth-child(3) { width: 28%; }
+    th:nth-child(4), td:nth-child(4) { width: 28%; }
+    th:nth-child(5), td:nth-child(5) { width: 16%; }
+    `}
 
     .handicap { text-align: center; }
 
@@ -1935,7 +1992,7 @@ export default function Players({
           <th>Group</th>
           <th>Player</th>
           <th>Home Club</th>
-          <th>HI</th>
+          ${includeHandicapInReport ? "<th>HI</th>" : ""}
           <th>Status</th>
         </tr>
       </thead>
@@ -2404,6 +2461,45 @@ export default function Players({
         actions={actions}
         footer={`${registeredPlayers} Registered • ${reservesPlayers} ${reservesPlayers === 1 ? "Reserve" : "Reserves"} • ${playingFieldPlayers} Playing Field`}
       >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            margin: "0 0 14px",
+            padding: "10px 14px",
+            border: "1px solid #9fbfe5",
+            borderRadius: "8px",
+            background: "#f8fbff",
+            width: "fit-content",
+          }}
+        >
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "9px",
+              fontWeight: 700,
+              color: "#374151",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={includeHandicapInReport}
+              onChange={(event) =>
+                setIncludeHandicapInReport(event.target.checked)
+              }
+              style={{
+                width: "18px",
+                height: "18px",
+                accentColor: "#1f5fbf",
+                cursor: "pointer",
+              }}
+            />
+            Include Handicap (HI) in print / export
+          </label>
+        </div>
+
         <div className="players-table">
           <table>
             <thead>
@@ -2417,7 +2513,7 @@ export default function Players({
                 <th>HI</th>
                 <th>Paid</th>
                 <th>Source</th>
-                <th>Notes</th>
+                <th>Dietary Need</th>
                 <th></th>
               </tr>
             </thead>
@@ -2599,20 +2695,70 @@ export default function Players({
                     </td>
 
                       <td>
-                        {player.notes}
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(startListPlayer.dietaryNeed)}
+                            onChange={() => toggleDietaryNeed(player.id)}
+                            title="Dietary Need"
+                            aria-label={`Dietary need for ${player.firstName} ${player.lastName}`}
+                            style={{
+                              width: "18px",
+                              height: "18px",
+                              cursor: "pointer",
+                              flexShrink: 0,
+                            }}
+                          />
+
+                          {startListPlayer.dietaryNeed && (
+                            <select
+                              value={startListPlayer.dietaryNeedType || ""}
+                              onChange={(event) =>
+                                updateDietaryNeedType(player.id, event.target.value)
+                              }
+                              aria-label={`Dietary need type for ${player.firstName} ${player.lastName}`}
+                              style={{
+                                minWidth: "118px",
+                                padding: "5px 7px",
+                                border: "1px solid #cbd5e1",
+                                borderRadius: "6px",
+                                background: "#ffffff",
+                              }}
+                            >
+                              <option value="">Select...</option>
+                              <option value="Vegetarian">Vegetarian</option>
+                              <option value="Vegan">Vegan</option>
+                              <option value="Gluten Free">Gluten Free</option>
+                              <option value="Dairy Free">Dairy Free</option>
+                              <option value="Nut Allergy">Nut Allergy</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          )}
+                        </div>
                       </td>
 
-                      <td>
+                      <td style={{ textAlign: "center" }}>
                         <button
-                        className="icon-button"
-                        title="Delete Player"
-                        onClick={() =>
-                          deletePlayer(
-                            player.id
-                          )
-                        }
-                      >
-                        <Trash2 size={16} />
+                          type="button"
+                          title="Delete Player"
+                          aria-label={`Delete ${player.firstName} ${player.lastName}`}
+                          onClick={() => deletePlayer(player.id)}
+                          style={{
+                            width: "34px",
+                            height: "34px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "8px",
+                            border: "1px solid #ef9a9a",
+                            background: "#fff1f2",
+                            color: "#c62828",
+                            cursor: "pointer",
+                            padding: 0,
+                            opacity: 1,
+                          }}
+                        >
+                          <Trash2 size={18} strokeWidth={2.25} />
                         </button>
                       </td>
                       </tr>,
@@ -2773,20 +2919,18 @@ export default function Players({
               </div>
             </div>
 
-            <div className="notes-field">
+            <div className="checkbox-field">
               <label>
-                Notes
-              </label>
+                <input
+                  type="checkbox"
+                  checked={dietaryNeed}
+                  onChange={(e) =>
+                    setDietaryNeed(e.target.checked)
+                  }
+                />
 
-              <textarea
-                rows={4}
-                value={notes}
-                onChange={(e) =>
-                  setNotes(
-                    e.target.value
-                  )
-                }
-              />
+                Dietary Need
+              </label>
             </div>
 
             <div className="modal-buttons">

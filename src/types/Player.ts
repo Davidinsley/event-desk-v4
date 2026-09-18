@@ -25,6 +25,9 @@ export interface Player {
 
   notes: string;
 
+  // Optional dietary requirement flag used by Players and Catering.
+  dietaryNeed?: boolean;
+
   // -----------------------------
   // Player / Start List Data
   // -----------------------------

@@ -35,6 +35,12 @@ interface CateringProps {
   players: Player[];
 }
 
+type CateringPlayer = Player & {
+  dietaryNeed?: boolean;
+  dietaryNeedType?: string;
+  vacantStartListSlot?: boolean;
+};
+
 type PackageId =
   | "breakfastCob"
   | "smallBreakfast"
@@ -353,7 +359,11 @@ export default function Catering({ players }: CateringProps) {
   const eating = data.eating;
   const paid = Math.min(data.paid, eating);
   const outstanding = Math.max(0, eating - paid);
-  const dietaryNeeds = Math.min(data.dietaryNeeds, eating);
+  const dietaryNeedsPlayers = players.filter((player) => {
+    const cateringPlayer = player as CateringPlayer;
+    return cateringPlayer.dietaryNeed === true && !cateringPlayer.vacantStartListSlot;
+  });
+  const dietaryNeeds = dietaryNeedsPlayers.length;
 
   const selected = useMemo(
     () =>
@@ -407,17 +417,6 @@ export default function Catering({ players }: CateringProps) {
         paid: Math.min(current.paid, eatingValue),
       };
     });
-  };
-
-  const setDietaryNeeds = (value: string) => {
-    const number = Number(value);
-
-    updateData((current) => ({
-      ...current,
-      dietaryNeeds: Number.isFinite(number)
-        ? Math.max(0, Math.min(current.eating, Math.floor(number)))
-        : 0,
-    }));
   };
 
   const setPaid = (value: string) => {
@@ -536,6 +535,91 @@ export default function Catering({ players }: CateringProps) {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  const exportDietaryNeedsList = () => {
+    if (dietaryNeedsPlayers.length === 0) {
+      window.alert("No players are currently marked with dietary needs.");
+      return;
+    }
+
+    const sortedPlayers = [...dietaryNeedsPlayers].sort((a, b) =>
+      `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`)
+    );
+
+    const rows = sortedPlayers
+      .map((player, index) => {
+        const cateringPlayer = player as CateringPlayer;
+        const requirement = cateringPlayer.dietaryNeedType?.trim() || "Not specified";
+
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${player.firstName} ${player.lastName}</td>
+            <td>${requirement}</td>
+          </tr>`;
+      })
+      .join("");
+
+    const reportWindow = window.open("", "_blank", "width=850,height=700");
+    if (!reportWindow) {
+      window.alert("Please allow pop-ups for Event Desk to print the dietary needs list.");
+      return;
+    }
+
+    reportWindow.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dietary Needs List</title>
+  <style>
+    @page { size: A4 portrait; margin: 15mm; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #1f2937; margin: 0; }
+    .document { max-width: 180mm; margin: 0 auto; }
+    h1 { color: #1f5fae; margin: 0 0 4px; font-size: 24px; }
+    .sub { color: #64748b; margin: 0 0 22px; }
+    .summary { font-weight: 700; margin: 0 0 14px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #1f5fae; color: white; text-align: left; padding: 9px; }
+    td { padding: 9px; border-bottom: 1px solid #dbe3ec; }
+    th:first-child, td:first-child { width: 10%; }
+    th:nth-child(2), td:nth-child(2) { width: 45%; }
+    .report-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+    .report-heading { flex: 1; min-width: 0; }
+    .report-heading h1 { margin-bottom: 4px; }
+    .report-heading .sub { margin-bottom: 0; }
+    .no-print { flex: 0 0 auto; margin-left: auto; }
+    @media print {
+      .no-print { display: none !important; }
+      .report-header { display: block; margin-bottom: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="document">
+    <div class="report-header">
+      <div class="report-heading">
+        <h1>Dietary Needs List</h1>
+        <p class="sub">Ramsdale Seniors Event Desk — Catering</p>
+      </div>
+      <div class="no-print"><button onclick="window.print()" style="padding:10px 16px;font-size:14px;cursor:pointer;">Print / Save as PDF</button></div>
+    </div>
+    <p class="summary">Players with dietary needs: ${sortedPlayers.length}</p>
+    <table>
+      <thead><tr><th>No.</th><th>Player Name</th><th>Dietary Requirement</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </main>
+</body>
+</html>`);
+    reportWindow.document.close();
+    reportWindow.focus();
+  };
+
   const deadlineValue =
     daysUntilEvent === null
       ? "—"
@@ -624,12 +708,9 @@ export default function Catering({ players }: CateringProps) {
             <span>Dietary Needs</span>
             <input
               type="number"
-              min="0"
-              max={eating}
-              step="1"
               value={dietaryNeeds}
-              disabled={locked}
-              onChange={(event) => setDietaryNeeds(event.target.value)}
+              readOnly
+              title="Automatically counted from the Dietary Needs ticks on the Players page"
             />
           </label>
 
@@ -651,6 +732,48 @@ export default function Catering({ players }: CateringProps) {
           Number Eating includes everyone who is eating, including players and
           non-playing guests.
         </p>
+      </section>
+
+      <section className="club-advised-panel" style={{ display: "block" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "24px",
+          }}
+        >
+          <div>
+            <strong>Dietary Needs Player List</strong>
+            <p style={{ marginBottom: 0 }}>
+              Automatically linked to the Dietary Needs ticks and selected requirement
+              on the Players page.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={exportDietaryNeedsList}
+            disabled={dietaryNeeds === 0}
+            style={{
+              padding: "10px 16px",
+              borderRadius: "8px",
+              border: "1px solid #9fbfe5",
+              background: dietaryNeeds === 0 ? "#f3f4f6" : "#eef5fc",
+              color: dietaryNeeds === 0 ? "#9ca3af" : "#1f5fbf",
+              fontWeight: 800,
+              cursor: dietaryNeeds === 0 ? "not-allowed" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "7px",
+              flexShrink: 0,
+              marginLeft: "auto",
+            }}
+          >
+            <Printer size={17} />
+            Print / Export Dietary List
+          </button>
+        </div>
       </section>
 
       {selected && (

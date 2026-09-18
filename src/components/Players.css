@@ -247,3 +247,26 @@
   margin-bottom: 24px;
   font-size: 0.95rem;
 }
+
+/* =======================================================
+   Player Row Controls
+   Keep Dietary Need and Delete as separate, visible actions
+======================================================= */
+
+.players-table button {
+  color: #34495e;
+}
+
+.players-table button svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  opacity: 1;
+}
+
+.players-table button:hover {
+  color: #b42318;
+}
+

@@ -2688,48 +2688,6 @@ export default function FieldManagement({
         return;
       }
 
-      if (players.length > 0) {
-        window.alert(
-          "This event already contains players on the Players page. Mixed Clash line-ups have not been added or merged. Use a clean/new event with an empty Players page before confirming the line-ups."
-        );
-        return;
-      }
-
-      const mixedClashMasterPlayers: Player[] = [
-        ...mixedClashRedMen.map((player, index) =>
-          clashPlayerToMasterPlayer(
-            player,
-            index === 0 ? "Mixed Clash — Red Men — Captain" : "Mixed Clash — Red Men",
-            "Male"
-          )
-        ),
-        ...mixedClashRedLadies.map((player, index) =>
-          clashPlayerToMasterPlayer(
-            player,
-            index === 0 ? "Mixed Clash — Red Ladies — Captain" : "Mixed Clash — Red Ladies",
-            "Female"
-          )
-        ),
-        ...mixedClashBlueMen.map((player, index) =>
-          clashPlayerToMasterPlayer(
-            player,
-            index === 0 ? "Mixed Clash — Blue Men — Captain" : "Mixed Clash — Blue Men",
-            "Male"
-          )
-        ),
-        ...mixedClashBlueLadies.map((player, index) =>
-          clashPlayerToMasterPlayer(
-            player,
-            index === 0 ? "Mixed Clash — Blue Ladies — Captain" : "Mixed Clash — Blue Ladies",
-            "Female"
-          )
-        ),
-      ];
-
-      setPlayers(mixedClashMasterPlayers);
-      const mixedClashMasterSignature =
-        buildPlayerSignature(mixedClashMasterPlayers);
-
       try {
         const redPairs = createMixedClashPairs(
           mixedClashRedMen,
@@ -2749,7 +2707,7 @@ export default function FieldManagement({
         setDrawConfirmed(false);
 
         persistState({
-          playerSignature: mixedClashMasterSignature,
+          playerSignature,
           selectedMethod: "mixedClashPairs",
           mixedClashStage: "pairs",
           mixedClashRedMen,
@@ -3163,7 +3121,34 @@ export default function FieldManagement({
     try {
       const text = await file.text();
       const side = section.startsWith("red") ? "red" : "blue";
-      const imported = parseClashTeamCsv(text, side);
+      const importedFromTeamSheet = parseClashTeamCsv(text, side);
+
+      // A Mixed Clash CSV selects team membership only.  When an event already
+      // has a current Start List, that Players register is authoritative for HI.
+      // Match by player name because the team-sheet import has temporary IDs.
+      const imported = importedFromTeamSheet.map((teamPlayer) => {
+        const firstName = teamPlayer.firstName.trim().toLowerCase();
+        const lastName = teamPlayer.lastName.trim().toLowerCase();
+
+        const masterPlayer = players.find(
+          (player) =>
+            player.status === "Registered" &&
+            player.firstName.trim().toLowerCase() === firstName &&
+            player.lastName.trim().toLowerCase() === lastName
+        );
+
+        if (!masterPlayer) {
+          throw new Error(
+            `${teamPlayer.firstName} ${teamPlayer.lastName} is not on the current Players / Start List. Mixed Clash team lists must use players from the current event field.`
+          );
+        }
+
+        return {
+          ...teamPlayer,
+          handicapIndex: masterPlayer.handicapIndex,
+        };
+      });
+
       setDrawConfirmed(false);
       setMixedClashStage("lineups");
       setMixedClashRedPairs([]);
@@ -3743,9 +3728,29 @@ export default function FieldManagement({
     }
 
     if (selectedMethod === "mixedClashPairs") {
+      // Mixed Clash team CSVs can contain an HI captured when the team sheet was
+      // originally prepared.  The Players register is the Event Desk master
+      // record, so Export / Print must use the player's current master HI.
+      // Match by normalised first + last name because Clash imports have their
+      // own temporary IDs and therefore cannot be joined to Players by id.
+      const currentMasterHI = (teamPlayer: ClashTeamPlayer): number => {
+        const firstName = teamPlayer.firstName.trim().toLowerCase();
+        const lastName = teamPlayer.lastName.trim().toLowerCase();
+
+        const masterPlayer = players.find(
+          (player) =>
+            player.firstName.trim().toLowerCase() === firstName &&
+            player.lastName.trim().toLowerCase() === lastName
+        );
+
+        return masterPlayer && Number.isFinite(masterPlayer.handicapIndex)
+          ? masterPlayer.handicapIndex
+          : teamPlayer.handicapIndex;
+      };
+
       const previewTeamPlayer = (player: ClashTeamPlayer, index: number) => ({
         name: `${player.firstName} ${player.lastName}`.trim(),
-        hi: formatHI(player.handicapIndex),
+        hi: formatHI(currentMasterHI(player)),
         captain: index === 0,
       });
 

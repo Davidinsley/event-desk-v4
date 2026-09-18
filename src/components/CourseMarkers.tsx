@@ -33,11 +33,18 @@ type Eligibility =
   | "Men Only"
   | "Ladies Only";
 
+type Prize =
+  | "Sleeve of Balls"
+  | "Bottle"
+  | "Voucher"
+  | "Other";
+
 interface CourseMarker {
   id: string;
   type: MarkerType;
   hole: number;
   eligibility: Eligibility;
+  prize?: Prize;
 }
 
 interface CourseMarkersProps {
@@ -222,6 +229,7 @@ export default function CourseMarkers({
       type: "Nearest the Pin",
       hole: 1,
       eligibility: "Open",
+      prize: "Sleeve of Balls",
     };
 
     setMarkers((current) => [
@@ -283,6 +291,19 @@ export default function CourseMarkers({
     );
   };
 
+  const handlePrizeChange = (
+    markerId: string,
+    prize: Prize
+  ) => {
+    setMarkers((current) =>
+      current.map((marker) =>
+        marker.id === markerId
+          ? { ...marker, prize }
+          : marker
+      )
+    );
+  };
+
   const holeOptions = Array.from(
     { length: 18 },
     (_, index) => index + 1
@@ -319,6 +340,88 @@ export default function CourseMarkers({
       currentPreviewMarkers[index] ||
       null
   );
+
+  const handlePrintOverview = () => {
+    if (markers.length === 0) {
+      window.alert("Add at least one Course Marker before exporting the overview.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=1100,height=850");
+    if (!printWindow) {
+      window.alert("Please allow pop-ups for Event Desk to export the Course Markers Overview.");
+      return;
+    }
+
+    const escapeOverviewHtml = (value: string) =>
+      value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+    const rows = [...markers]
+      .sort((a, b) => a.hole - b.hole)
+      .map(
+        (marker, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeOverviewHtml(marker.type)}</td>
+            <td class="centre">${marker.hole}</td>
+            <td>${escapeOverviewHtml(marker.eligibility)}</td>
+            <td>${escapeOverviewHtml(marker.prize || "Sleeve of Balls")}</td>
+          </tr>`
+      )
+      .join("");
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>${escapeOverviewHtml(event.eventName || "Course Markers")} - Course Markers Overview</title>
+          <style>
+            @page { size: A4 portrait; margin: 14mm; }
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: white; }
+            .page { width: 100%; }
+            h1 { margin: 0; color: #205b9f; font-size: 24px; }
+            .subtitle { margin-top: 5px; color: #64748b; font-size: 13px; }
+            .rule { border-top: 2px solid #d6e7f7; margin: 16px 0; }
+            .event { font-size: 17px; font-weight: 700; margin-bottom: 3px; }
+            .date { color: #475569; margin-bottom: 16px; }
+            table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            th { background: #205b9f; color: white; text-align: left; padding: 9px 8px; }
+            td { border-bottom: 1px solid #dbe4ee; padding: 9px 8px; }
+            tbody tr:nth-child(even) { background: #f8fbff; }
+            .centre { text-align: center; }
+            .summary { margin-top: 14px; font-weight: 700; color: #475569; }
+            .actions { margin-bottom: 18px; }
+            button { border: 0; border-radius: 8px; padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer; }
+            @media print { .actions { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="page">
+            <div class="actions"><button onclick="window.print()">Print / Save as PDF</button></div>
+            <h1>Course Markers Overview</h1>
+            <div class="subtitle">Ramsdale Seniors Event Desk</div>
+            <div class="rule"></div>
+            <div class="event">${escapeOverviewHtml(event.eventName || "Untitled Event")}</div>
+            <div class="date">${escapeOverviewHtml(formatEventDate(event.eventDate))}</div>
+            <table>
+              <thead><tr><th>#</th><th>Marker Type</th><th>Hole</th><th>Eligibility</th><th>Prize</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+            <div class="summary">${markers.length} Course Marker${markers.length === 1 ? "" : "s"}</div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   const exportPdf = () => {
     if (markers.length === 0) {
@@ -1790,7 +1893,7 @@ export default function CourseMarkers({
             style={{
               display: "grid",
               gridTemplateColumns:
-                "2fr 0.7fr 1.4fr 90px",
+                "1.7fr 0.6fr 1.2fr 1.2fr 90px",
               background: "#205b9f",
               color: "white",
               fontWeight: 700,
@@ -1807,6 +1910,10 @@ export default function CourseMarkers({
 
             <div style={{ padding: "15px 18px" }}>
               Eligibility
+            </div>
+
+            <div style={{ padding: "15px 18px" }}>
+              Prize
             </div>
 
             <div
@@ -1840,7 +1947,7 @@ export default function CourseMarkers({
                 style={{
                   display: "grid",
                   gridTemplateColumns:
-                    "2fr 0.7fr 1.4fr 90px",
+                    "1.7fr 0.6fr 1.2fr 1.2fr 90px",
                   alignItems: "center",
                   borderTop:
                     index === 0
@@ -1950,6 +2057,30 @@ export default function CourseMarkers({
                   <option value="Ladies Only">
                     Ladies Only
                   </option>
+                </select>
+
+                <select
+                  value={marker.prize || "Sleeve of Balls"}
+                  onChange={(e) =>
+                    handlePrizeChange(
+                      marker.id,
+                      e.target.value as Prize
+                    )
+                  }
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    padding: "0 12px",
+                    border: "1px solid #cfd7df",
+                    borderRadius: "8px",
+                    background: "white",
+                    fontSize: "15px",
+                  }}
+                >
+                  <option value="Sleeve of Balls">Sleeve of Balls</option>
+                  <option value="Bottle">Bottle</option>
+                  <option value="Voucher">Voucher</option>
+                  <option value="Other">Other</option>
                 </select>
 
                 <button
@@ -2068,6 +2199,25 @@ export default function CourseMarkers({
               flexWrap: "wrap",
             }}
           >
+            <button
+              type="button"
+              onClick={handlePrintOverview}
+              disabled={markers.length === 0}
+              title="Open a printable Course Markers Overview"
+              style={{
+                border: "none",
+                borderRadius: "10px",
+                padding: "13px 22px",
+                background: markers.length === 0 ? "#cbd5e1" : "#6b7280",
+                color: "white",
+                fontSize: "16px",
+                fontWeight: 700,
+                cursor: markers.length === 0 ? "not-allowed" : "pointer",
+              }}
+            >
+              📋 Export / Print Overview
+            </button>
+
             <button
               type="button"
               onClick={openPreview}
