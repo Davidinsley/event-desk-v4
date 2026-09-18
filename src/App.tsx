@@ -12,6 +12,7 @@ import type { Event } from "./types/Event";
 
 import Dashboard from "./components/Dashboard";
 import Booklets from "./components/Booklets";
+import CourseMarkers from "./components/CourseMarkers";
 import MatchBooklets from "./components/MatchBooklets";
 import NewEvent from "./components/NewEvent";
 import Competition from "./components/Competition";
@@ -1585,6 +1586,19 @@ export default function App() {
 
             <li
               className={
+                currentPage === "courseMarkers"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                handleNavigate("courseMarkers")
+              }
+            >
+              🚩 Course Markers
+            </li>
+
+            <li
+              className={
                 currentPage ===
                 "reviewPublish"
                   ? "active"
@@ -2067,6 +2081,10 @@ export default function App() {
               readOnly={archived}
               onBack={() => handleNavigate("new")}
             />
+          )}
+
+          {currentPage === "courseMarkers" && (
+            <CourseMarkers event={event} />
           )}
 
           {currentPage === "matchBooklets" && (
