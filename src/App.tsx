@@ -16,6 +16,8 @@ import CourseMarkers from "./components/CourseMarkers";
 import MatchBooklets from "./components/MatchBooklets";
 import NewEvent from "./components/NewEvent";
 import Competition from "./components/Competition";
+import Prizes from "./components/Prizes";
+import PrizeWinners from "./components/PrizeWinners";
 import Players from "./components/Players";
 import HandicapUpdate from "./components/HandicapUpdate";
 import FieldManagement from "./components/FieldManagement";
@@ -237,7 +239,7 @@ export default function App() {
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
       setShowSplash(false);
-    }, 4000);
+    }, 2000);
 
     return () => {
       window.clearTimeout(splashTimer);
@@ -1355,6 +1357,8 @@ export default function App() {
     (
       currentPage === "new" ||
       currentPage === "competition" ||
+      currentPage === "prizes" ||
+      currentPage === "prizeWinners" ||
       currentPage === "players" ||
       currentPage === "handicap" ||
       currentPage === "field" ||
@@ -1582,6 +1586,32 @@ export default function App() {
               }
             >
               📖 Booklets
+            </li>
+
+            <li
+              className={
+                currentPage === "prizes"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                handleNavigate("prizes")
+              }
+            >
+              🎁 Prizes
+            </li>
+
+            <li
+              className={
+                currentPage === "prizeWinners"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                handleNavigate("prizeWinners")
+              }
+            >
+              🏆 Prize Winners
             </li>
 
             <li
@@ -1967,6 +1997,20 @@ export default function App() {
 
           {currentPage === "competition" && (
             <Competition
+              event={event}
+              setEvent={setEvent}
+            />
+          )}
+
+          {currentPage === "prizes" && (
+            <Prizes
+              event={event}
+              setEvent={setEvent}
+            />
+          )}
+
+          {currentPage === "prizeWinners" && (
+            <PrizeWinners
               event={event}
               setEvent={setEvent}
             />
