@@ -556,7 +556,7 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
 @page { size: A4 portrait; margin: 12mm; }
 * { box-sizing: border-box; }
 body { margin:0; font-family:Arial,Helvetica,sans-serif; color:#173b67; background:#fff; font-size:11px; }
-.toolbar { display:flex; justify-content:flex-end; margin-bottom:12px; }
+.toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
 .toolbar button { border:1px solid #2f75bb; background:#fff; color:#1d5f9f; border-radius:7px; padding:8px 14px; font-weight:700; cursor:pointer; }
 .report-header { border-bottom:3px solid #2f75bb; padding-bottom:10px; margin-bottom:16px; }
 .report-header h1 { margin:0 0 5px; font-size:24px; color:#164f8b; }
@@ -587,7 +587,7 @@ th:nth-child(6),td:nth-child(6){width:16%}
 </style>
 </head>
 <body>
-<div class="toolbar"><button onclick="window.print()">Print / Save as PDF</button></div>
+<div class="toolbar"><button onclick="window.close()">← Back to Prizes</button><button onclick="window.print()">Print / Save as PDF</button></div>
 <header class="report-header">
   <h1>Ramsdale Seniors Event Desk</h1>
   <h3>${escapeHtml(eventTitle)}</h3>
