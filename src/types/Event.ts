@@ -14,6 +14,7 @@ export type PrizeStream =
 
 export type PrizeSource =
   | "Section"
+  | "Comp Fees"
   | "Sponsor"
   | "Donation";
 

@@ -105,7 +105,9 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
   };
 
   const sourceText = (prize: EventPrize) => {
-    if (prize.source === "Section") return "Section";
+    if (prize.source === "Section" || prize.source === "Comp Fees") {
+      return prize.source;
+    }
     const name = prize.sourceName?.trim();
     return name ? `${prize.source}: ${name}` : prize.source;
   };
@@ -207,30 +209,61 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
                           <div className="prize-editor">
                             <label>
                               <span>Prize / Position</span>
-                              <input
-                                type="text"
-                                value={prize.title}
-                                placeholder={
-                                  section.stream === "main"
-                                    ? "e.g. 1st Place"
-                                    : section.stream === "onCourse"
-                                    ? "e.g. Nearest the Pin"
-                                    : section.stream === "special"
-                                    ? "e.g. Beat the Pro"
-                                    : "e.g. Best Individual Man"
-                                }
-                                onChange={(e) =>
-                                  updatePrize(prize.id, "title", e.target.value)
-                                }
-                              />
+                              {section.stream === "main" ? (
+                                <select
+                                  value={prize.title}
+                                  onChange={(e) =>
+                                    updatePrize(prize.id, "title", e.target.value)
+                                  }
+                                >
+                                  <option value="">Select...</option>
+                                  <option value="Winner/s">Winner/s</option>
+                                  <option value="2nd Place">2nd Place</option>
+                                  <option value="3rd Place">3rd Place</option>
+                                  <option value="4th Place">4th Place</option>
+                                  <option value="5th Place">5th Place</option>
+                                  <option value="6th Place">6th Place</option>
+                                  <option value="7th Place">7th Place</option>
+                                  <option value="8th Place">8th Place</option>
+                                  <option value="9th Place">9th Place</option>
+                                  <option value="10th Place">10th Place</option>
+                                </select>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={prize.title}
+                                  placeholder={
+                                    section.stream === "onCourse"
+                                      ? "e.g. Nearest the Pin"
+                                      : section.stream === "special"
+                                      ? "e.g. Beat the Pro"
+                                      : "e.g. Best Individual Man"
+                                  }
+                                  onChange={(e) =>
+                                    updatePrize(prize.id, "title", e.target.value)
+                                  }
+                                />
+                              )}
                             </label>
 
                             <label className="prize-editor-description">
                               <span>Prize Description</span>
-                              <input
-                                type="text"
-                                value={prize.description}
-                                placeholder="e.g. £50 Pro Shop voucher"
+                              <select
+                                value={
+                                  [
+                                    "",
+                                    "Sleeve of Balls",
+                                    "Box of Balls",
+                                    "Pro Shop Voucher",
+                                    "Club Voucher",
+                                    "Cash",
+                                    "Four Ball Voucher",
+                                    "Bottle of Wine",
+                                    "Bottle of Spirit",
+                                  ].includes(prize.description)
+                                    ? prize.description
+                                    : "Other"
+                                }
                                 onChange={(e) =>
                                   updatePrize(
                                     prize.id,
@@ -238,7 +271,59 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
                                     e.target.value
                                   )
                                 }
-                              />
+                              >
+                                <option value="">Select...</option>
+                                <option value="Sleeve of Balls">Sleeve of Balls</option>
+                                <option value="Box of Balls">Box of Balls</option>
+                                <option value="Pro Shop Voucher">Pro Shop Voucher</option>
+                                <option value="Club Voucher">Club Voucher</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Four Ball Voucher">Four Ball Voucher</option>
+                                <option value="Bottle of Wine">Bottle of Wine</option>
+                                <option value="Bottle of Spirit">Bottle of Spirit</option>
+                                <option value="Other">Other</option>
+                              </select>
+
+                              {prize.description === "Other" && (
+                                <input
+                                  type="text"
+                                  value=""
+                                  placeholder="Enter other prize description"
+                                  onChange={(e) =>
+                                    updatePrize(
+                                      prize.id,
+                                      "description",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              )}
+
+                              {prize.description !== "" &&
+                                prize.description !== "Other" &&
+                                ![
+                                  "Sleeve of Balls",
+                                  "Box of Balls",
+                                  "Pro Shop Voucher",
+                                  "Club Voucher",
+                                  "Cash",
+                                  "Four Ball Voucher",
+                                  "Bottle of Wine",
+                                  "Bottle of Spirit",
+                                ].includes(prize.description) && (
+                                  <input
+                                    type="text"
+                                    value={prize.description}
+                                    placeholder="Enter other prize description"
+                                    onChange={(e) =>
+                                      updatePrize(
+                                        prize.id,
+                                        "description",
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                )}
                             </label>
 
                             <label>
@@ -274,12 +359,14 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
                                 }
                               >
                                 <option value="Section">Section</option>
+                                <option value="Comp Fees">Comp Fees</option>
                                 <option value="Sponsor">Sponsor</option>
                                 <option value="Donation">Donation</option>
                               </select>
                             </label>
 
-                            {prize.source !== "Section" && (
+                            {(prize.source === "Sponsor" ||
+                              prize.source === "Donation") && (
                               <label>
                                 <span>
                                   {prize.source === "Sponsor"
