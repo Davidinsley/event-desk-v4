@@ -66,5 +66,9 @@ export interface Event {
   prizeWinnersUseBespokeMessage?: boolean;
   prizeWinnersPublicationMessage?: string;
 
+  // Optional so all existing saved events remain compatible.
+  // When true, this event is shown as the Priority Event.
+  priority?: boolean;
+
   status?: EventStatus;
 }

@@ -45,6 +45,8 @@ interface NewEventProps {
 
   setEvent: React.Dispatch<React.SetStateAction<Event>>;
 
+  onPriorityChange: (priority: boolean) => void;
+
   players: Player[];
 
   attachedPosterIds: string[];
@@ -435,6 +437,8 @@ export default function NewEvent({
   event,
 
   setEvent,
+
+  onPriorityChange,
 
   players,
 
@@ -2984,6 +2988,51 @@ export default function NewEvent({
 
                 }
 
+              </div>
+
+            </div>
+
+            <div className="field">
+
+              <label>
+
+                Priority Event
+
+              </label>
+
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  minHeight: "44px",
+                  padding: "0 12px",
+                  border: "1px solid #d7e2ef",
+                  borderRadius: "7px",
+                  background: event.priority ? "#fff9e8" : "#ffffff",
+                  cursor: "pointer",
+                  boxSizing: "border-box",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={Boolean(event.priority)}
+                  onChange={(e) =>
+                    onPriorityChange(e.target.checked)
+                  }
+                  style={{
+                    width: "18px",
+                    height: "18px",
+                    margin: 0,
+                  }}
+                />
+                <span style={{ fontWeight: 700, color: "#34495e" }}>
+                  Make this the Priority event
+                </span>
+              </label>
+
+              <div className="field-help">
+                Only one event can be Priority. It will appear first on the Event Desk.
               </div>
 
             </div>

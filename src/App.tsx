@@ -1088,6 +1088,54 @@ export default function App() {
     return { label: "DAYS", value: days };
   };
 
+  const handlePriorityChange = (priority: boolean) => {
+    const updatedEvent = {
+      ...event,
+      priority,
+    };
+
+    const nextRecords = eventRecords.map((record) => {
+      if (record.id === activeEventId) {
+        return {
+          ...record,
+          event: updatedEvent,
+        };
+      }
+
+      if (priority && record.event.priority) {
+        return {
+          ...record,
+          event: {
+            ...record.event,
+            priority: false,
+          },
+        };
+      }
+
+      return record;
+    });
+
+    setEvent(updatedEvent);
+    setEventRecords(nextRecords);
+
+    try {
+      localStorage.setItem(
+        EVENT_RECORDS_KEY,
+        JSON.stringify(nextRecords)
+      );
+    } catch (error) {
+      console.error(
+        "Failed to save Event Desk priority",
+        error
+      );
+    }
+  };
+
+  const getEventSortTime = (record: EventRecord) => {
+    const eventDate = parseEventDate(record.event.eventDate);
+    return eventDate ? eventDate.getTime() : Number.POSITIVE_INFINITY;
+  };
+
   const handleOpenEventManager = () => {
     /*
      * Before showing Event Desk, copy the live active-event state back into
@@ -1095,19 +1143,80 @@ export default function App() {
      * eventRecords, while Event Details is rendered from the live state.
      * Keeping the two in step here prevents a stale Published badge appearing
      * in Event Desk when the live event has become Draft.
+     *
+     * Priority is exclusive. If the active event is Priority, clear Priority
+     * from every other stored event before Event Desk is displayed.
      */
     const currentRecord = buildCurrentRecord();
 
-    setEventRecords((records) =>
-      records.map((record) =>
-        record.id === activeEventId
-          ? currentRecord
-          : record
-      )
-    );
+    setEventRecords((records) => {
+      const nextRecords = records.map((record) => {
+        if (record.id === activeEventId) {
+          return currentRecord;
+        }
+
+        if (currentRecord.event.priority && record.event.priority) {
+          return {
+            ...record,
+            event: {
+              ...record.event,
+              priority: false,
+            },
+          };
+        }
+
+        return record;
+      });
+
+      try {
+        localStorage.setItem(
+          EVENT_RECORDS_KEY,
+          JSON.stringify(nextRecords)
+        );
+      } catch (error) {
+        console.error(
+          "Failed to persist Event Desk priority cleanup",
+          error
+        );
+      }
+
+      return nextRecords;
+    });
 
     setRecentEventsOnly(false);
     setCurrentPage("eventManager");
+  };
+
+  const priorityEventRecord =
+    eventRecords.find(
+      (record) => !record.archived && record.event.priority
+    );
+
+  const handleOpenPriorityEvent = () => {
+    const record = eventRecords.find(
+      (item) => !item.archived && item.event.priority
+    );
+
+    if (!record) {
+      handleOpenEventManager();
+      return;
+    }
+
+    setActiveEventId(record.id);
+    setCurrentWorkingEventId(record.id);
+    setEvent(record.event);
+    setPlayers(record.players);
+    setAttachedPosterIds(
+      record.attachedPosterIds ??
+        (record.attachedPosterId ? [record.attachedPosterId] : [])
+    );
+    setPreviewPosterId(null);
+    setDrawPreviewData(null);
+    setPublished(record.published);
+    setPublishedSnapshot(record.publishedSnapshot);
+    setPublicationMeta(record.publicationMeta);
+    setArchived(false);
+    setCurrentPage("new");
   };
 
   const handleOpenRecentEvents = () => {
@@ -1134,35 +1243,6 @@ export default function App() {
    *
    * It also never creates a new event or increases the event number.
    */
-  const handleContinueEvent = () => {
-    const record = eventRecords.find(
-      (item) =>
-        item.id === currentWorkingEventId && !item.archived
-    );
-
-    if (!record) {
-      handleOpenEventManager();
-      return;
-    }
-
-    setActiveEventId(record.id);
-
-    if (!record.archived) {
-      setCurrentWorkingEventId(record.id);
-    }
-
-    setEvent(record.event);
-    setPlayers(record.players);
-    setAttachedPosterIds(record.attachedPosterIds ?? (record.attachedPosterId ? [record.attachedPosterId] : []));
-    setPreviewPosterId(null);
-    setDrawPreviewData(null);
-    setPublished(record.published);
-    setPublishedSnapshot(record.publishedSnapshot);
-    setPublicationMeta(record.publicationMeta);
-    setArchived(false);
-    setCurrentPage("new");
-  };
-
   const handleNewEvent = () => {
     const newEvent: Event = {
       eventNumber: getNextEventNumber(),
@@ -1438,25 +1518,50 @@ export default function App() {
         </div>
 
         {eventOpen && (
-          <button
-            type="button"
-            onClick={handleOpenEventManager}
+          <div
             style={{
               position: "absolute",
               right: "28px",
               bottom: "18px",
-              border: "1px solid #2f6db5",
-              borderRadius: "10px",
-              padding: "10px 16px",
-              background: "white",
-              color: "#1f5b9f",
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+              display: "flex",
+              gap: "10px",
+              alignItems: "center",
             }}
           >
-            📋 Event Desk
-          </button>
+            <button
+              type="button"
+              onClick={() => handleNavigate("dashboard")}
+              style={{
+                border: "1px solid #2f6db5",
+                borderRadius: "10px",
+                padding: "10px 16px",
+                background: "white",
+                color: "#1f5b9f",
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+              }}
+            >
+              🏠 Main Menu
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenEventManager}
+              style={{
+                border: "1px solid #2f6db5",
+                borderRadius: "10px",
+                padding: "10px 16px",
+                background: "white",
+                color: "#1f5b9f",
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+              }}
+            >
+              📋 Event Desk
+            </button>
+          </div>
         )}
 
       </header>
@@ -1726,29 +1831,56 @@ export default function App() {
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={
-                    recentEventsOnly
-                      ? () => handleNavigate("dashboard")
-                      : handleNewEvent
-                  }
+                <div
                   style={{
-                    border: "none",
-                    borderRadius: "10px",
-                    padding: "14px 22px",
-                    background: "#2468b3",
-                    color: "white",
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    boxShadow: "0 3px 8px rgba(36,104,179,0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
                   }}
                 >
-                  {recentEventsOnly
-                    ? "← Main Menu"
-                    : "+ New Event"}
-                </button>
+                  {!recentEventsOnly && (
+                    <button
+                      type="button"
+                      onClick={() => handleNavigate("dashboard")}
+                      style={{
+                        border: "1px solid #2468b3",
+                        borderRadius: "10px",
+                        padding: "13px 20px",
+                        background: "white",
+                        color: "#205b9f",
+                        fontSize: "16px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      🏠 Main Menu
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={
+                      recentEventsOnly
+                        ? () => handleNavigate("dashboard")
+                        : handleNewEvent
+                    }
+                    style={{
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "14px 22px",
+                      background: "#2468b3",
+                      color: "white",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      boxShadow: "0 3px 8px rgba(36,104,179,0.25)",
+                    }}
+                  >
+                    {recentEventsOnly
+                      ? "← Main Menu"
+                      : "+ New Event"}
+                  </button>
+                </div>
               </div>
 
               <div
@@ -1764,10 +1896,26 @@ export default function App() {
                       isPastCompletedEvent(record)
                   )
                   .slice()
-                  .sort((a, b) =>
-                    Number.parseInt(b.event.eventNumber, 10) -
-                    Number.parseInt(a.event.eventNumber, 10)
-                  )
+                  .sort((a, b) => {
+                    const aPriority = Boolean(a.event.priority);
+                    const bPriority = Boolean(b.event.priority);
+
+                    if (aPriority !== bPriority) {
+                      return aPriority ? -1 : 1;
+                    }
+
+                    const dateDifference =
+                      getEventSortTime(a) - getEventSortTime(b);
+
+                    if (dateDifference !== 0) {
+                      return dateDifference;
+                    }
+
+                    return (
+                      Number.parseInt(a.event.eventNumber, 10) -
+                      Number.parseInt(b.event.eventNumber, 10)
+                    );
+                  })
                   .map((record) => {
                     /*
                      * Keep the Event Desk status badge in step with the
@@ -1814,8 +1962,10 @@ export default function App() {
                       <div
                         key={record.id}
                         style={{
-                          background: "white",
-                          border: "1px solid #dbe7f3",
+                          background: record.event.priority ? "#fffaf0" : "white",
+                          border: record.event.priority
+                            ? "1px solid #ead8a6"
+                            : "1px solid #dbe7f3",
                           borderRadius: "14px",
                           padding: "20px 24px",
                           display: "grid",
@@ -1889,6 +2039,21 @@ export default function App() {
                             gap: "12px",
                           }}
                         >
+                          {record.event.priority && (
+                            <span
+                              style={{
+                                background: "#fff3cd",
+                                color: "#8a6514",
+                                borderRadius: "999px",
+                                padding: "8px 12px",
+                                fontWeight: 700,
+                                fontSize: "13px",
+                              }}
+                            >
+                              Priority
+                            </span>
+                          )}
+
                           <span
                             style={{
                               background: statusBackground,
@@ -1963,9 +2128,26 @@ export default function App() {
           {currentPage === "dashboard" && (
             <Dashboard
               onNewEvent={handleNewEvent}
-              onContinueEvent={handleContinueEvent}
+              onPriorityEvent={handleOpenPriorityEvent}
+              onEventDesk={handleOpenEventManager}
               onRecentEvents={handleOpenRecentEvents}
               onMatchBooklets={handleOpenMatchBooklets}
+              priorityEventName={priorityEventRecord?.event.eventName}
+              priorityEventDate={priorityEventRecord?.event.eventDate}
+              priorityEventCountdown={
+                priorityEventRecord
+                  ? (() => {
+                      const countdown = getEventCountdown(
+                        priorityEventRecord.event.eventDate
+                      );
+
+                      if (countdown.value === "—") return "";
+                      if (countdown.label === "PAST") return "Past";
+
+                      return `${countdown.value} days`;
+                    })()
+                  : ""
+              }
             />
           )}
 
@@ -1976,6 +2158,7 @@ export default function App() {
               published={isCurrentlyPublished}
               archived={archived}
               setEvent={setEvent}
+              onPriorityChange={handlePriorityChange}
               attachedPosterIds={
                 attachedPosterIds
               }

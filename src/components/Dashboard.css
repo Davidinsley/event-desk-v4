@@ -1,11 +1,12 @@
 /* Dashboard.css */
 /* Ramsdale Seniors Event Desk */
-/* Revision: Three tall uniform dashboard tiles with descriptors */
+/* Revision: Four uniform dashboard tiles with separate Past Events button */
 
 .dashboard-screen {
   width: 100%;
   min-height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 42px 38px;
@@ -34,14 +35,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 8px rgba(40, 90, 140, 0.05), 0 12px 28px rgba(40, 90, 140, 0.06);
-  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 3px 8px rgba(40, 90, 140, 0.05),
+    0 12px 28px rgba(40, 90, 140, 0.06);
+  transition: transform 0.18s ease, border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .dashboard-card:hover {
   transform: translateY(-4px);
   border-color: #7eb5e8;
-  box-shadow: 0 8px 18px rgba(40, 90, 140, 0.09), 0 18px 36px rgba(40, 90, 140, 0.08);
+  box-shadow: 0 8px 18px rgba(40, 90, 140, 0.09),
+    0 18px 36px rgba(40, 90, 140, 0.08);
 }
 
 .dashboard-card:focus-visible {
@@ -90,6 +94,54 @@
   font-weight: 400;
 }
 
+/* Priority Event retains the subtle gold treatment supplied by Dashboard.tsx. */
+
+/* Past Events is deliberately separate from the four main dashboard tiles. */
+.dashboard-secondary-row {
+  width: 100%;
+  max-width: 1320px;
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.dashboard-secondary-button {
+  min-width: 250px;
+  min-height: 56px;
+  padding: 12px 28px;
+  border: 2px solid #a9cef0;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #174f91;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 3px 8px rgba(40, 90, 140, 0.05);
+  transition: transform 0.18s ease, border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.dashboard-secondary-button:hover {
+  transform: translateY(-2px);
+  border-color: #7eb5e8;
+  box-shadow: 0 6px 14px rgba(40, 90, 140, 0.09);
+}
+
+.dashboard-secondary-button:focus-visible {
+  outline: 3px solid rgba(77, 159, 232, 0.35);
+  outline-offset: 4px;
+}
+
+.dashboard-secondary-button .dashboard-icon {
+  width: 28px;
+  height: 24px;
+}
+
 @media (max-width: 900px) {
   .dashboard-screen {
     padding: 28px 20px;
@@ -117,6 +169,10 @@
   .dashboard-card-description {
     font-size: 16px;
   }
+
+  .dashboard-secondary-row {
+    margin-top: 22px;
+  }
 }
 
 @media (max-width: 680px) {
@@ -127,5 +183,13 @@
 
   .dashboard-card {
     height: 280px;
+  }
+
+  .dashboard-secondary-row {
+    max-width: 420px;
+  }
+
+  .dashboard-secondary-button {
+    width: 100%;
   }
 }

@@ -6,9 +6,13 @@ import "./Dashboard.css";
 
 interface DashboardProps {
   onNewEvent: () => void;
-  onContinueEvent: () => void;
+  onPriorityEvent: () => void;
+  onEventDesk: () => void;
   onRecentEvents: () => void;
   onMatchBooklets: () => void;
+  priorityEventName?: string;
+  priorityEventDate?: string;
+  priorityEventCountdown?: string;
 }
 
 function NewEventIcon() {
@@ -20,22 +24,46 @@ function NewEventIcon() {
   );
 }
 
-function FolderIcon() {
+function PriorityIcon() {
   return (
-    <svg className="dashboard-icon dashboard-folder-icon" viewBox="0 0 100 80" aria-hidden="true">
-      <path d="M8 22h30l9 10h45v34c0 5-4 8-9 8H17c-5 0-9-3-9-8V22z" />
-      <path d="M8 22v-4c0-5 4-8 9-8h24l9 10" />
+    <svg className="dashboard-icon" viewBox="0 0 100 80" aria-hidden="true">
+      <path d="M28 68V12" />
+      <path d="M29 15h43l-9 13 9 13H29" />
+    </svg>
+  );
+}
+
+function EventDeskIcon() {
+  return (
+    <svg className="dashboard-icon" viewBox="0 0 100 80" aria-hidden="true">
+      <rect x="18" y="14" width="64" height="52" rx="5" />
+      <line x1="30" y1="28" x2="70" y2="28" />
+      <line x1="30" y1="40" x2="70" y2="40" />
+      <line x1="30" y1="52" x2="58" y2="52" />
     </svg>
   );
 }
 
 function HistoryIcon() {
   return (
-    <svg className="dashboard-icon" viewBox="0 0 100 80" aria-hidden="true">
+    <svg
+      viewBox="0 0 100 80"
+      aria-hidden="true"
+      style={{
+        width: "28px",
+        height: "24px",
+        display: "block",
+        flex: "0 0 28px",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 4.5,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+      }}
+    >
       <circle cx="58" cy="40" r="24" />
       <line x1="58" y1="40" x2="58" y2="25" />
       <line x1="58" y1="40" x2="69" y2="47" />
-
       <line x1="31" y1="40" x2="12" y2="40" />
       <polyline points="19,32 11,40 19,48" />
     </svg>
@@ -56,10 +84,16 @@ function OpenBookIcon() {
 
 function Dashboard({
   onNewEvent,
-  onContinueEvent,
+  onPriorityEvent,
+  onEventDesk,
   onRecentEvents,
   onMatchBooklets,
+  priorityEventName,
+  priorityEventDate,
+  priorityEventCountdown,
 }: DashboardProps) {
+  const hasPriorityEvent = Boolean(priorityEventName);
+
   return (
     <section className="dashboard-screen">
       <div className="dashboard-grid">
@@ -73,29 +107,43 @@ function Dashboard({
           </span>
         </button>
 
-        <button type="button" className="dashboard-card" onClick={onContinueEvent}>
+        <button
+          type="button"
+          className="dashboard-card"
+          onClick={onPriorityEvent}
+          style={{
+            background: hasPriorityEvent ? "#fffaf0" : undefined,
+            borderColor: hasPriorityEvent ? "#e9cf8a" : undefined,
+          }}
+        >
           <span className="dashboard-card-content">
-            <FolderIcon />
-            <span className="dashboard-card-title">
-              <span>Continue</span>
-              <span>Current Event</span>
-            </span>
+            <PriorityIcon />
+            <span className="dashboard-card-title">Priority Event</span>
             <span className="dashboard-card-description">
-              Resume the current event without creating a new one.
+              {hasPriorityEvent ? (
+                <>
+                  <strong style={{ color: "#174f91" }}>{priorityEventName}</strong>
+                  <br />
+                  {priorityEventDate || "Date not yet entered"}
+                  {priorityEventCountdown ? ` • ${priorityEventCountdown}` : ""}
+                </>
+              ) : (
+                <>
+                  <strong>No Priority Event Set</strong>
+                  <br />
+                  Open Event Desk to select one.
+                </>
+              )}
             </span>
           </span>
         </button>
 
-        <button
-          type="button"
-          className="dashboard-card"
-          onClick={onRecentEvents}
-        >
+        <button type="button" className="dashboard-card" onClick={onEventDesk}>
           <span className="dashboard-card-content">
-            <HistoryIcon />
-            <span className="dashboard-card-title">Past Events</span>
+            <EventDeskIcon />
+            <span className="dashboard-card-title">Event Desk</span>
             <span className="dashboard-card-description">
-              View and reopen previously created events.
+              View, prioritise and manage all current events.
             </span>
           </span>
         </button>
@@ -112,6 +160,41 @@ function Dashboard({
               Create and print booklets for home matches.
             </span>
           </span>
+        </button>
+      </div>
+
+      <div
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+          marginTop: "24px",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onRecentEvents}
+          style={{
+            width: "240px",
+            minHeight: "52px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+            padding: "10px 20px",
+            border: "1px solid #9fc9ef",
+            borderRadius: "12px",
+            background: "#ffffff",
+            color: "#174f91",
+            fontWeight: 700,
+            fontSize: "15px",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            boxSizing: "border-box",
+          }}
+        >
+          <HistoryIcon />
+          <span>Past Events</span>
         </button>
       </div>
     </section>
