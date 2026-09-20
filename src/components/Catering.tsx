@@ -305,6 +305,8 @@ export default function Catering({ players }: CateringProps) {
     null
   );
   const [menuPdfLibrary, setMenuPdfLibrary] = useState<MenuPdfRecord[]>([]);
+  // Hidden organiser override. Session-only: deliberately not saved.
+  const [kitchenOverrideUnlocked, setKitchenOverrideUnlocked] = useState(false);
 
   const activeEvent = readActiveEvent();
   const eventDate = activeEvent?.event?.eventDate || "";
@@ -315,9 +317,12 @@ export default function Catering({ players }: CateringProps) {
   const clubAdviceWarning =
     daysUntilEvent !== null && daysUntilEvent <= 21 && !data.clubAdvised;
 
+  const archived = Boolean(activeEvent?.archived);
+  const kitchenDeadlineLocked =
+    daysUntilEvent !== null && daysUntilEvent <= 14;
   const locked =
-    Boolean(activeEvent?.archived) ||
-    (daysUntilEvent !== null && daysUntilEvent <= 14);
+    archived ||
+    (kitchenDeadlineLocked && !kitchenOverrideUnlocked);
 
   useEffect(() => {
     loadMenuPdfLibrary()
@@ -330,6 +335,10 @@ export default function Catering({ players }: CateringProps) {
     setData(loaded);
     setSelectedPackage(loaded.selectedPackage);
   }, [activeEvent?.id, players.length]);
+
+  useEffect(() => {
+    setKitchenOverrideUnlocked(false);
+  }, [activeEvent?.id]);
 
   const updateData = (
     updater: (current: CateringData) => CateringData
@@ -623,9 +632,38 @@ export default function Catering({ players }: CateringProps) {
   const deadlineValue =
     daysUntilEvent === null
       ? "—"
-      : daysUntilEvent <= 14
-        ? "LOCKED"
+      : kitchenDeadlineLocked
+        ? kitchenOverrideUnlocked && !archived
+          ? "UNLOCKED"
+          : "LOCKED"
         : String(daysUntilEvent - 14);
+
+  const handleKitchenDeadlineDoubleClick = () => {
+    // Hidden organiser facility: only available for the 14-day deadline lock.
+    // Archived events can never be unlocked by this override.
+    if (!kitchenDeadlineLocked || archived) {
+      return;
+    }
+
+    if (kitchenOverrideUnlocked) {
+      const relock = window.confirm(
+        "Catering changes are temporarily unlocked for this event.\n\nRelock them now?"
+      );
+
+      if (relock) {
+        setKitchenOverrideUnlocked(false);
+      }
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Temporarily unlock catering changes for this event?\n\nThis organiser override lasts only for the current session."
+    );
+
+    if (confirmed) {
+      setKitchenOverrideUnlocked(true);
+    }
+  };
 
   const summary = (
     <div className="page-summary catering-summary">
@@ -658,8 +696,9 @@ export default function Catering({ players }: CateringProps) {
 
       <div
         className={`summary-card countdown-card ${
-          daysUntilEvent !== null && daysUntilEvent <= 14 ? "urgent" : ""
+          kitchenDeadlineLocked && !kitchenOverrideUnlocked ? "urgent" : ""
         }`}
+        onDoubleClick={handleKitchenDeadlineDoubleClick}
       >
         <span className="summary-card-title">Kitchen Deadline</span>
         <strong className="summary-card-value">{deadlineValue}</strong>
@@ -918,6 +957,15 @@ export default function Catering({ players }: CateringProps) {
           <span>
             Catering changes are locked because the event is within 14 days
             or has been archived.
+          </span>
+        </div>
+      )}
+
+      {kitchenOverrideUnlocked && !archived && (
+        <div className="catering-lock-note">
+          <Lock size={16} />
+          <span>
+            Kitchen deadline temporarily unlocked for this session.
           </span>
         </div>
       )}
