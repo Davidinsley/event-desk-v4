@@ -1545,6 +1545,31 @@ export default function App() {
               🏠 Main Menu
             </button>
 
+            {currentPage === "prizes" && (
+              <button
+                type="button"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new Event("event-desk:print-prize-report")
+                  )
+                }
+                title="Print / Export Prize Report"
+                aria-label="Print / Export Prize Report"
+                style={{
+                  border: "1px solid #2f6db5",
+                  borderRadius: "10px",
+                  padding: "10px 16px",
+                  background: "white",
+                  color: "#1f5b9f",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                }}
+              >
+                🖨 / Export
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleOpenEventManager}

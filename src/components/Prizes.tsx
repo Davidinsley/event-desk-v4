@@ -1,6 +1,6 @@
 // Prizes.tsx — Four-panel Event Desk prize management
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
   Event,
@@ -128,6 +128,24 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
     );
 
   const overallPrizeTotal = prizeTotal(prizes);
+
+  const sourceTotal = (source: PrizeSource) =>
+    prizeTotal(prizes.filter((prize) => prize.source === source));
+
+  const sectionPrizeTotal = sourceTotal("Section");
+  const compFeesPrizeTotal = sourceTotal("Comp Fees");
+  const donationPrizeTotal = sourceTotal("Donation");
+  const sponsorPrizeTotal = sourceTotal("Sponsor");
+
+  useEffect(() => {
+    const handlePrintPrizeReport = () => {
+      document.getElementById("prize-liability-report-button")?.click();
+    };
+
+    window.addEventListener("event-desk:print-prize-report", handlePrintPrizeReport);
+    return () =>
+      window.removeEventListener("event-desk:print-prize-report", handlePrintPrizeReport);
+  }, []);
 
   return (
     <div className="prizes-page">
@@ -491,10 +509,11 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
 
       <div
         className="prizes-overall-total"
-        style={{ justifyContent: "flex-start" }}
+        style={{ display: "none" }}
       >
         <button
           type="button"
+          id="prize-liability-report-button"
           className="prize-add-button"
           onClick={() => {
             const reportWindow = window.open("", "_blank", "width=1000,height=800");
@@ -605,6 +624,71 @@ ${sectionHtml}
         </button>
         <span style={{ marginLeft: "auto" }}>Total Value of All Prizes</span>
         <strong>£{overallPrizeTotal.toFixed(2)}</strong>
+      </div>
+
+      <div
+        style={{
+          marginTop: "16px",
+          display: "grid",
+          gridTemplateColumns: "minmax(250px, 1.55fr) repeat(5, minmax(115px, 1fr))",
+          alignItems: "stretch",
+          border: "1px solid #cfe1f2",
+          borderRadius: "12px",
+          background: "#ffffff",
+          boxShadow: "0 4px 14px rgba(31, 84, 137, 0.08)",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ padding: "18px 20px", borderRight: "1px solid #d9e5ef" }}>
+          <strong style={{ display: "block", color: "#1260b3", fontSize: "20px", marginBottom: "5px" }}>
+            Prize Funding Breakdown
+          </strong>
+          <span style={{ color: "#73869a" }}>Total prize value split by funding source</span>
+        </div>
+
+        {[
+          ["Section", sectionPrizeTotal],
+          ["Comp Fees", compFeesPrizeTotal],
+          ["Donations", donationPrizeTotal],
+          ["Sponsors", sponsorPrizeTotal],
+        ].map(([label, total]) => (
+          <div
+            key={String(label)}
+            style={{
+              padding: "18px 14px",
+              borderRight: "1px solid #d9e5ef",
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: "5px",
+            }}
+          >
+            <strong style={{ color: "#174f89", fontSize: "14px" }}>{label}</strong>
+            <strong style={{ color: "#123f70", fontSize: "22px" }}>
+              £{Number(total).toFixed(2)}
+            </strong>
+          </div>
+        ))}
+
+        <div
+          style={{
+            margin: "10px",
+            padding: "10px 14px",
+            borderRadius: "9px",
+            background: "#eef6fd",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            gap: "5px",
+          }}
+        >
+          <strong style={{ color: "#1260b3", fontSize: "14px" }}>Total Prize Value</strong>
+          <strong style={{ color: "#0b4fa0", fontSize: "24px" }}>
+            £{overallPrizeTotal.toFixed(2)}
+          </strong>
+        </div>
       </div>
     </div>
   );

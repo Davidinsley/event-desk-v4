@@ -46,6 +46,8 @@ import {
   Gift,
   PoundSterling,
   Pencil,
+  Printer,
+  FileDown,
 } from "lucide-react";
 
 interface FinancialsProps {
@@ -277,6 +279,89 @@ export default function Financials({ players = [] }: FinancialsProps) {
     basicIncome -
     basicOutgoings -
     data.charity;
+
+  const printFinancialSummary = () => {
+    const eventTitle =
+      (activeEvent?.event as { eventName?: string; name?: string; title?: string } | undefined)?.eventName ||
+      (activeEvent?.event as { eventName?: string; name?: string; title?: string } | undefined)?.name ||
+      (activeEvent?.event as { eventName?: string; name?: string; title?: string } | undefined)?.title ||
+      "Event Financial Summary";
+
+    const eventDate = activeEvent?.event?.eventDate || "";
+    const miscellaneousText = data.miscellaneousItems.trim() || "None recorded";
+
+    const printWindow = window.open("", "_blank", "width=900,height=1100");
+
+    if (!printWindow) {
+      window.alert("Unable to open the print window. Please allow pop-ups and try again.");
+      return;
+    }
+
+    const row = (label: string, value: string, strong = false) => `
+      <tr${strong ? ' class="total"' : ""}>
+        <td>${label}</td>
+        <td>${value}</td>
+      </tr>`;
+
+    printWindow.document.write(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${eventTitle} - Financial Summary</title>
+  <style>
+    @page { size: A4; margin: 16mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #24364b; margin: 0; }
+    h1 { color: #1755a5; margin: 0 0 4px; font-size: 28px; }
+    h2 { color: #1755a5; margin: 24px 0 8px; font-size: 19px; }
+    .sub { color: #64748b; margin-bottom: 22px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+    td { border-bottom: 1px solid #dbe5ef; padding: 9px 10px; }
+    td:last-child { text-align: right; font-weight: 700; }
+    .total td { border-top: 2px solid #1755a5; border-bottom: 2px solid #1755a5; color: #1755a5; font-size: 17px; }
+    .notes { border: 1px solid #dbe5ef; border-radius: 8px; padding: 12px; white-space: pre-wrap; min-height: 54px; }
+    .footer { margin-top: 26px; color: #64748b; font-size: 11px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Ramsdale Seniors Event Desk</h1>
+  <div class="sub"><strong>${eventTitle}</strong>${eventDate ? ` &nbsp;•&nbsp; ${eventDate}` : ""}<br />Financial Summary</div>
+
+  <h2>Income</h2>
+  <table>
+    ${row(`Entry Fees (${playerCount} players × ${formatCurrency(entryFee)})`, formatCurrency(entryFeeIncome))}
+    ${row("Sponsorship", formatCurrency(data.sponsorship))}
+    ${row("Section Support", formatCurrency(data.sectionSupport))}
+    ${row("Basic Income", formatCurrency(basicIncome), true)}
+  </table>
+
+  <h2>Outgoings</h2>
+  <table>
+    ${row("Green Fees", formatCurrency(data.greenFees))}
+    ${row("Food Charge", formatCurrency(cateringCharge))}
+    ${row("Prize Fund", formatCurrency(data.prizeFund))}
+    ${row("Miscellaneous", formatCurrency(data.miscellaneous))}
+    ${row("Basic Outgoings", formatCurrency(basicOutgoings), true)}
+  </table>
+
+  <h2>Miscellaneous Items</h2>
+  <div class="notes">${miscellaneousText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+
+  <h2>Final Position</h2>
+  <table>
+    ${row("Basic Income", formatCurrency(basicIncome))}
+    ${row("Basic Outgoings", `− ${formatCurrency(basicOutgoings)}`)}
+    ${row("Charity", `− ${formatCurrency(data.charity)}`)}
+    ${row("Surplus to Section", formatCurrency(surplusToSection), true)}
+  </table>
+
+  <div class="footer">Ramsdale Seniors Event Desk — Event Financial Summary</div>
+  <script>window.onload = () => { window.focus(); window.print(); };<\/script>
+</body>
+</html>`);
+
+    printWindow.document.close();
+  };
 
   const updateValue = (
     field: keyof FinancialData,
@@ -632,6 +717,65 @@ export default function Financials({ players = [] }: FinancialsProps) {
               </strong>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="financial-card" style={{ marginTop: "18px" }}>
+        <div className="financial-card-header">
+          <div>
+            <h2>Print & Export</h2>
+            <p>Produce a clean A4 Event Financial Summary for printing or saving as PDF.</p>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "12px",
+            paddingTop: "4px",
+          }}
+        >
+          <button
+            type="button"
+            onClick={printFinancialSummary}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "11px 18px",
+              border: "1px solid #2f75c9",
+              borderRadius: "9px",
+              background: "#ffffff",
+              color: "#1755a5",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            <Printer size={19} />
+            Print Summary
+          </button>
+
+          <button
+            type="button"
+            onClick={printFinancialSummary}
+            title="Opens the print dialog — choose Save as PDF to export"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "11px 18px",
+              border: "1px solid #2f75c9",
+              borderRadius: "9px",
+              background: "#eaf4ff",
+              color: "#1755a5",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            <FileDown size={19} />
+            Export PDF
+          </button>
         </div>
       </section>
     </PageLayout>
