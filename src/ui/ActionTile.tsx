@@ -13,6 +13,7 @@ interface ActionTileProps {
     onClick?: () => void;
     primary?: boolean;
     disabled?: boolean;
+    warning?: "amber" | "red";
 }
 
 function ActionTile({
@@ -22,11 +23,27 @@ function ActionTile({
     onClick,
     primary = false,
     disabled = false,
+    warning,
 }: ActionTileProps) {
     return (
         <button
             type="button"
-            className={`action-tile${primary ? " primary" : ""}`}
+            className={`action-tile${primary ? " primary" : ""}${warning ? ` warning-${warning}` : ""}`}
+            style={
+                warning === "red"
+                    ? {
+                        background: "#fdecec",
+                        borderColor: "#efb4b4",
+                        color: "#b42318",
+                    }
+                    : warning === "amber"
+                    ? {
+                        background: "#fff7e6",
+                        borderColor: "#f2d39b",
+                        color: "#8a5a00",
+                    }
+                    : undefined
+            }
             onClick={onClick}
             disabled={disabled}
         >

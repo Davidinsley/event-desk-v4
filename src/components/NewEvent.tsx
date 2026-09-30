@@ -72,6 +72,7 @@ const DEFAULT_VENUE = "Ramsdale Park Golf Club";
 const CATERING_KEY_PREFIX = "eventDeskCateringV1:";
 const EVENT_RECORDS_KEY = "eventDeskEventRecords";
 const ACTIVE_EVENT_ID_KEY = "eventDeskActiveEventId";
+const CHECKLIST_STORAGE_PREFIX = "eventDeskChecklistV1:";
 
 const VENUE_STORAGE_KEY = "eventDeskVenues";
 
@@ -2576,6 +2577,57 @@ export default function NewEvent({
 
   );
 
+  const checklistWarning = useMemo<"amber" | "red" | undefined>(() => {
+    try {
+      const saved = localStorage.getItem(
+        `${CHECKLIST_STORAGE_PREFIX}${event.eventNumber}`
+      );
+
+      if (!saved) return undefined;
+
+      const tasks = JSON.parse(saved) as Array<{
+        status?: string;
+        dueDate?: string;
+      }>;
+
+      if (!Array.isArray(tasks)) return undefined;
+
+      const today = new Date();
+      const todayUtc = Date.UTC(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+
+      let hasDueSoon = false;
+
+      for (const task of tasks) {
+        if (task.status === "complete" || !task.dueDate) continue;
+
+        const [year, month, day] = task.dueDate.split("-").map(Number);
+        if (!year || !month || !day) continue;
+
+        const dueUtc = Date.UTC(year, month - 1, day);
+        const daysUntilDue = Math.round(
+          (dueUtc - todayUtc) / 86400000
+        );
+
+        if (daysUntilDue < 0) {
+          return "red";
+        }
+
+        if (daysUntilDue <= 7) {
+          hasDueSoon = true;
+        }
+      }
+
+      return hasDueSoon ? "amber" : undefined;
+    } catch (error) {
+      console.error("Failed to read checklist warning status", error);
+      return undefined;
+    }
+  }, [event.eventNumber]);
+
   const actions = (
 
     <div className="players-actions">
@@ -2623,6 +2675,8 @@ export default function NewEvent({
         title="To Do / Checklist"
 
         subtitle="Event"
+
+        warning={checklistWarning}
 
         onClick={onOpenChecklist}
 

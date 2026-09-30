@@ -375,6 +375,49 @@ export default function EventChecklist({
       <div style={{ background: "white", border: "1px solid #dbe7f3", borderRadius: "14px", overflow: "hidden", boxShadow: "0 2px 8px rgba(31,91,159,0.06)" }}>
         {filteredTasks.map((task, index) => {
           const done = task.status === "complete";
+
+          const today = new Date();
+          const todayUtc = Date.UTC(
+            today.getFullYear(),
+            today.getMonth(),
+            today.getDate()
+          );
+
+          const daysUntilDue = task.dueDate
+            ? (() => {
+                const [year, month, day] = task.dueDate.split("-").map(Number);
+                const dueUtc = Date.UTC(year, month - 1, day);
+                return Math.round((dueUtc - todayUtc) / 86400000);
+              })()
+            : null;
+
+          const overdue =
+            !done && daysUntilDue !== null && daysUntilDue < 0;
+
+          const dueSoon =
+            !done &&
+            daysUntilDue !== null &&
+            daysUntilDue >= 0 &&
+            daysUntilDue <= 7;
+
+          const dueBadgeStyle = overdue
+            ? {
+                background: "#fdecec",
+                border: "1px solid #efb4b4",
+                color: "#b42318",
+              }
+            : dueSoon
+            ? {
+                background: "#fff7e6",
+                border: "1px solid #f2d39b",
+                color: "#8a5a00",
+              }
+            : {
+                background: "#eef5fc",
+                border: "1px solid #d7e6f5",
+                color: "#52657a",
+              };
+
           return (
             <div
               key={task.id}
@@ -468,9 +511,7 @@ export default function EventChecklist({
                             marginLeft: "8px",
                             padding: "3px 8px",
                             borderRadius: "999px",
-                            background: "#fff7e6",
-                            border: "1px solid #f2d39b",
-                            color: "#8a5a00",
+                            ...dueBadgeStyle,
                             fontSize: "12px",
                             fontWeight: 700,
                           }}
