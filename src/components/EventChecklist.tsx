@@ -462,7 +462,19 @@ export default function EventChecklist({
                         {task.category}
                       </span>
                       {task.dueDate && (
-                        <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "12px", fontWeight: 600 }}>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            marginLeft: "8px",
+                            padding: "3px 8px",
+                            borderRadius: "999px",
+                            background: "#fff7e6",
+                            border: "1px solid #f2d39b",
+                            color: "#8a5a00",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                          }}
+                        >
                           Due: {new Date(`${task.dueDate}T00:00:00`).toLocaleDateString("en-GB")}
                         </span>
                       )}
