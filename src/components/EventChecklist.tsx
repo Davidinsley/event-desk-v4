@@ -10,23 +10,65 @@ interface EventChecklistProps {
 
 type TaskStatus = "todo" | "complete";
 
+type TaskCategory =
+  | "Event Details"
+  | "Competition"
+  | "Players"
+  | "Field & Draw"
+  | "Catering"
+  | "Posters"
+  | "Financials"
+  | "Booklets"
+  | "General";
+
 interface ChecklistTask {
   id: string;
   text: string;
   status: TaskStatus;
+  category: TaskCategory;
 }
+
+const categories: TaskCategory[] = [
+  "Event Details",
+  "Competition",
+  "Players",
+  "Field & Draw",
+  "Catering",
+  "Posters",
+  "Financials",
+  "Booklets",
+  "General",
+];
 
 const STORAGE_PREFIX = "eventDeskChecklistV1:";
 
 const starterTasks = (): ChecklistTask[] => [
-  { id: "event-details", text: "Confirm event details", status: "todo" },
-  { id: "competition", text: "Confirm competition format and rules", status: "todo" },
-  { id: "players", text: "Confirm player field / start sheet", status: "todo" },
-  { id: "catering", text: "Confirm catering arrangements", status: "todo" },
-  { id: "posters", text: "Prepare / attach event poster", status: "todo" },
-  { id: "financials", text: "Check entry fee and event finances", status: "todo" },
-  { id: "booklet", text: "Prepare event booklet / print material", status: "todo" },
+  { id: "event-details", text: "Confirm event details", status: "todo", category: "Event Details" },
+  { id: "competition", text: "Confirm competition format and rules", status: "todo", category: "Competition" },
+  { id: "players", text: "Confirm player field / start sheet", status: "todo", category: "Players" },
+  { id: "catering", text: "Confirm catering arrangements", status: "todo", category: "Catering" },
+  { id: "posters", text: "Prepare / attach event poster", status: "todo", category: "Posters" },
+  { id: "financials", text: "Check entry fee and event finances", status: "todo", category: "Financials" },
+  { id: "booklet", text: "Prepare event booklet / print material", status: "todo", category: "Booklets" },
 ];
+
+const categoryForExistingTask = (task: Partial<ChecklistTask>): TaskCategory => {
+  if (task.category && categories.includes(task.category as TaskCategory)) {
+    return task.category as TaskCategory;
+  }
+
+  const byId: Record<string, TaskCategory> = {
+    "event-details": "Event Details",
+    competition: "Competition",
+    players: "Players",
+    catering: "Catering",
+    posters: "Posters",
+    financials: "Financials",
+    booklet: "Booklets",
+  };
+
+  return byId[String(task.id ?? "")] ?? "General";
+};
 
 export default function EventChecklist({
   event,
@@ -36,6 +78,9 @@ export default function EventChecklist({
   const storageKey = `${STORAGE_PREFIX}${event.eventNumber}`;
   const [tasks, setTasks] = useState<ChecklistTask[]>([]);
   const [newTask, setNewTask] = useState("");
+  const [newCategory, setNewCategory] = useState<TaskCategory>("General");
+  const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus>("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | TaskCategory>("all");
 
   useEffect(() => {
     try {
@@ -43,7 +88,12 @@ export default function EventChecklist({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          setTasks(parsed);
+          setTasks(
+            parsed.map((task) => ({
+              ...task,
+              category: categoryForExistingTask(task),
+            }))
+          );
           return;
         }
       }
@@ -94,6 +144,7 @@ export default function EventChecklist({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         text,
         status: "todo",
+        category: newCategory,
       },
     ]);
     setNewTask("");
@@ -103,6 +154,14 @@ export default function EventChecklist({
     if (readOnly) return;
     setTasks((current) => current.filter((task) => task.id !== id));
   };
+
+  const filteredTasks = useMemo(() =>
+    tasks.filter((task) =>
+      (statusFilter === "all" || task.status === statusFilter) &&
+      (categoryFilter === "all" || task.category === categoryFilter)
+    ),
+    [tasks, statusFilter, categoryFilter]
+  );
 
   return (
     <div style={{ width: "100%", maxWidth: "1100px", margin: "0 auto", padding: "34px 42px 48px", boxSizing: "border-box" }}>
@@ -141,6 +200,16 @@ export default function EventChecklist({
             placeholder="Add a task for this event..."
             style={{ flex: 1, border: "1px solid #cbd8e6", borderRadius: "10px", padding: "12px 14px", fontSize: "16px" }}
           />
+          <select
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value as TaskCategory)}
+            aria-label="Task category"
+            style={{ minWidth: "160px", border: "1px solid #cbd8e6", borderRadius: "10px", padding: "12px 12px", fontSize: "15px", background: "white", color: "#24364b" }}
+          >
+            {categories.map((category) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
           <button
             type="button"
             onClick={addTask}
@@ -151,13 +220,47 @@ export default function EventChecklist({
         </div>
       )}
 
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "14px" }}>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          {[
+            { value: "all", label: "All Tasks" },
+            { value: "todo", label: "To Do" },
+            { value: "complete", label: "Completed" },
+          ].map((filter) => {
+            const active = statusFilter === filter.value;
+            return (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => setStatusFilter(filter.value as "all" | TaskStatus)}
+                style={{ border: `1px solid ${active ? "#2468b3" : "#cbd8e6"}`, borderRadius: "9px", padding: "9px 14px", background: active ? "#eaf3fd" : "white", color: active ? "#205b9f" : "#52657a", fontWeight: 700, cursor: "pointer" }}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value as "all" | TaskCategory)}
+          aria-label="Filter by category"
+          style={{ minWidth: "190px", border: "1px solid #cbd8e6", borderRadius: "9px", padding: "9px 12px", fontSize: "14px", background: "white", color: "#24364b", fontWeight: 600 }}
+        >
+          <option value="all">All Categories</option>
+          {categories.map((category) => (
+            <option key={category} value={category}>{category}</option>
+          ))}
+        </select>
+      </div>
+
       <div style={{ background: "white", border: "1px solid #dbe7f3", borderRadius: "14px", overflow: "hidden", boxShadow: "0 2px 8px rgba(31,91,159,0.06)" }}>
-        {tasks.map((task, index) => {
+        {filteredTasks.map((task, index) => {
           const done = task.status === "complete";
           return (
             <div
               key={task.id}
-              style={{ display: "grid", gridTemplateColumns: "42px 1fr auto", alignItems: "center", gap: "12px", padding: "15px 18px", borderBottom: index === tasks.length - 1 ? "none" : "1px solid #e7eef6", background: done ? "#f7fbf8" : "white" }}
+              style={{ display: "grid", gridTemplateColumns: "42px 1fr auto", alignItems: "center", gap: "12px", padding: "15px 18px", borderBottom: index === filteredTasks.length - 1 ? "none" : "1px solid #e7eef6", background: done ? "#f7fbf8" : "white" }}
             >
               <button
                 type="button"
@@ -169,9 +272,16 @@ export default function EventChecklist({
                 {done ? <CheckCircle2 size={25} /> : <Circle size={25} />}
               </button>
 
-              <span style={{ color: done ? "#6b7f73" : "#24364b", fontSize: "16px", fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>
-                {task.text}
-              </span>
+              <div style={{ minWidth: 0 }}>
+                <span style={{ color: done ? "#6b7f73" : "#24364b", fontSize: "16px", fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>
+                  {task.text}
+                </span>
+                <div style={{ marginTop: "6px" }}>
+                  <span style={{ display: "inline-block", padding: "3px 8px", borderRadius: "999px", background: "#eef5fc", border: "1px solid #d7e6f5", color: "#205b9f", fontSize: "12px", fontWeight: 700 }}>
+                    {task.category}
+                  </span>
+                </div>
+              </div>
 
               {!readOnly && (
                 <button
@@ -188,9 +298,9 @@ export default function EventChecklist({
           );
         })}
 
-        {tasks.length === 0 && (
+        {filteredTasks.length === 0 && (
           <div style={{ padding: "34px", textAlign: "center", color: "#64748b" }}>
-            No checklist tasks yet.
+            {tasks.length === 0 ? "No checklist tasks yet." : "No tasks match the selected filters."}
           </div>
         )}
       </div>
