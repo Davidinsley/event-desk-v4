@@ -1,6 +1,5 @@
 // Revision: Field Management 7/7/5 action layout + Menu Overview; retains event-number draw persistence and Clash integrations.
 import { useState } from "react";
-import "./NewEvent.css";
 
 import type { Player } from "../types/Player";
 import type { Event } from "../types/Event";
@@ -1800,7 +1799,7 @@ export default function FieldManagement({
   const playerSignature =
     buildPlayerSignature(players);
 
-  const initialState = (() => {
+  const initialState: PersistedState | null = (() => {
     try {
       const raw =
         localStorage.getItem(
@@ -1816,10 +1815,32 @@ export default function FieldManagement({
           raw
         ) as PersistedState;
 
-      return saved.playerSignature ===
-        playerSignature
-        ? saved
-        : null;
+      // Keep Clash / Mixed Clash line-ups when returning to Field Management.
+      // The Players register can legitimately change as Clash line-ups are
+      // confirmed, so a player-signature change must not discard the saved
+      // Clash team imports. Normal draw data is still protected below by
+      // clearing player-dependent draw state when the signatures differ.
+      if (saved.playerSignature === playerSignature) {
+        return saved;
+      }
+
+      return {
+        ...saved,
+        playerSignature,
+        proposedDraw: [],
+        confirmedDraw: [],
+        roundOneConfirmed: false,
+        drawConfirmed: false,
+        grossStage: "round1",
+        grossScores: [],
+        nettStage: "round1",
+        nettScores: [],
+        knockoutBracket: null,
+        defendingPairIds: null,
+        doublePairsStage: "pairs",
+        doubleDrawPairs: [],
+        doubleDrawMatches: [],
+      };
     } catch {
       return null;
     }
