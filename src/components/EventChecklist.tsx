@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, Circle, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Pencil, Plus, Trash2, X } from "lucide-react";
 import type { Event } from "../types/Event";
 
 interface EventChecklistProps {
@@ -86,6 +86,12 @@ export default function EventChecklist({
   const [newOtherAssignee, setNewOtherAssignee] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus>("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | TaskCategory>("all");
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editCategory, setEditCategory] = useState<TaskCategory>("General");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editAssignedTo, setEditAssignedTo] = useState("");
+  const [editOtherAssignee, setEditOtherAssignee] = useState("");
 
   useEffect(() => {
     try {
@@ -165,6 +171,68 @@ export default function EventChecklist({
   const deleteTask = (id: string) => {
     if (readOnly) return;
     setTasks((current) => current.filter((task) => task.id !== id));
+  };
+
+  const startEditing = (task: ChecklistTask) => {
+    if (readOnly) return;
+    setEditingTaskId(task.id);
+    setEditText(task.text);
+    setEditCategory(task.category);
+    setEditDueDate(task.dueDate ?? "");
+
+    const standardAssignees = [
+      "D.Insley",
+      "R.Hone",
+      "D.Costin",
+      "M.Voce",
+      "C.West",
+      "N.Clark",
+      "M.Fisher",
+      "S.Murry",
+      "D.Dandie",
+    ];
+
+    if (task.assignedTo && !standardAssignees.includes(task.assignedTo)) {
+      setEditAssignedTo("A. Other");
+      setEditOtherAssignee(task.assignedTo === "A. Other" ? "" : task.assignedTo);
+    } else {
+      setEditAssignedTo(task.assignedTo ?? "");
+      setEditOtherAssignee("");
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingTaskId(null);
+    setEditText("");
+    setEditCategory("General");
+    setEditDueDate("");
+    setEditAssignedTo("");
+    setEditOtherAssignee("");
+  };
+
+  const saveEditing = () => {
+    const text = editText.trim();
+    if (!editingTaskId || !text || readOnly) return;
+
+    const assignedTo = editAssignedTo === "A. Other"
+      ? (editOtherAssignee.trim() || "A. Other")
+      : (editAssignedTo || undefined);
+
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === editingTaskId
+          ? {
+              ...task,
+              text,
+              category: editCategory,
+              dueDate: editDueDate || undefined,
+              assignedTo,
+            }
+          : task
+      )
+    );
+
+    cancelEditing();
   };
 
   const filteredTasks = useMemo(() =>
@@ -323,36 +391,113 @@ export default function EventChecklist({
               </button>
 
               <div style={{ minWidth: 0 }}>
-                <span style={{ color: done ? "#6b7f73" : "#24364b", fontSize: "16px", fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>
-                  {task.text}
-                </span>
-                <div style={{ marginTop: "6px" }}>
-                  <span style={{ display: "inline-block", padding: "3px 8px", borderRadius: "999px", background: "#eef5fc", border: "1px solid #d7e6f5", color: "#205b9f", fontSize: "12px", fontWeight: 700 }}>
-                    {task.category}
-                  </span>
-                  {task.dueDate && (
-                    <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "12px", fontWeight: 600 }}>
-                      Due: {new Date(`${task.dueDate}T00:00:00`).toLocaleDateString("en-GB")}
+                {editingTaskId === task.id ? (
+                  <div style={{ display: "grid", gap: "9px" }}>
+                    <input
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveEditing(); }}
+                      aria-label="Edit task text"
+                      style={{ width: "100%", boxSizing: "border-box", border: "1px solid #cbd8e6", borderRadius: "8px", padding: "9px 10px", fontSize: "15px" }}
+                    />
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      <select
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value as TaskCategory)}
+                        aria-label="Edit task category"
+                        style={{ border: "1px solid #cbd8e6", borderRadius: "8px", padding: "8px 10px", background: "white", color: "#24364b" }}
+                      >
+                        {categories.map((category) => (
+                          <option key={category} value={category}>{category}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="date"
+                        value={editDueDate}
+                        onChange={(e) => setEditDueDate(e.target.value)}
+                        aria-label="Edit due date"
+                        style={{ border: "1px solid #cbd8e6", borderRadius: "8px", padding: "8px 10px", color: "#24364b" }}
+                      />
+                      <select
+                        value={editAssignedTo}
+                        onChange={(e) => {
+                          setEditAssignedTo(e.target.value);
+                          if (e.target.value !== "A. Other") setEditOtherAssignee("");
+                        }}
+                        aria-label="Edit assigned to"
+                        style={{ border: "1px solid #cbd8e6", borderRadius: "8px", padding: "8px 10px", background: "white", color: "#24364b" }}
+                      >
+                        <option value="">Assigned to...</option>
+                        <option value="D.Insley">D.Insley</option>
+                        <option value="R.Hone">R.Hone</option>
+                        <option value="D.Costin">D.Costin</option>
+                        <option value="M.Voce">M.Voce</option>
+                        <option value="C.West">C.West</option>
+                        <option value="N.Clark">N.Clark</option>
+                        <option value="M.Fisher">M.Fisher</option>
+                        <option value="S.Murry">S.Murry</option>
+                        <option value="D.Dandie">D.Dandie</option>
+                        <option value="A. Other">A. Other</option>
+                      </select>
+                      {editAssignedTo === "A. Other" && (
+                        <input
+                          value={editOtherAssignee}
+                          onChange={(e) => setEditOtherAssignee(e.target.value)}
+                          placeholder="Enter name..."
+                          aria-label="Edit other assignee name"
+                          style={{ minWidth: "140px", border: "1px solid #cbd8e6", borderRadius: "8px", padding: "8px 10px" }}
+                        />
+                      )}
+                      <button type="button" onClick={saveEditing} style={{ border: "none", borderRadius: "8px", padding: "8px 12px", background: "#2468b3", color: "white", fontWeight: 700, cursor: "pointer" }}>Save</button>
+                      <button type="button" onClick={cancelEditing} style={{ display: "flex", alignItems: "center", gap: "5px", border: "1px solid #cbd8e6", borderRadius: "8px", padding: "8px 10px", background: "white", color: "#52657a", fontWeight: 700, cursor: "pointer" }}><X size={15} /> Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <span style={{ color: done ? "#6b7f73" : "#24364b", fontSize: "16px", fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>
+                      {task.text}
                     </span>
-                  )}
-                  {task.assignedTo && (
-                    <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "12px", fontWeight: 600 }}>
-                      Assigned to: {task.assignedTo}
-                    </span>
-                  )}
-                </div>
+                    <div style={{ marginTop: "6px" }}>
+                      <span style={{ display: "inline-block", padding: "3px 8px", borderRadius: "999px", background: "#eef5fc", border: "1px solid #d7e6f5", color: "#205b9f", fontSize: "12px", fontWeight: 700 }}>
+                        {task.category}
+                      </span>
+                      {task.dueDate && (
+                        <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "12px", fontWeight: 600 }}>
+                          Due: {new Date(`${task.dueDate}T00:00:00`).toLocaleDateString("en-GB")}
+                        </span>
+                      )}
+                      {task.assignedTo && (
+                        <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "12px", fontWeight: 600 }}>
+                          Assigned to: {task.assignedTo}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
 
               {!readOnly && (
-                <button
-                  type="button"
-                  onClick={() => deleteTask(task.id)}
-                  title="Delete task"
-                  aria-label="Delete task"
-                  style={{ border: "1px solid #dbe3ec", borderRadius: "8px", background: "white", color: "#b42318", padding: "7px 9px", cursor: "pointer" }}
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div style={{ display: "flex", gap: "7px" }}>
+                  <button
+                    type="button"
+                    onClick={() => startEditing(task)}
+                    title="Edit task"
+                    aria-label="Edit task"
+                    disabled={editingTaskId === task.id}
+                    style={{ border: "1px solid #dbe3ec", borderRadius: "8px", background: "white", color: "#2468b3", padding: "7px 9px", cursor: editingTaskId === task.id ? "default" : "pointer", opacity: editingTaskId === task.id ? 0.45 : 1 }}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteTask(task.id)}
+                    title="Delete task"
+                    aria-label="Delete task"
+                    style={{ border: "1px solid #dbe3ec", borderRadius: "8px", background: "white", color: "#b42318", padding: "7px 9px", cursor: "pointer" }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               )}
             </div>
           );
