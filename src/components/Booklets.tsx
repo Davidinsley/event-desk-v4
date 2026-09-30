@@ -25,6 +25,8 @@ interface BookletData {
   prizes: string;
   includeMenu: boolean;
   menu: string;
+  backPagePdfName: string;
+  backPagePdfImage: string;
 }
 
 interface OpenBookletData {
@@ -136,86 +138,10 @@ const getOpenTextFontSize = (value: string): number => {
 };
 
 const BOOKLET_KEY_PREFIX = "eventDeskBookletV1:";
-const ACTIVE_EVENT_ID_KEY = "eventDeskActiveEventId";
-const CATERING_KEY_PREFIX = "eventDeskCateringV1:";
-const MENU_PDF_DB = "eventDeskMenuPdfLibrary";
-const MENU_PDF_STORE = "menus";
-
-interface CateringLinkData {
-  selectedPackage?: string;
-  bespokeMenuPdfId?: string | null;
-}
-
-interface MenuPdfRecord {
-  id: string;
-  name: string;
-  blob: Blob;
-  addedAt: number;
-}
-
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
   import.meta.url,
 ).toString();
-
-function getSelectedMenuPdf(): Promise<MenuPdfRecord | null> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(MENU_PDF_DB);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      const db = request.result;
-
-      if (!db.objectStoreNames.contains(MENU_PDF_STORE)) {
-        db.close();
-        resolve(null);
-        return;
-      }
-
-      const tx = db.transaction(MENU_PDF_STORE, "readonly");
-      const store = tx.objectStore(MENU_PDF_STORE);
-      const getRequest = store.getAll();
-
-      getRequest.onerror = () => {
-        db.close();
-        reject(getRequest.error);
-      };
-
-      getRequest.onsuccess = () => {
-        const records = getRequest.result as MenuPdfRecord[];
-        const activeEventId = localStorage.getItem(ACTIVE_EVENT_ID_KEY);
-
-        if (!activeEventId) {
-          db.close();
-          resolve(null);
-          return;
-        }
-
-        let catering: CateringLinkData | null = null;
-        try {
-          const raw = localStorage.getItem(
-            `${CATERING_KEY_PREFIX}${activeEventId}`,
-          );
-          catering = raw ? (JSON.parse(raw) as CateringLinkData) : null;
-        } catch {
-          catering = null;
-        }
-
-        if (catering?.selectedPackage !== "bespoke" || !catering.bespokeMenuPdfId) {
-          db.close();
-          resolve(null);
-          return;
-        }
-
-        const selected =
-          records.find((record) => record.id === catering?.bespokeMenuPdfId) ??
-          null;
-        db.close();
-        resolve(selected);
-      };
-    };
-  });
-}
 
 async function renderPdfFirstPageToDataUrl(blob: Blob): Promise<string> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -299,6 +225,8 @@ const createDefaultData = (attachedPosterIds: string[]): BookletData => ({
   prizes: "",
   includeMenu: false,
   menu: "",
+  backPagePdfName: "",
+  backPagePdfImage: "",
 });
 
 const loadBookletData = (
@@ -325,6 +253,10 @@ const loadBookletData = (
       includeMenu:
         typeof parsed.includeMenu === "boolean" ? parsed.includeMenu : false,
       menu: typeof parsed.menu === "string" ? parsed.menu : "",
+      backPagePdfName:
+        typeof parsed.backPagePdfName === "string" ? parsed.backPagePdfName : "",
+      backPagePdfImage:
+        typeof parsed.backPagePdfImage === "string" ? parsed.backPagePdfImage : "",
     };
   } catch {
     return createDefaultData(attachedPosterIds);
@@ -350,11 +282,10 @@ export default function Booklets({
   );
   const [clubLogoDataUrl, setClubLogoDataUrl] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const backPagePdfInputRef = useRef<HTMLInputElement | null>(null);
   const [importTarget, setImportTarget] = useState<
     "orderOfDay" | "prizes" | "menu" | null
   >(null);
-  const [cateringMenuImage, setCateringMenuImage] = useState<string | null>(null);
-  const [cateringMenuError, setCateringMenuError] = useState<string | null>(null);
   const [posterPreviewImages, setPosterPreviewImages] = useState<
     Record<string, string>
   >({});
@@ -520,30 +451,6 @@ export default function Booklets({
       (isPdfPoster(selectedPoster) ? null : selectedPoster.image)
     : null;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    setCateringMenuImage(null);
-    setCateringMenuError(null);
-
-    getSelectedMenuPdf()
-      .then(async (record) => {
-        if (!record) return;
-        const image = await renderPdfFirstPageToDataUrl(record.blob);
-        if (!cancelled) setCateringMenuImage(image);
-      })
-      .catch((error) => {
-        console.error("Failed to load Catering menu PDF", error);
-        if (!cancelled) {
-          setCateringMenuError("The selected Catering menu PDF could not be loaded.");
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [event.eventNumber]);
-
   const updateField = <K extends keyof BookletData>(
     field: K,
     value: BookletData[K],
@@ -579,6 +486,39 @@ export default function Booklets({
     };
     reader.onerror = () => setImportTarget(null);
     reader.readAsText(file);
+  };
+
+  const handleBackPagePdfSelected = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+
+    if (!file || readOnly) return;
+
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      window.alert("Please select a PDF document for Page 4.");
+      return;
+    }
+
+    try {
+      const image = await renderPdfFirstPageToDataUrl(file);
+      setData((current) => ({
+        ...current,
+        backPagePdfName: file.name,
+        backPagePdfImage: image,
+      }));
+    } catch (error) {
+      console.error("Failed to import Page 4 PDF", error);
+      window.alert("Event Desk could not read that PDF. Please try another PDF.");
+    }
+  };
+
+  const removeBackPagePdf = () => {
+    if (readOnly) return;
+    setData((current) => ({
+      ...current,
+      backPagePdfName: "",
+      backPagePdfImage: "",
+    }));
   };
 
 
@@ -751,15 +691,13 @@ export default function Booklets({
       data.prizes,
     );
 
-    const page4 = cateringMenuImage
+    const page4 = data.backPagePdfImage
       ? `
           <section class="digital-page menu-page catering-menu-page">
-            <img src="${cateringMenuImage}" alt="Catering menu" />
+            <img src="${data.backPagePdfImage}" alt="Imported back page PDF" />
           </section>
         `
-      : data.includeMenu
-        ? specialTextPage("MENU", data.menu)
-        : `<section class="digital-page blank-page"><div class="missing-page">Menu not required</div></section>`;
+      : `<section class="digital-page blank-page"><div class="missing-page">No back page PDF imported</div></section>`;
 
     return [page1, page2, page3, page4];
   };
@@ -1024,7 +962,7 @@ export default function Booklets({
             var titles = ${
               bookletType === "open"
                 ? `["Front Cover","Tee Times","Order of the Day","Prizes List"]`
-                : `["Front Cover","Order of the Day","Prizes & Details","Menu"]`
+                : `["Front Cover","Order of the Day","Prizes & Details","Back Page PDF"]`
             };
             var currentPage = 0;
             var pageWrap = document.getElementById("pageWrap");
@@ -1433,15 +1371,13 @@ export default function Booklets({
       `;
     };
 
-    const menuPage = cateringMenuImage
+    const backPage = data.backPagePdfImage
       ? `
           <section class="page menu-page catering-menu-page">
-            <img src="${cateringMenuImage}" alt="Catering menu" />
+            <img src="${data.backPagePdfImage}" alt="Imported back page PDF" />
           </section>
         `
-      : data.includeMenu
-        ? printTextPage("MENU", data.menu)
-        : `<section class="page blank-page"></section>`;
+      : `<section class="page blank-page"></section>`;
 
     const coverPage = selectedPosterImage
       ? `
@@ -1541,8 +1477,8 @@ export default function Booklets({
         </head>
         <body>
           <div class="sheet">
-            <div class="booklet-row">${menuPage}${coverPage}</div>
-            <div class="booklet-row">${menuPage}${coverPage}</div>
+            <div class="booklet-row">${backPage}${coverPage}</div>
+            <div class="booklet-row">${backPage}${coverPage}</div>
           </div>
           <div class="sheet">
             <div class="booklet-row">${orderPage}${prizesPage}</div>
@@ -1561,12 +1497,12 @@ export default function Booklets({
     const coverImage = printWindow.document.querySelector<HTMLImageElement>(
       ".cover-page img",
     );
-    const menuImage = printWindow.document.querySelector<HTMLImageElement>(
+    const backPageImage = printWindow.document.querySelector<HTMLImageElement>(
       ".catering-menu-page img",
     );
 
     let coverReady = !coverImage || coverImage.complete;
-    let menuReady = !menuImage || menuImage.complete;
+    let menuReady = !backPageImage || backPageImage.complete;
     let printStarted = false;
 
     const maybeStartPrint = () => {
@@ -1594,8 +1530,8 @@ export default function Booklets({
       );
     }
 
-    if (menuImage && !menuImage.complete) {
-      menuImage.addEventListener(
+    if (backPageImage && !backPageImage.complete) {
+      backPageImage.addEventListener(
         "load",
         () => {
           menuReady = true;
@@ -1603,7 +1539,7 @@ export default function Booklets({
         },
         { once: true },
       );
-      menuImage.addEventListener(
+      backPageImage.addEventListener(
         "error",
         () => {
           menuReady = true;
@@ -1630,6 +1566,13 @@ export default function Booklets({
         accept=".txt,.md,.csv"
         hidden
         onChange={handleFileSelected}
+      />
+      <input
+        ref={backPagePdfInputRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        hidden
+        onChange={handleBackPagePdfSelected}
       />
 
       <div className="booklets-header no-print">
@@ -2052,50 +1995,56 @@ export default function Booklets({
                 <div>
                   <span className="booklet-panel-number">4</span>
                   <div>
-                    <h2>Menu</h2>
-                    <p>Uses the selected Catering Bespoke menu automatically when available.</p>
+                    <h2>Back Page PDF</h2>
+                    <p>Import a one-page PDF document to use as the booklet back page.</p>
                   </div>
                 </div>
-                <label className="menu-toggle">
-                  <input
-                    type="checkbox"
-                    checked={data.includeMenu}
-                    onChange={(e) => updateField("includeMenu", e.target.checked)}
-                    disabled={readOnly}
-                  />
-                  <span>Include Menu</span>
-                </label>
-                {!readOnly && data.includeMenu && (
-                  <button
-                    type="button"
-                    className="booklets-import-button"
-                    onClick={() => handleImportText("menu")}
-                  >
-                    Import Text
-                  </button>
+                {!readOnly && (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      type="button"
+                      className="booklets-import-button"
+                      onClick={() => backPagePdfInputRef.current?.click()}
+                    >
+                      {data.backPagePdfImage ? "Replace PDF" : "Import PDF"}
+                    </button>
+                    {data.backPagePdfImage && (
+                      <button
+                        type="button"
+                        className="booklets-secondary-button"
+                        onClick={removeBackPagePdf}
+                      >
+                        Remove PDF
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
-              {cateringMenuImage ? (
-                <div className="booklet-menu-disabled">
-                  The selected Catering Bespoke menu will be used automatically for Page 4.
+              {data.backPagePdfImage ? (
+                <div>
+                  <div className="booklet-menu-disabled" style={{ marginBottom: "10px" }}>
+                    <strong>{data.backPagePdfName || "Imported PDF"}</strong> will be used as Page 4.
+                  </div>
+                  <img
+                    src={data.backPagePdfImage}
+                    alt="Imported back page PDF preview"
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      maxHeight: "420px",
+                      objectFit: "contain",
+                      border: "1px solid #d7e1ea",
+                      borderRadius: "8px",
+                      background: "white",
+                    }}
+                  />
                 </div>
-              ) : data.includeMenu ? (
-                <textarea
-                  value={data.menu}
-                  onChange={(e) => updateField("menu", e.target.value)}
-                  placeholder={"STARTER\n...\n\nMAIN COURSE\n...\n\nDESSERT\n..."}
-                  disabled={readOnly}
-                />
               ) : (
                 <div className="booklet-menu-disabled">
-                  Page 4 will remain blank unless <strong>Include Menu</strong> is
-                  selected.
+                  No Page 4 document imported. Use <strong>Import PDF</strong> to select the back page.
                 </div>
               )}
-              {cateringMenuError ? (
-                <div className="booklet-menu-disabled">{cateringMenuError}</div>
-              ) : null}
             </div>
           </div>
         )}

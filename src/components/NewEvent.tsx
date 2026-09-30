@@ -61,6 +61,8 @@ interface NewEventProps {
 
   archived: boolean;
 
+  onOpenChecklist?: () => void;
+
 }
 
 
@@ -449,6 +451,8 @@ export default function NewEvent({
   published,
 
   archived,
+
+  onOpenChecklist,
 
 }: NewEventProps) {
 
@@ -2616,11 +2620,11 @@ export default function NewEvent({
 
         icon={ClipboardList}
 
-        title="Checklist"
+        title="To Do / Checklist"
 
-        subtitle="FD"
+        subtitle="Event"
 
-        disabled
+        onClick={onOpenChecklist}
 
       />
 

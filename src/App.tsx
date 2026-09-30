@@ -15,6 +15,7 @@ import Booklets from "./components/Booklets";
 import CourseMarkers from "./components/CourseMarkers";
 import MatchBooklets from "./components/MatchBooklets";
 import NewEvent from "./components/NewEvent";
+import EventChecklist from "./components/EventChecklist";
 import Competition from "./components/Competition";
 import Prizes from "./components/Prizes";
 import PrizeWinners from "./components/PrizeWinners";
@@ -2200,6 +2201,17 @@ export default function App() {
               canDelete={
                 !archived && !published
               }
+              onOpenChecklist={() =>
+                handleNavigate("checklist")
+              }
+            />
+          )}
+
+          {currentPage === "checklist" && (
+            <EventChecklist
+              event={event}
+              readOnly={archived}
+              onBack={() => handleNavigate("new")}
             />
           )}
 
