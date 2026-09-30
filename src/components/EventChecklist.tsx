@@ -26,6 +26,8 @@ interface ChecklistTask {
   text: string;
   status: TaskStatus;
   category: TaskCategory;
+  dueDate?: string;
+  assignedTo?: string;
 }
 
 const categories: TaskCategory[] = [
@@ -79,6 +81,9 @@ export default function EventChecklist({
   const [tasks, setTasks] = useState<ChecklistTask[]>([]);
   const [newTask, setNewTask] = useState("");
   const [newCategory, setNewCategory] = useState<TaskCategory>("General");
+  const [newDueDate, setNewDueDate] = useState("");
+  const [newAssignedTo, setNewAssignedTo] = useState("");
+  const [newOtherAssignee, setNewOtherAssignee] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus>("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | TaskCategory>("all");
 
@@ -145,9 +150,16 @@ export default function EventChecklist({
         text,
         status: "todo",
         category: newCategory,
+        dueDate: newDueDate || undefined,
+        assignedTo: newAssignedTo === "A. Other"
+          ? (newOtherAssignee.trim() || "A. Other")
+          : (newAssignedTo || undefined),
       },
     ]);
     setNewTask("");
+    setNewDueDate("");
+    setNewAssignedTo("");
+    setNewOtherAssignee("");
   };
 
   const deleteTask = (id: string) => {
@@ -210,6 +222,44 @@ export default function EventChecklist({
               <option key={category} value={category}>{category}</option>
             ))}
           </select>
+          <input
+            type="date"
+            value={newDueDate}
+            onChange={(e) => setNewDueDate(e.target.value)}
+            aria-label="Due date"
+            title="Due date"
+            style={{ minWidth: "150px", border: "1px solid #cbd8e6", borderRadius: "10px", padding: "12px", fontSize: "15px", color: "#24364b" }}
+          />
+          <select
+            value={newAssignedTo}
+            onChange={(e) => {
+              setNewAssignedTo(e.target.value);
+              if (e.target.value !== "A. Other") setNewOtherAssignee("");
+            }}
+            aria-label="Assigned to"
+            style={{ minWidth: "170px", border: "1px solid #cbd8e6", borderRadius: "10px", padding: "12px 12px", fontSize: "15px", background: "white", color: "#24364b" }}
+          >
+            <option value="">Assigned to...</option>
+            <option value="D.Insley">D.Insley</option>
+            <option value="R.Hone">R.Hone</option>
+            <option value="D.Costin">D.Costin</option>
+            <option value="M.Voce">M.Voce</option>
+            <option value="C.West">C.West</option>
+            <option value="N.Clark">N.Clark</option>
+            <option value="M.Fisher">M.Fisher</option>
+            <option value="S.Murry">S.Murry</option>
+            <option value="D.Dandie">D.Dandie</option>
+            <option value="A. Other">A. Other</option>
+          </select>
+          {newAssignedTo === "A. Other" && (
+            <input
+              value={newOtherAssignee}
+              onChange={(e) => setNewOtherAssignee(e.target.value)}
+              placeholder="Enter name..."
+              aria-label="Other assignee name"
+              style={{ minWidth: "150px", border: "1px solid #cbd8e6", borderRadius: "10px", padding: "12px 14px", fontSize: "15px" }}
+            />
+          )}
           <button
             type="button"
             onClick={addTask}
@@ -280,6 +330,16 @@ export default function EventChecklist({
                   <span style={{ display: "inline-block", padding: "3px 8px", borderRadius: "999px", background: "#eef5fc", border: "1px solid #d7e6f5", color: "#205b9f", fontSize: "12px", fontWeight: 700 }}>
                     {task.category}
                   </span>
+                  {task.dueDate && (
+                    <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "12px", fontWeight: 600 }}>
+                      Due: {new Date(`${task.dueDate}T00:00:00`).toLocaleDateString("en-GB")}
+                    </span>
+                  )}
+                  {task.assignedTo && (
+                    <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "12px", fontWeight: 600 }}>
+                      Assigned to: {task.assignedTo}
+                    </span>
+                  )}
                 </div>
               </div>
 
