@@ -63,6 +63,8 @@ interface NewEventProps {
 
   onOpenChecklist?: () => void;
 
+  onOpenPlanningAid?: () => void;
+
 }
 
 
@@ -454,6 +456,8 @@ export default function NewEvent({
   archived,
 
   onOpenChecklist,
+
+  onOpenPlanningAid,
 
 }: NewEventProps) {
 
@@ -2660,11 +2664,11 @@ export default function NewEvent({
 
         icon={FolderOpen}
 
-        title="Template"
+        title="Planning Aid"
 
-        subtitle="FD"
+        subtitle="Off"
 
-        disabled
+        onClick={onOpenPlanningAid}
 
       />
 

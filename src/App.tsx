@@ -16,6 +16,7 @@ import CourseMarkers from "./components/CourseMarkers";
 import MatchBooklets from "./components/MatchBooklets";
 import NewEvent from "./components/NewEvent";
 import EventChecklist from "./components/EventChecklist";
+import PlanningAid from "./components/PlanningAid";
 import Competition from "./components/Competition";
 import Prizes from "./components/Prizes";
 import PrizeWinners from "./components/PrizeWinners";
@@ -2204,6 +2205,9 @@ export default function App() {
               onOpenChecklist={() =>
                 handleNavigate("checklist")
               }
+              onOpenPlanningAid={() =>
+                handleNavigate("planningAid")
+              }
             />
           )}
 
@@ -2211,6 +2215,14 @@ export default function App() {
             <EventChecklist
               event={event}
               readOnly={archived}
+              onBack={() => handleNavigate("new")}
+            />
+          )}
+
+          {currentPage === "planningAid" && (
+            <PlanningAid
+              event={event}
+              players={players}
               onBack={() => handleNavigate("new")}
             />
           )}
