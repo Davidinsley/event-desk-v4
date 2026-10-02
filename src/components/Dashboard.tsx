@@ -10,6 +10,8 @@ interface DashboardProps {
   onEventDesk: () => void;
   onRecentEvents: () => void;
   onMatchBooklets: () => void;
+  onDiary?: () => void;
+  hasDiaryRedNotice?: boolean;
   priorityEventName?: string;
   priorityEventDate?: string;
   priorityEventCountdown?: string;
@@ -70,6 +72,25 @@ function HistoryIcon() {
   );
 }
 
+function DiaryIcon() {
+  return (
+    <svg
+      viewBox="0 0 100 80"
+      aria-hidden="true"
+      className="dashboard-secondary-icon"
+    >
+      <rect x="18" y="18" width="64" height="50" rx="6" />
+      <line x1="18" y1="32" x2="82" y2="32" />
+      <line x1="34" y1="10" x2="34" y2="24" />
+      <line x1="66" y1="10" x2="66" y2="24" />
+      <line x1="34" y1="44" x2="44" y2="44" />
+      <line x1="56" y1="44" x2="66" y2="44" />
+      <line x1="34" y1="56" x2="44" y2="56" />
+      <line x1="56" y1="56" x2="66" y2="56" />
+    </svg>
+  );
+}
+
 function OpenBookIcon() {
   return (
     <svg className="dashboard-icon dashboard-book-icon" viewBox="0 0 100 80" aria-hidden="true">
@@ -88,6 +109,8 @@ function Dashboard({
   onEventDesk,
   onRecentEvents,
   onMatchBooklets,
+  onDiary,
+  hasDiaryRedNotice = false,
   priorityEventName,
   priorityEventDate,
   priorityEventCountdown,
@@ -163,35 +186,34 @@ function Dashboard({
         </button>
       </div>
 
-      <div
-        style={{
-          width: "100%",
-          display: "flex",
-          justifyContent: "center",
-          marginTop: "24px",
-        }}
-      >
+      <div className="dashboard-secondary-row">
         <button
           type="button"
+          className="dashboard-secondary-button"
+          onClick={() => onDiary?.()}
+          style={
+            hasDiaryRedNotice
+              ? {
+                  background: "#fef2f2",
+                  borderColor: "#f3a6a6",
+                  color: "#991b1b",
+                }
+              : undefined
+          }
+          aria-label={
+            hasDiaryRedNotice
+              ? "Diary — immediate action required"
+              : "Diary"
+          }
+        >
+          <DiaryIcon />
+          <span>Diary</span>
+        </button>
+
+        <button
+          type="button"
+          className="dashboard-secondary-button"
           onClick={onRecentEvents}
-          style={{
-            width: "240px",
-            minHeight: "52px",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
-            padding: "10px 20px",
-            border: "1px solid #9fc9ef",
-            borderRadius: "12px",
-            background: "#ffffff",
-            color: "#174f91",
-            fontWeight: 700,
-            fontSize: "15px",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-            boxSizing: "border-box",
-          }}
         >
           <HistoryIcon />
           <span>Past Events</span>

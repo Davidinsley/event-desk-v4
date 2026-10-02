@@ -17,6 +17,7 @@ import MatchBooklets from "./components/MatchBooklets";
 import NewEvent from "./components/NewEvent";
 import EventChecklist from "./components/EventChecklist";
 import PlanningAid from "./components/PlanningAid";
+import Diary from "./components/Diary";
 import Competition from "./components/Competition";
 import Prizes from "./components/Prizes";
 import PrizeWinners from "./components/PrizeWinners";
@@ -233,6 +234,210 @@ const loadInitialEventRecords = (): EventRecord[] => {
   }
 };
 
+
+interface DiaryPlanningAidSnapshot {
+  enabled?: boolean;
+  promotionRequired?: boolean | null;
+  cateringRequired?: boolean | null;
+  minimumViableField?: number | null;
+  drawRequired?: boolean | null;
+  activatedDate?: string | null;
+  activationDaysUntilEvent?: number | null;
+  promotionIssued?: boolean | null;
+  fieldSetupReady?: boolean | null;
+  resultsPublished?: boolean | null;
+}
+
+interface DiaryFieldManagementSnapshot {
+  confirmedDraw?: unknown[];
+  drawConfirmed?: boolean;
+}
+
+const DIARY_PLANNING_AID_PREFIX = "eventDeskPlanningAidV1:";
+const DIARY_CATERING_PREFIX = "eventDeskCateringV1:";
+const DIARY_FIELD_MANAGEMENT_PREFIX = "event-desk-field-management-draw-v4";
+
+const readDiaryJson = <T,>(key: string): T | null => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? (JSON.parse(saved) as T) : null;
+  } catch {
+    return null;
+  }
+};
+
+const parseDiaryEventDate = (value: string): Date | null => {
+  const raw = value?.trim();
+  if (!raw) return null;
+
+  const match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    let year = Number(match[3]);
+
+    if (match[3].length === 2) {
+      year += year >= 70 ? 1900 : 2000;
+    }
+
+    const parsed = new Date(year, month - 1, day);
+
+    if (
+      parsed.getFullYear() === year &&
+      parsed.getMonth() === month - 1 &&
+      parsed.getDate() === day
+    ) {
+      parsed.setHours(0, 0, 0, 0);
+      return parsed;
+    }
+    return null;
+  }
+
+  const parsed = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+};
+
+const diaryCalendarDaysUntil = (eventDate: Date, today: Date) =>
+  Math.round(
+    (Date.UTC(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate()) -
+      Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) /
+      86400000
+  );
+
+const eventRecordHasDiaryRedNotice = (
+  record: EventRecord,
+  today: Date
+): boolean => {
+  if (record.archived) return false;
+
+  const event = record.event;
+  const eventNumber = event.eventNumber?.trim();
+  if (!eventNumber) return false;
+
+  const settings = readDiaryJson<DiaryPlanningAidSnapshot>(
+    `${DIARY_PLANNING_AID_PREFIX}${eventNumber}`
+  );
+  if (!settings?.enabled) return false;
+
+  const eventDate = parseDiaryEventDate(event.eventDate);
+  if (!eventDate) return false;
+
+  const daysUntilEvent = diaryCalendarDaysUntil(eventDate, today);
+  if (daysUntilEvent < 0) return false;
+
+  const activationDaysUntilEvent = settings.activationDaysUntilEvent;
+
+  const fastReactionPlayers =
+    activationDaysUntilEvent !== null &&
+    activationDaysUntilEvent !== undefined &&
+    activationDaysUntilEvent <= 14;
+
+  const fastReactionCatering =
+    settings.cateringRequired === true &&
+    activationDaysUntilEvent !== null &&
+    activationDaysUntilEvent !== undefined &&
+    activationDaysUntilEvent <= 14;
+
+  const fastReactionDraw =
+    settings.drawRequired === true &&
+    activationDaysUntilEvent !== null &&
+    activationDaysUntilEvent !== undefined &&
+    activationDaysUntilEvent <= 2;
+
+  const fastReactionFieldSetup =
+    activationDaysUntilEvent !== null &&
+    activationDaysUntilEvent !== undefined &&
+    activationDaysUntilEvent <= 3;
+
+  const promotionDeadline = new Date(
+    eventDate.getFullYear(),
+    eventDate.getMonth(),
+    eventDate.getDate() - 28
+  );
+
+  const activationDate = settings.activatedDate
+    ? new Date(`${settings.activatedDate}T00:00:00`)
+    : null;
+
+  const fastReactionPromotion =
+    settings.promotionRequired === true &&
+    activationDate !== null &&
+    activationDate > promotionDeadline;
+
+  if (
+    settings.promotionRequired === true &&
+    settings.promotionIssued === false &&
+    daysUntilEvent <= 28 &&
+    !fastReactionPromotion
+  ) return true;
+
+  const minimumViableField = settings.minimumViableField;
+  const confirmedPlayerCount = record.players?.length ?? 0;
+
+  if (
+    minimumViableField !== null &&
+    minimumViableField !== undefined &&
+    confirmedPlayerCount < minimumViableField &&
+    daysUntilEvent <= 14 &&
+    !fastReactionPlayers
+  ) return true;
+
+  if (
+    settings.cateringRequired === true &&
+    daysUntilEvent <= 14 &&
+    !fastReactionCatering
+  ) {
+    const catering = readDiaryJson<{ clubAdvised?: boolean }>(
+      `${DIARY_CATERING_PREFIX}${record.id}`
+    );
+    if (catering?.clubAdvised !== true) return true;
+  }
+
+  if (
+    settings.drawRequired === true &&
+    daysUntilEvent <= 2 &&
+    !fastReactionDraw
+  ) {
+    const fieldManagement =
+      readDiaryJson<DiaryFieldManagementSnapshot>(
+        `${DIARY_FIELD_MANAGEMENT_PREFIX}:${eventNumber || "event"}`
+      ) ?? {};
+
+    const confirmedDrawCount = Array.isArray(fieldManagement.confirmedDraw)
+      ? fieldManagement.confirmedDraw.length
+      : 0;
+
+    const registeredPlayers = (record.players ?? []).filter(
+      (player) => player.status === "Registered"
+    );
+
+    const hasImportedStartList =
+      registeredPlayers.length > 0 &&
+      registeredPlayers.every(
+        (player) =>
+          Boolean(player.teeTime?.trim()) && Boolean(player.group?.trim())
+      );
+
+    const hasFinalDraw =
+      hasImportedStartList ||
+      fieldManagement.drawConfirmed === true ||
+      confirmedDrawCount > 0;
+
+    if (!hasFinalDraw) return true;
+  }
+
+  if (
+    daysUntilEvent <= 3 &&
+    settings.fieldSetupReady !== true &&
+    !fastReactionFieldSetup
+  ) return true;
+
+  return false;
+};
+
 export default function App() {
 
   const [showSplash, setShowSplash] =
@@ -256,6 +461,13 @@ export default function App() {
 
   const [eventRecords, setEventRecords] =
     useState<EventRecord[]>(loadInitialEventRecords);
+
+  const diaryToday = new Date();
+  diaryToday.setHours(0, 0, 0, 0);
+
+  const hasDiaryRedNotice = eventRecords.some((record) =>
+    eventRecordHasDiaryRedNotice(record, diaryToday)
+  );
 
   const [activeEventId, setActiveEventId] =
     useState(() => {
@@ -1406,6 +1618,20 @@ export default function App() {
     );
   };
 
+  const handleOpenDiarySource = (
+    recordId: string,
+    page: "new" | "planningAid" | "checklist" | "players" | "catering" | "field"
+  ) => {
+    const record = eventRecords.find((item) => item.id === recordId);
+    if (!record) return;
+
+    handleOpenEvent(record);
+
+    if (!record.archived) {
+      setCurrentPage(page);
+    }
+  };
+
   const handleOpenMatchBooklets = () => {
     setCurrentPage("matchBooklets");
   };
@@ -1456,6 +1682,7 @@ export default function App() {
   const eventOpen =
     currentPage !== "dashboard" &&
     currentPage !== "eventManager" &&
+    currentPage !== "diary" &&
     currentPage !== "posterPreview" &&
     currentPage !== "drawPreview";
 
@@ -2159,6 +2386,8 @@ export default function App() {
               onEventDesk={handleOpenEventManager}
               onRecentEvents={handleOpenRecentEvents}
               onMatchBooklets={handleOpenMatchBooklets}
+              onDiary={() => handleNavigate("diary")}
+              hasDiaryRedNotice={hasDiaryRedNotice}
               priorityEventName={priorityEventRecord?.event.eventName}
               priorityEventDate={priorityEventRecord?.event.eventDate}
               priorityEventCountdown={
@@ -2175,6 +2404,14 @@ export default function App() {
                     })()
                   : ""
               }
+            />
+          )}
+
+          {currentPage === "diary" && (
+            <Diary
+              eventRecords={eventRecords}
+              onBack={() => handleNavigate("dashboard")}
+              onOpenSource={handleOpenDiarySource}
             />
           )}
 
