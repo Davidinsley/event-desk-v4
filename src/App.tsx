@@ -18,6 +18,7 @@ import NewEvent from "./components/NewEvent";
 import EventChecklist from "./components/EventChecklist";
 import PlanningAid from "./components/PlanningAid";
 import Diary from "./components/Diary";
+import BackupRestore from "./components/BackupRestore";
 import Competition from "./components/Competition";
 import Prizes from "./components/Prizes";
 import PrizeWinners from "./components/PrizeWinners";
@@ -1702,6 +1703,7 @@ export default function App() {
     currentPage !== "dashboard" &&
     currentPage !== "eventManager" &&
     currentPage !== "diary" &&
+    currentPage !== "backupRestore" &&
     currentPage !== "posterPreview" &&
     currentPage !== "drawPreview";
 
@@ -2406,6 +2408,7 @@ export default function App() {
               onRecentEvents={handleOpenRecentEvents}
               onMatchBooklets={handleOpenMatchBooklets}
               onDiary={() => handleNavigate("diary")}
+              onBackupRestore={() => handleNavigate("backupRestore")}
               hasDiaryRedNotice={hasDiaryRedNotice}
               priorityEventName={priorityEventRecord?.event.eventName}
               priorityEventDate={priorityEventRecord?.event.eventDate}
@@ -2432,6 +2435,10 @@ export default function App() {
               onBack={() => handleNavigate("dashboard")}
               onOpenSource={handleOpenDiarySource}
             />
+          )}
+
+          {currentPage === "backupRestore" && (
+            <BackupRestore onBack={() => handleNavigate("dashboard")} />
           )}
 
           {currentPage === "new" && (

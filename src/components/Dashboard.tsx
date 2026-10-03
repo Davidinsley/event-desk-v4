@@ -11,6 +11,7 @@ interface DashboardProps {
   onRecentEvents: () => void;
   onMatchBooklets: () => void;
   onDiary?: () => void;
+  onBackupRestore?: () => void;
   hasDiaryRedNotice?: boolean;
   priorityEventName?: string;
   priorityEventDate?: string;
@@ -110,6 +111,7 @@ function Dashboard({
   onRecentEvents,
   onMatchBooklets,
   onDiary,
+  onBackupRestore,
   hasDiaryRedNotice = false,
   priorityEventName,
   priorityEventDate,
@@ -217,6 +219,15 @@ function Dashboard({
         >
           <HistoryIcon />
           <span>Past Events</span>
+        </button>
+
+        <button
+          type="button"
+          className="dashboard-secondary-button"
+          onClick={() => onBackupRestore?.()}
+        >
+          <span aria-hidden="true" style={{ fontSize: "22px", lineHeight: 1 }}>↕</span>
+          <span>Backup &amp; Restore</span>
         </button>
       </div>
     </section>

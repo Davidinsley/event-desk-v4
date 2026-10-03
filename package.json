@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "electron": "electron .",
-    "dist:mac": "npm run build && electron-builder --mac --arm64"
+    "dist:mac": "npm run build && electron-builder --mac --arm64",
+    "dist:mac:intel": "npm run build && electron-builder --mac --x64"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",
@@ -51,12 +52,7 @@
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64"
-          ]
-        }
+        "dmg"
       ],
       "icon": "build/icon.icns"
     }
