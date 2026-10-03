@@ -57,7 +57,8 @@
             "arm64"
           ]
         }
-      ]
+      ],
+      "icon": "build/icon.icns"
     }
   }
 }

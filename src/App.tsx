@@ -142,9 +142,41 @@ const loadInitialEventRecords = (): EventRecord[] => {
 
           if (!record?.archived) return record;
 
-          const eventDate = record.event?.eventDate
-            ? new Date(`${record.event.eventDate}T00:00:00`)
-            : null;
+          const rawEventDate =
+            typeof record.event?.eventDate === "string"
+              ? record.event.eventDate.trim()
+              : "";
+
+          let eventDate: Date | null = null;
+
+          const eventDateMatch = rawEventDate.match(
+            /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/
+          );
+
+          if (eventDateMatch) {
+            const day = Number(eventDateMatch[1]);
+            const month = Number(eventDateMatch[2]);
+            let year = Number(eventDateMatch[3]);
+
+            if (eventDateMatch[3].length === 2) {
+              year += year >= 70 ? 1900 : 2000;
+            }
+
+            const parsedEventDate = new Date(year, month - 1, day);
+
+            if (
+              parsedEventDate.getFullYear() === year &&
+              parsedEventDate.getMonth() === month - 1 &&
+              parsedEventDate.getDate() === day
+            ) {
+              eventDate = parsedEventDate;
+            }
+          } else if (rawEventDate) {
+            const parsedEventDate = new Date(`${rawEventDate}T00:00:00`);
+            eventDate = Number.isNaN(parsedEventDate.getTime())
+              ? null
+              : parsedEventDate;
+          }
 
           if (
             !record.published ||
@@ -1007,6 +1039,42 @@ export default function App() {
     }
   };
 
+  const parseEventDate = (eventDateValue: string): Date | null => {
+    const rawDate = eventDateValue.trim();
+
+    const match = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+
+    if (match) {
+      const day = Number(match[1]);
+      const month = Number(match[2]);
+      let year = Number(match[3]);
+
+      if (match[3].length === 2) {
+        year += year >= 70 ? 1900 : 2000;
+      }
+
+      const eventDate = new Date(year, month - 1, day);
+
+      if (
+        eventDate.getFullYear() === year &&
+        eventDate.getMonth() === month - 1 &&
+        eventDate.getDate() === day
+      ) {
+        return eventDate;
+      }
+
+      return null;
+    }
+
+    if (rawDate) {
+      const parsed = new Date(`${rawDate}T00:00:00`);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    return null;
+  };
+
+
   /*
    * FIVE-DAY CLOSE ELIGIBILITY
    *
@@ -1019,18 +1087,13 @@ export default function App() {
       return null;
     }
 
-    const eventDate = new Date(
-      `${event.eventDate}T00:00:00`
-    );
+    const eventDate = parseEventDate(event.eventDate);
 
-    if (
-      Number.isNaN(
-        eventDate.getTime()
-      )
-    ) {
+    if (!eventDate) {
       return null;
     }
 
+    eventDate.setHours(0, 0, 0, 0);
     eventDate.setDate(
       eventDate.getDate() + 5
     );
@@ -1215,18 +1278,9 @@ export default function App() {
       return false;
     }
 
-    const rawDate = record.event.eventDate.trim();
-    let eventDate: Date | null = null;
+    const eventDate = parseEventDate(record.event.eventDate);
 
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
-      const [day, month, year] = rawDate.split("/").map(Number);
-      eventDate = new Date(year, month - 1, day);
-    } else {
-      const parsed = new Date(`${rawDate}T00:00:00`);
-      eventDate = Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    if (!eventDate || Number.isNaN(eventDate.getTime())) {
+    if (!eventDate) {
       return false;
     }
 
@@ -1244,41 +1298,6 @@ export default function App() {
    * No calendar icon is used. The countdown sits immediately
    * beside the Event Reference tile in Event Desk.
    */
-  const parseEventDate = (eventDateValue: string): Date | null => {
-    const rawDate = eventDateValue.trim();
-
-    const match = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
-
-    if (match) {
-      const day = Number(match[1]);
-      const month = Number(match[2]);
-      let year = Number(match[3]);
-
-      if (match[3].length === 2) {
-        year += year >= 70 ? 1900 : 2000;
-      }
-
-      const eventDate = new Date(year, month - 1, day);
-
-      if (
-        eventDate.getFullYear() === year &&
-        eventDate.getMonth() === month - 1 &&
-        eventDate.getDate() === day
-      ) {
-        return eventDate;
-      }
-
-      return null;
-    }
-
-    if (rawDate) {
-      const parsed = new Date(`${rawDate}T00:00:00`);
-      return Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    return null;
-  };
-
   const getEventCountdown = (eventDateValue: string) => {
     const eventDate = parseEventDate(eventDateValue);
 
@@ -2144,10 +2163,10 @@ export default function App() {
                 }}
               >
                 {eventRecords
-                  .filter(
-                    (record) =>
-                      !recentEventsOnly ||
-                      isPastCompletedEvent(record)
+                  .filter((record) =>
+                    recentEventsOnly
+                      ? isPastCompletedEvent(record)
+                      : !record.archived
                   )
                   .slice()
                   .sort((a, b) => {
