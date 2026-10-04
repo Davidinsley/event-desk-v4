@@ -431,3 +431,49 @@ table {
     font-size: 28px;
   }
 }
+
+/* ======================================================
+   REGULAR COMPETITION THEME
+   Applies only to MC-numbered regular competition records.
+   Special Events retain the existing blue Event Desk theme.
+====================================================== */
+
+.regular-comp-mode .header {
+  background: linear-gradient(90deg, #d7ead6, #eef6ec);
+  border-bottom-color: #c8d9c6;
+}
+
+.regular-comp-mode .main {
+  background: #f3f7f1;
+}
+
+.regular-comp-mode .sidebar {
+  background: #fbfdfb;
+  border-right-color: #d6e1d4;
+}
+
+.regular-comp-mode .sidebar li:hover {
+  background: #edf5eb;
+  color: #3f6844;
+}
+
+.regular-comp-mode .sidebar li.active {
+  background: #e2f0df;
+  color: #3f6844;
+  border-left-color: #6f956f;
+}
+
+.regular-comp-mode .field input:focus,
+.regular-comp-mode .field select:focus {
+  border-color: #7fa17f;
+  box-shadow: 0 0 0 3px rgba(111, 149, 111, 0.15);
+}
+
+.regular-comp-mode .primary-button {
+  background: #668b6b;
+}
+
+.regular-comp-mode .primary-button:hover {
+  background: #527657;
+}
+

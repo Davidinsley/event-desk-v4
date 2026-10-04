@@ -168,3 +168,24 @@
         min-width: 0;
     }
 }
+/* MC REGULAR COMPETITION THEME */
+.regular-comp-mode .action-tile:not(.warning-red):not(.warning-amber) { border-color: #d6e1d4; }
+.regular-comp-mode .action-tile:not(.warning-red):not(.warning-amber):hover {
+    border-color: #7fa17f; background: #f3f8f1;
+    box-shadow: 0 8px 20px rgba(79,118,84,.16);
+}
+.regular-comp-mode .action-tile.primary:not(.warning-red):not(.warning-amber) {
+    border-color: #7fa17f; background: #e8f2e5;
+}
+.regular-comp-mode .action-tile.primary:not(.warning-red):not(.warning-amber):hover {
+    border-color: #668b6b; background: #dcebd8;
+    box-shadow: 0 8px 20px rgba(79,118,84,.20);
+}
+.regular-comp-mode .action-tile:not(.warning-red):not(.warning-amber) .action-tile-icon { color: #4f7654; }
+.regular-comp-mode .action-tile:disabled,
+.regular-comp-mode .action-tile:disabled:hover {
+    background: #f5f5f5; border-color: #dddddd; box-shadow: none;
+}
+.regular-comp-mode .action-tile:disabled .action-tile-icon,
+.regular-comp-mode .action-tile:disabled .action-tile-title,
+.regular-comp-mode .action-tile:disabled .action-tile-subtitle { color: #999999; }

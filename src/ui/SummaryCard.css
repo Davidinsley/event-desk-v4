@@ -130,3 +130,8 @@
 .summary-card.danger strong {
     color: #c62828;
 }
+/* MC REGULAR COMPETITION THEME */
+.regular-comp-mode .summary-card { border-color: #d6e1d4; }
+.regular-comp-mode .summary-card.default strong,
+.regular-comp-mode .summary-card.venue strong,
+.regular-comp-mode .summary-card.muted strong { color: #4f7654; }

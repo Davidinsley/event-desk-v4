@@ -19,6 +19,7 @@ import EventChecklist from "./components/EventChecklist";
 import PlanningAid from "./components/PlanningAid";
 import Diary from "./components/Diary";
 import BackupRestore from "./components/BackupRestore";
+import RegularCompetitions from "./components/RegularCompetitions";
 import Competition from "./components/Competition";
 import Prizes from "./components/Prizes";
 import PrizeWinners from "./components/PrizeWinners";
@@ -98,6 +99,7 @@ interface EventRecord {
 const EVENT_RECORDS_KEY = "eventDeskEventRecords";
 const ACTIVE_EVENT_ID_KEY = "eventDeskActiveEventId";
 const CURRENT_WORKING_EVENT_ID_KEY = "eventDeskCurrentWorkingEventId";
+const REGULAR_COMP_SEQUENCE_KEY = "eventDeskRegularCompetitionSequence";
 
 const createEventRecord = (event: Event): EventRecord => ({
   id: event.eventNumber,
@@ -1477,6 +1479,134 @@ export default function App() {
    *
    * It also never creates a new event or increases the event number.
    */
+  const getNextRegularCompetitionNumber = () => {
+    let highestNumber = eventRecords.reduce((highest, record) => {
+      const match = record.event.eventNumber?.trim().match(/^MC(\d+)$/i);
+
+      if (!match) {
+        return highest;
+      }
+
+      return Math.max(highest, Number(match[1]));
+    }, 0);
+
+    try {
+      const savedRecords = localStorage.getItem(EVENT_RECORDS_KEY);
+
+      if (savedRecords) {
+        const parsedRecords = JSON.parse(savedRecords);
+
+        if (Array.isArray(parsedRecords)) {
+          highestNumber = parsedRecords.reduce((highest, record) => {
+            const match = record?.event?.eventNumber
+              ?.trim()
+              .match(/^MC(\d+)$/i);
+
+            if (!match) {
+              return highest;
+            }
+
+            return Math.max(highest, Number(match[1]));
+          }, highestNumber);
+        }
+      }
+
+      const savedSequence = Number.parseInt(
+        localStorage.getItem(REGULAR_COMP_SEQUENCE_KEY) ?? "0",
+        10
+      );
+
+      if (!Number.isNaN(savedSequence)) {
+        highestNumber = Math.max(highestNumber, savedSequence);
+      }
+    } catch (error) {
+      console.error("Failed to read regular competition sequence", error);
+    }
+
+    const nextNumber = highestNumber + 1;
+
+    try {
+      localStorage.setItem(
+        REGULAR_COMP_SEQUENCE_KEY,
+        String(nextNumber)
+      );
+    } catch (error) {
+      console.error("Failed to save regular competition sequence", error);
+    }
+
+    return `MC${String(nextNumber).padStart(4, "0")}`;
+  };
+
+  const handleCreateRegularCompetition = (
+    type: "medal" | "stableford" | "medalAggregate" | "stablefordAggregate",
+    competitionDate: string
+  ) => {
+    const isMedal =
+      type === "medal" || type === "medalAggregate";
+
+    const eventName =
+      type === "medal"
+        ? "Monday Club Medal"
+        : type === "stableford"
+        ? "Monday Club Stableford"
+        : type === "medalAggregate"
+        ? "Monthly Medal Aggregate"
+        : "Monthly Stableford Aggregate";
+
+    const newEvent: Event = {
+      eventNumber: getNextRegularCompetitionNumber(),
+      eventName,
+      eventDate: competitionDate,
+      venue: "",
+      competition: isMedal ? "Medal" : "Stableford",
+      entryFee: 0,
+      playerLimit: 80,
+      competitionCategory: "Regular Competition",
+      competitionFormat: isMedal ? "Medal" : "Stableford",
+      competitionRounds: 1,
+      handicapAllowance: 95,
+      teeColour: "Yellow",
+      competitionRules: "",
+    };
+
+    const newRecord = createEventRecord(newEvent);
+
+    const nextRecords = [
+      ...eventRecords.map((record) =>
+        record.id === activeEventId ? buildCurrentRecord() : record
+      ),
+      newRecord,
+    ];
+
+    setEventRecords(nextRecords);
+    setActiveEventId(newRecord.id);
+    setCurrentWorkingEventId(newRecord.id);
+    setEvent(newEvent);
+    setPlayers([]);
+    setAttachedPosterIds([]);
+    setPreviewPosterId(null);
+    setDrawPreviewData(null);
+    setPublished(false);
+    setPublishedSnapshot(null);
+    setPublicationMeta({
+      publicationCount: 0,
+      firstPublishedAt: null,
+      lastPublishedAt: null,
+    });
+    setArchived(false);
+
+    try {
+      localStorage.setItem(EVENT_RECORDS_KEY, JSON.stringify(nextRecords));
+      localStorage.setItem(ACTIVE_EVENT_ID_KEY, newRecord.id);
+      localStorage.setItem(CURRENT_WORKING_EVENT_ID_KEY, newRecord.id);
+      localStorage.removeItem(ARCHIVED_EVENT_KEY);
+    } catch (error) {
+      console.error("Failed to create regular competition", error);
+    }
+
+    setCurrentPage("new");
+  };
+
   const handleNewEvent = () => {
     const newEvent: Event = {
       eventNumber: getNextEventNumber(),
@@ -1603,6 +1733,103 @@ export default function App() {
     }
   };
 
+  const handleDeleteRegularCompetition = (record: EventRecord) => {
+    const confirmed = window.confirm(
+      `Delete ${record.event.eventNumber} – ${record.event.eventName}?\n\nThis competition and its associated Event Desk data will be permanently removed. This cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const remainingRecords = eventRecords.filter(
+      (item) => item.id !== record.id
+    );
+
+    setEventRecords(remainingRecords);
+
+    if (record.id === currentWorkingEventId) {
+      const nextWorkingRecord = remainingRecords.find(
+        (item) => !item.archived
+      );
+      setCurrentWorkingEventId(nextWorkingRecord?.id ?? null);
+    }
+
+    if (record.id === activeEventId) {
+      const nextRecord =
+        remainingRecords.find(
+          (item) =>
+            !item.archived &&
+            !/^MC\d+$/i.test(
+              item.event.eventNumber?.trim() ?? ""
+            )
+        ) ??
+        remainingRecords.find((item) => !item.archived) ??
+        remainingRecords[0];
+
+      if (nextRecord) {
+        setActiveEventId(nextRecord.id);
+        setEvent(nextRecord.event);
+        setPlayers(nextRecord.players);
+        setAttachedPosterIds(
+          nextRecord.attachedPosterIds ??
+            (nextRecord.attachedPosterId
+              ? [nextRecord.attachedPosterId]
+              : [])
+        );
+        setPreviewPosterId(null);
+        setDrawPreviewData(null);
+        setPublished(nextRecord.published);
+        setPublishedSnapshot(nextRecord.publishedSnapshot);
+        setPublicationMeta(nextRecord.publicationMeta);
+        setArchived(nextRecord.archived);
+
+        if (!nextRecord.archived) {
+          setCurrentWorkingEventId(nextRecord.id);
+        }
+      } else {
+        setActiveEventId(defaultEvent.eventNumber);
+        setCurrentWorkingEventId(null);
+      }
+    }
+
+    try {
+      localStorage.setItem(
+        EVENT_RECORDS_KEY,
+        JSON.stringify(remainingRecords)
+      );
+
+      if (record.id === activeEventId) {
+        const nextRecord =
+          remainingRecords.find(
+            (item) =>
+              !item.archived &&
+              !/^MC\d+$/i.test(
+                item.event.eventNumber?.trim() ?? ""
+              )
+          ) ??
+          remainingRecords.find((item) => !item.archived) ??
+          remainingRecords[0];
+
+        if (nextRecord) {
+          localStorage.setItem(ACTIVE_EVENT_ID_KEY, nextRecord.id);
+
+          if (!nextRecord.archived) {
+            localStorage.setItem(
+              CURRENT_WORKING_EVENT_ID_KEY,
+              nextRecord.id
+            );
+          }
+        } else {
+          localStorage.removeItem(ACTIVE_EVENT_ID_KEY);
+          localStorage.removeItem(CURRENT_WORKING_EVENT_ID_KEY);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete regular competition", error);
+    }
+  };
+
   const handleOpenEvent = (record: EventRecord) => {
     /*
      * Always hydrate the live event state from the Event Desk record,
@@ -1704,6 +1931,7 @@ export default function App() {
     currentPage !== "eventManager" &&
     currentPage !== "diary" &&
     currentPage !== "backupRestore" &&
+    currentPage !== "regularCompetitions" &&
     currentPage !== "posterPreview" &&
     currentPage !== "drawPreview";
 
@@ -1745,7 +1973,14 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${appMode}`}>
+    <div
+      className={`app ${appMode}${
+        (currentPage === "regularCompetitions" ||
+          (eventOpen && /^MC\d+$/i.test(event.eventNumber?.trim() ?? "")))
+          ? " regular-comp-mode"
+          : ""
+      }`}
+    >
 
       <header className="header">
 
@@ -1762,7 +1997,10 @@ export default function App() {
           </h1>
 
           <p>
-            Special Events Management
+            {currentPage === "regularCompetitions" ||
+            (eventOpen && /^MC\d+$/i.test(event.eventNumber?.trim() ?? ""))
+              ? "Regular Competition Management"
+              : "Special Events Management"}
           </p>
 
         </div>
@@ -1822,7 +2060,13 @@ export default function App() {
 
             <button
               type="button"
-              onClick={handleOpenEventManager}
+              onClick={() => {
+                if (/^MC\d+$/i.test(event.eventNumber?.trim() ?? "")) {
+                  handleNavigate("regularCompetitions");
+                } else {
+                  handleOpenEventManager();
+                }
+              }}
               style={{
                 border: "1px solid #2f6db5",
                 borderRadius: "10px",
@@ -1834,7 +2078,9 @@ export default function App() {
                 boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
               }}
             >
-              📋 Event Desk
+              {/^MC\d+$/i.test(event.eventNumber?.trim() ?? "")
+                ? "📋 Regular Comp Desk"
+                : "📋 Event Desk"}
             </button>
           </div>
         )}
@@ -2165,11 +2411,20 @@ export default function App() {
                 }}
               >
                 {eventRecords
-                  .filter((record) =>
-                    recentEventsOnly
+                  .filter((record) => {
+                    const isRegularCompetition =
+                      /^MC\d+$/i.test(
+                        record.event.eventNumber?.trim() ?? ""
+                      );
+
+                    if (isRegularCompetition) {
+                      return false;
+                    }
+
+                    return recentEventsOnly
                       ? isPastCompletedEvent(record)
-                      : !record.archived
-                  )
+                      : !record.archived;
+                  })
                   .slice()
                   .sort((a, b) => {
                     const aPriority = Boolean(a.event.priority);
@@ -2409,6 +2664,7 @@ export default function App() {
               onMatchBooklets={handleOpenMatchBooklets}
               onDiary={() => handleNavigate("diary")}
               onBackupRestore={() => handleNavigate("backupRestore")}
+              onRegularCompetitions={() => handleNavigate("regularCompetitions")}
               hasDiaryRedNotice={hasDiaryRedNotice}
               priorityEventName={priorityEventRecord?.event.eventName}
               priorityEventDate={priorityEventRecord?.event.eventDate}
@@ -2434,6 +2690,60 @@ export default function App() {
               eventRecords={eventRecords}
               onBack={() => handleNavigate("dashboard")}
               onOpenSource={handleOpenDiarySource}
+            />
+          )}
+
+          {currentPage === "regularCompetitions" && (
+            <RegularCompetitions
+              onBack={() => handleNavigate("dashboard")}
+              currentCompetitions={eventRecords
+                .filter(
+                  (record) =>
+                    !record.archived &&
+                    /^MC\d+$/i.test(
+                      record.event.eventNumber?.trim() ?? ""
+                    )
+                )
+                .map((record) => ({
+                  id: record.id,
+                  eventNumber: record.event.eventNumber,
+                  eventName: record.event.eventName,
+                  eventDate: record.event.eventDate,
+                  status: record.published
+                    ? ("Published" as const)
+                    : ("Draft" as const),
+                }))}
+              onOpenCompetition={(id) => {
+                const record = eventRecords.find(
+                  (item) => item.id === id
+                );
+
+                if (record) {
+                  handleOpenEvent(record);
+                }
+              }}
+              onDeleteCompetition={(id) => {
+                const record = eventRecords.find(
+                  (item) => item.id === id
+                );
+
+                if (
+                  record &&
+                  /^MC\d+$/i.test(
+                    record.event.eventNumber?.trim() ?? ""
+                  )
+                ) {
+                  handleDeleteRegularCompetition(record);
+                }
+              }}
+              onCreate={(type, competitionDate) => {
+                if (
+                  type !== "addNew" &&
+                  competitionDate
+                ) {
+                  handleCreateRegularCompetition(type, competitionDate);
+                }
+              }}
             />
           )}
 

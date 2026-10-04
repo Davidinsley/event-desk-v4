@@ -270,3 +270,53 @@
   color: #b42318;
 }
 
+/* =======================================================
+   MC REGULAR COMPETITION THEME
+   Scoped by App.tsx .regular-comp-mode so Special Events
+   retain the existing blue Players styling.
+======================================================= */
+
+.regular-comp-mode .players-table {
+    border-color: #d6e1d4;
+}
+
+.regular-comp-mode .players-table thead th {
+    background: #edf5eb;
+    color: #35563a;
+}
+
+.regular-comp-mode .players-table td {
+    border-top-color: #e7eee5;
+}
+
+.regular-comp-mode .modal h2 {
+    color: #3f6844;
+}
+
+.regular-comp-mode .form-grid label,
+.regular-comp-mode .notes-field label {
+    color: #3f5f43;
+}
+
+.regular-comp-mode .form-grid input:focus,
+.regular-comp-mode .form-grid select:focus,
+.regular-comp-mode .notes-field textarea:focus {
+    border-color: #7fa17f;
+    box-shadow: 0 0 0 3px rgba(111,149,111,.15);
+}
+
+.regular-comp-mode .event-poster-section h2,
+.regular-comp-mode .poster-drop-zone h3 {
+    color: #3f6844;
+}
+
+.regular-comp-mode .poster-drop-zone {
+    border-color: #cbdcc8;
+    background: #fbfdfb;
+}
+
+.regular-comp-mode .poster-preview-placeholder {
+    background: #edf5eb;
+    border-color: #d4e4d1;
+}
+
