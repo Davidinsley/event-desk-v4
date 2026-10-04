@@ -6,6 +6,7 @@ export type RegularCompetitionType =
   | "stableford"
   | "medalAggregate"
   | "stablefordAggregate"
+  | "custom"
   | "addNew";
 
 export interface RegularCompetitionRecord {
@@ -16,13 +17,39 @@ export interface RegularCompetitionRecord {
   status: "Draft" | "Published";
 }
 
+export interface CustomRegularCompetitionTemplate {
+  id: string;
+  title: string;
+  competitionFormat: string;
+  playerLimit: number;
+  handicapAllowance: number;
+  teeColour: string;
+  competitionRounds: number;
+}
+
 interface RegularCompetitionsProps {
   onBack: () => void;
-  onCreate: (type: RegularCompetitionType, eventDate?: string) => void;
+  onCreate: (
+    type: RegularCompetitionType,
+    eventDate?: string,
+    customTemplate?: CustomRegularCompetitionTemplate,
+  ) => void;
   currentCompetitions: RegularCompetitionRecord[];
   onOpenCompetition: (id: string) => void;
   onDeleteCompetition: (id: string) => void;
 }
+
+const CUSTOM_TEMPLATES_KEY = "eventDeskRegularCompetitionTemplatesV1";
+
+const loadCustomTemplates = (): CustomRegularCompetitionTemplate[] => {
+  try {
+    const saved = localStorage.getItem(CUSTOM_TEMPLATES_KEY);
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 const templates: Array<{
   type: RegularCompetitionType;
@@ -105,11 +132,28 @@ function RegularCompetitions({
   const [selectedType, setSelectedType] =
     useState<RegularCompetitionType | null>(null);
   const [eventDate, setEventDate] = useState("");
+  const [customTemplates, setCustomTemplates] =
+    useState<CustomRegularCompetitionTemplate[]>(loadCustomTemplates);
+  const [selectedCustomId, setSelectedCustomId] = useState<string | null>(null);
+  const [showAddTemplate, setShowAddTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateFormat, setTemplateFormat] = useState("");
+  const [templatePlayerLimit, setTemplatePlayerLimit] = useState("80");
+  const [templateAllowance, setTemplateAllowance] = useState("95");
+  const [templateTee, setTemplateTee] = useState("Yellow");
+  const [templateRounds, setTemplateRounds] = useState("1");
   const createPanelRef = useRef<HTMLDivElement | null>(null);
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.type === selectedType) ?? null,
     [selectedType],
+  );
+
+  const selectedCustomTemplate = useMemo(
+    () =>
+      customTemplates.find((template) => template.id === selectedCustomId) ??
+      null,
+    [customTemplates, selectedCustomId],
   );
 
   const parsedDate = useMemo(
@@ -120,10 +164,97 @@ function RegularCompetitions({
 
   const handleTemplateClick = (type: RegularCompetitionType) => {
     if (type === "addNew") {
+      setSelectedType(null);
+      setSelectedCustomId(null);
+      setEventDate("");
+      setShowAddTemplate(true);
       return;
     }
 
+    setShowAddTemplate(false);
+    setSelectedCustomId(null);
     setSelectedType(type);
+    setEventDate("");
+
+    window.setTimeout(() => {
+      createPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }, 0);
+  };
+
+  const saveCustomTemplates = (
+    nextTemplates: CustomRegularCompetitionTemplate[],
+  ) => {
+    setCustomTemplates(nextTemplates);
+    localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(nextTemplates));
+  };
+
+  const handleSaveCustomTemplate = () => {
+    const title = templateName.trim();
+    const competitionFormat = templateFormat.trim();
+    const playerLimit = Number(templatePlayerLimit);
+    const handicapAllowance = Number(templateAllowance);
+    const competitionRounds = Number(templateRounds);
+
+    if (
+      !title ||
+      !competitionFormat ||
+      !Number.isFinite(playerLimit) ||
+      playerLimit < 1 ||
+      !Number.isFinite(handicapAllowance) ||
+      handicapAllowance < 0 ||
+      !templateTee.trim() ||
+      !Number.isFinite(competitionRounds) ||
+      competitionRounds < 1
+    ) {
+      return;
+    }
+
+    const nextTemplate: CustomRegularCompetitionTemplate = {
+      id: `custom-${Date.now()}`,
+      title,
+      competitionFormat,
+      playerLimit,
+      handicapAllowance,
+      teeColour: templateTee.trim(),
+      competitionRounds,
+    };
+
+    saveCustomTemplates([...customTemplates, nextTemplate]);
+    setTemplateName("");
+    setTemplateFormat("");
+    setTemplatePlayerLimit("80");
+    setTemplateAllowance("95");
+    setTemplateTee("Yellow");
+    setTemplateRounds("1");
+    setShowAddTemplate(false);
+  };
+
+  const handleDeleteCustomTemplate = (
+    template: CustomRegularCompetitionTemplate,
+  ) => {
+    const confirmed = window.confirm(
+      `Delete this template?\n\n${template.title}\n\nThis removes the reusable template only. Competitions already created from it will not be affected.`,
+    );
+
+    if (!confirmed) return;
+
+    saveCustomTemplates(
+      customTemplates.filter((item) => item.id !== template.id),
+    );
+
+    if (selectedCustomId === template.id) {
+      setSelectedCustomId(null);
+      setEventDate("");
+    }
+  };
+
+  const handleCustomTemplateClick = (id: string) => {
+    setShowAddTemplate(false);
+    setSelectedType("custom");
+    setSelectedCustomId(id);
     setEventDate("");
 
     window.setTimeout(() => {
@@ -136,6 +267,7 @@ function RegularCompetitions({
 
   const handleCancel = () => {
     setSelectedType(null);
+    setSelectedCustomId(null);
     setEventDate("");
   };
 
@@ -145,6 +277,17 @@ function RegularCompetitions({
       selectedType === "addNew" ||
       !weekday
     ) {
+      return;
+    }
+
+    if (selectedType === "custom") {
+      if (!selectedCustomTemplate) return;
+
+      onCreate(
+        "custom",
+        parsedDate!.formattedDate,
+        selectedCustomTemplate,
+      );
       return;
     }
 
@@ -196,6 +339,253 @@ function RegularCompetitions({
         ))}
       </div>
 
+      {customTemplates.length > 0 && (
+        <div className="regular-competitions-grid" style={{ marginTop: "16px" }}>
+          {customTemplates.map((template) => (
+            <div
+              key={template.id}
+              className={`regular-competition-card${
+                selectedCustomId === template.id
+                  ? " regular-competition-card-selected"
+                  : ""
+              }`}
+              style={{
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "stretch",
+                justifyContent: "stretch",
+                padding: 0,
+                overflow: "hidden",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => handleCustomTemplateClick(template.id)}
+                style={{
+                  border: 0,
+                  background: "transparent",
+                  width: "100%",
+                  flex: 1,
+                  minHeight: 0,
+                  padding: "24px 22px 50px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "10px",
+                  textAlign: "center",
+                  cursor: "pointer",
+                  color: "inherit",
+                  font: "inherit",
+                }}
+              >
+                <span
+                  className="regular-competition-number"
+                  style={{
+                    position: "static",
+                    width: "auto",
+                    minWidth: "74px",
+                    height: "34px",
+                    padding: "0 12px",
+                    borderRadius: "999px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "12px",
+                    lineHeight: 1,
+                  }}
+                >
+                  CUSTOM
+                </span>
+                <span
+                  className="regular-competition-title"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "center",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {template.title}
+                </span>
+                <span
+                  className="regular-competition-description"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "center",
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {template.competitionFormat} · {template.handicapAllowance}% · {template.teeColour}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteCustomTemplate(template)}
+                title={`Delete ${template.title} template`}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  bottom: "10px",
+                  border: "1px solid #d9b5b0",
+                  borderRadius: "8px",
+                  background: "white",
+                  color: "#b42318",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  padding: "5px 9px",
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showAddTemplate && (
+        <div ref={createPanelRef} className="regular-competition-create-panel">
+          <div style={{ gridColumn: "1 / -1" }}>
+            <div className="regular-competition-create-kicker">ADD REUSABLE TEMPLATE</div>
+            <h2>New Regular Competition Template</h2>
+          </div>
+
+          <div className="regular-competition-date-field">
+            <label>Template Name</label>
+            <input
+              type="text"
+              value={templateName}
+              onChange={(event) => setTemplateName(event.target.value)}
+              placeholder="e.g. Monday Club Texas Scramble"
+              autoFocus
+            />
+          </div>
+
+          <div className="regular-competition-date-field">
+            <label>Competition Format</label>
+            <input
+              type="text"
+              value={templateFormat}
+              onChange={(event) => setTemplateFormat(event.target.value)}
+              placeholder="e.g. Texas Scramble"
+            />
+          </div>
+
+          <div className="regular-competition-date-field">
+            <label>Maximum Players</label>
+            <input
+              type="number"
+              min="1"
+              value={templatePlayerLimit}
+              onChange={(event) => setTemplatePlayerLimit(event.target.value)}
+            />
+          </div>
+
+          <div className="regular-competition-date-field">
+            <label>Handicap Allowance (%)</label>
+            <input
+              type="number"
+              min="0"
+              value={templateAllowance}
+              onChange={(event) => setTemplateAllowance(event.target.value)}
+            />
+          </div>
+
+          <div className="regular-competition-date-field">
+            <label>Tee Colour</label>
+            <input
+              type="text"
+              value={templateTee}
+              onChange={(event) => setTemplateTee(event.target.value)}
+            />
+          </div>
+
+          <div className="regular-competition-date-field">
+            <label>Number of Rounds</label>
+            <input
+              type="number"
+              min="1"
+              value={templateRounds}
+              onChange={(event) => setTemplateRounds(event.target.value)}
+            />
+          </div>
+
+          <div className="regular-competition-create-actions" style={{ gridColumn: "1 / -1" }}>
+            <button
+              type="button"
+              className="regular-competition-cancel"
+              onClick={() => setShowAddTemplate(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="regular-competition-create"
+              onClick={handleSaveCustomTemplate}
+              disabled={
+                !templateName.trim() ||
+                !templateFormat.trim() ||
+                !templatePlayerLimit ||
+                !templateAllowance ||
+                !templateTee.trim() ||
+                !templateRounds
+              }
+            >
+              Save Template
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedType === "custom" && selectedCustomTemplate !== null && (
+        <div ref={createPanelRef} className="regular-competition-create-panel">
+          <div>
+            <div className="regular-competition-create-kicker">
+              CREATE FROM CUSTOM TEMPLATE
+            </div>
+            <h2>{selectedCustomTemplate.title}</h2>
+          </div>
+
+          <div className="regular-competition-date-field">
+            <label htmlFor="regular-custom-competition-date">
+              Competition Date
+            </label>
+            <input
+              id="regular-custom-competition-date"
+              type="text"
+              value={eventDate}
+              placeholder="DD/MM/YYYY"
+              onChange={(event) => setEventDate(event.target.value)}
+              autoFocus
+            />
+            <div className="regular-competition-date-help">
+              {weekday
+                ? weekday
+                : "Please enter the date as DD/MM/YYYY"}
+            </div>
+          </div>
+
+          <div className="regular-competition-create-actions">
+            <button
+              type="button"
+              className="regular-competition-cancel"
+              onClick={handleCancel}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="regular-competition-create"
+              onClick={handleCreate}
+              disabled={!weekday}
+            >
+              Create
+            </button>
+          </div>
+        </div>
+      )}
 
       {selectedTemplate !== null && selectedTemplate.type !== "addNew" && (
         <div ref={createPanelRef} className="regular-competition-create-panel">

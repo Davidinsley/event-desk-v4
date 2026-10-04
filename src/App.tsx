@@ -20,6 +20,10 @@ import PlanningAid from "./components/PlanningAid";
 import Diary from "./components/Diary";
 import BackupRestore from "./components/BackupRestore";
 import RegularCompetitions from "./components/RegularCompetitions";
+import type {
+  CustomRegularCompetitionTemplate,
+  RegularCompetitionType,
+} from "./components/RegularCompetitions";
 import Competition from "./components/Competition";
 import Prizes from "./components/Prizes";
 import PrizeWinners from "./components/PrizeWinners";
@@ -1538,34 +1542,48 @@ export default function App() {
   };
 
   const handleCreateRegularCompetition = (
-    type: "medal" | "stableford" | "medalAggregate" | "stablefordAggregate",
-    competitionDate: string
+    type: Exclude<RegularCompetitionType, "addNew">,
+    competitionDate: string,
+    customTemplate?: CustomRegularCompetitionTemplate
   ) => {
+    const isCustom = type === "custom";
+
+    if (isCustom && !customTemplate) {
+      return;
+    }
+
     const isMedal =
       type === "medal" || type === "medalAggregate";
 
-    const eventName =
-      type === "medal"
-        ? "Monday Club Medal"
-        : type === "stableford"
-        ? "Monday Club Stableford"
-        : type === "medalAggregate"
-        ? "Monthly Medal Aggregate"
-        : "Monthly Stableford Aggregate";
+    const eventName = isCustom
+      ? customTemplate!.title
+      : type === "medal"
+      ? "Monday Club Medal"
+      : type === "stableford"
+      ? "Monday Club Stableford"
+      : type === "medalAggregate"
+      ? "Monthly Medal Aggregate"
+      : "Monthly Stableford Aggregate";
+
+    const competitionFormat = isCustom
+      ? customTemplate!.competitionFormat
+      : isMedal
+      ? "Medal"
+      : "Stableford";
 
     const newEvent: Event = {
       eventNumber: getNextRegularCompetitionNumber(),
       eventName,
       eventDate: competitionDate,
       venue: "",
-      competition: isMedal ? "Medal" : "Stableford",
+      competition: competitionFormat,
       entryFee: 0,
-      playerLimit: 80,
+      playerLimit: isCustom ? customTemplate!.playerLimit : 80,
       competitionCategory: "Regular Competition",
-      competitionFormat: isMedal ? "Medal" : "Stableford",
-      competitionRounds: 1,
-      handicapAllowance: 95,
-      teeColour: "Yellow",
+      competitionFormat,
+      competitionRounds: isCustom ? customTemplate!.competitionRounds : 1,
+      handicapAllowance: isCustom ? customTemplate!.handicapAllowance : 95,
+      teeColour: isCustom ? customTemplate!.teeColour : "Yellow",
       competitionRules: "",
     };
 
@@ -2736,12 +2754,16 @@ export default function App() {
                   handleDeleteRegularCompetition(record);
                 }
               }}
-              onCreate={(type, competitionDate) => {
+              onCreate={(type, competitionDate, customTemplate) => {
                 if (
                   type !== "addNew" &&
                   competitionDate
                 ) {
-                  handleCreateRegularCompetition(type, competitionDate);
+                  handleCreateRegularCompetition(
+                    type,
+                    competitionDate,
+                    customTemplate,
+                  );
                 }
               }}
             />
