@@ -28,6 +28,7 @@ import Competition from "./components/Competition";
 import Prizes from "./components/Prizes";
 import PrizeWinners from "./components/PrizeWinners";
 import Players from "./components/Players";
+import ScorecardLabels from "./components/ScorecardLabels";
 import HandicapUpdate from "./components/HandicapUpdate";
 import FieldManagement from "./components/FieldManagement";
 import Catering from "./components/Catering";
@@ -2154,6 +2155,21 @@ export default function App() {
               👥 Players
             </li>
 
+            {!/^MC\d+$/i.test(event.eventNumber?.trim() ?? "") && (
+              <li
+                className={
+                  currentPage === "scorecardLabels"
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  handleNavigate("scorecardLabels")
+                }
+              >
+                🏷️ Scorecard Labels
+              </li>
+            )}
+
             <li
               className={
                 currentPage === "handicap"
@@ -2854,6 +2870,15 @@ export default function App() {
                 eventName={event.eventName}
                 eventDate={event.eventDate}
                 entryFee={event.entryFee}
+              />
+            )}
+
+          {currentPage === "scorecardLabels" &&
+            !/^MC\d+$/i.test(event.eventNumber?.trim() ?? "") && (
+              <ScorecardLabels
+                event={event}
+                players={players}
+                onBack={() => handleNavigate("players")}
               />
             )}
 
