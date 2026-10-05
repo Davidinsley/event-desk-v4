@@ -182,9 +182,9 @@ function Dashboard({
         >
           <span className="dashboard-card-content">
             <OpenBookIcon />
-            <span className="dashboard-card-title">Match Booklets</span>
+            <span className="dashboard-card-title">Match Booklets and Labels</span>
             <span className="dashboard-card-description">
-              Create and print booklets for home matches.
+              Create and print match booklets and scorecard labels.
             </span>
           </span>
         </button>

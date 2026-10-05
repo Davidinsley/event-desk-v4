@@ -29,6 +29,7 @@ import Prizes from "./components/Prizes";
 import PrizeWinners from "./components/PrizeWinners";
 import Players from "./components/Players";
 import ScorecardLabels from "./components/ScorecardLabels";
+import MatchScorecardLabels from "./components/MatchScorecardLabels";
 import HandicapUpdate from "./components/HandicapUpdate";
 import FieldManagement from "./components/FieldManagement";
 import Catering from "./components/Catering";
@@ -1945,6 +1946,10 @@ export default function App() {
    * EVENT NAVIGATION
    */
 
+  const matchWorkspace =
+    currentPage === "matchBooklets" ||
+    currentPage === "matchScorecardLabels";
+
   const eventOpen =
     currentPage !== "dashboard" &&
     currentPage !== "eventManager" &&
@@ -2016,8 +2021,10 @@ export default function App() {
           </h1>
 
           <p>
-            {currentPage === "regularCompetitions" ||
-            (eventOpen && /^MC\d+$/i.test(event.eventNumber?.trim() ?? ""))
+            {matchWorkspace
+              ? "Match Booklets & Labels"
+              : currentPage === "regularCompetitions" ||
+                (eventOpen && /^MC\d+$/i.test(event.eventNumber?.trim() ?? ""))
               ? "Regular Competition Management"
               : "Special Events Management"}
           </p>
@@ -2107,6 +2114,178 @@ export default function App() {
       </header>
 
       {eventOpen && (
+
+        matchWorkspace ? (
+
+        <aside className="sidebar">
+
+          <h3>MATCH BOOKLETS &amp; LABELS</h3>
+
+          <ul>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              🏌️ Event Details
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              🏆 Competition
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              👥 Players
+            </li>
+
+            <li
+              className={currentPage === "matchScorecardLabels" ? "active" : ""}
+              onClick={() => handleNavigate("matchScorecardLabels")}
+            >
+              🏷️ Scorecard Labels
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              🏌️ Field & Draw
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              📋 Field Management
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              🍽 Catering
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              🎨 Posters
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              £ Financials
+            </li>
+
+            <li
+              className={currentPage === "matchBooklets" ? "active" : ""}
+              onClick={() => handleNavigate("matchBooklets")}
+            >
+              📖 Booklets
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              🎁 Prizes
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              🏆 Prize Winners
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              🚩 Course Markers
+            </li>
+
+            <li
+              style={{
+                opacity: 0.38,
+                cursor: "not-allowed",
+                pointerEvents: "none",
+                filter: "grayscale(1)",
+              }}
+              aria-disabled="true"
+            >
+              ✅ Review & Publish
+            </li>
+
+          </ul>
+
+        </aside>
+
+        ) : (
 
         <aside className="sidebar">
 
@@ -2306,6 +2485,8 @@ export default function App() {
           </ul>
 
         </aside>
+
+        )
 
       )}
 
@@ -2985,8 +3166,12 @@ export default function App() {
 
           {currentPage === "matchBooklets" && (
             <MatchBooklets
-              onBack={handleOpenEventManager}
+              onBack={() => handleNavigate("dashboard")}
             />
+          )}
+
+          {currentPage === "matchScorecardLabels" && (
+            <MatchScorecardLabels />
           )}
 
           {currentPage ===

@@ -17,6 +17,27 @@ interface MatchBookletsProps {
 
 type MatchBookletView = "overview" | "seasonCover" | "startSheet" | "orderDay" | "matchInfo";
 
+type MatchLabelPlayer = {
+  name: string;
+  hi: string;
+  ph: string;
+  shots: string;
+};
+
+type MatchLabelGroup = {
+  groupNumber: number;
+  ramsdale: MatchLabelPlayer[];
+  visitors: MatchLabelPlayer[];
+};
+
+export type MatchSheetData = {
+  homeTeam: string;
+  visitingTeam: string;
+  groups: MatchLabelGroup[];
+  sourceFileName: string;
+  importedAt: string;
+};
+
 const SEASON_COVER_KEY = "eventDeskMatchBookletsSeasonCover";
 const ORDER_DAY_KEY = "eventDeskMatchBookletsOrderDay";
 const MATCH_INFO_KEY = "eventDeskMatchBookletsMatchInfo";
@@ -49,6 +70,7 @@ type MatchBookletRecord = {
   updatedAt: string;
   seasonCover: string | null;
   startSheetPreview: string | null;
+  matchSheetData?: MatchSheetData | null;
   orderDayRows: typeof DEFAULT_ORDER_DAY;
   orderDayNotes: string;
   matchInfo: typeof DEFAULT_MATCH_INFO;
@@ -60,6 +82,7 @@ type MatchBookletDraft = {
   title: string;
   matchDate: string;
   startSheetPreview: string | null;
+  matchSheetData?: MatchSheetData | null;
 };
 
 const openMatchBookletDb = () =>
@@ -138,12 +161,248 @@ const idbDelete = async (storeName: string, key: IDBValidKey) => {
   }
 };
 
+
+type PdfTextItem = {
+  str: string;
+  x: number;
+  y: number;
+};
+
+type PdfJsTextContent = {
+  items: any[];
+  styles: Record<string, any>;
+  lang?: string | null;
+};
+
+const getTextContentSafely = async (page: any): Promise<PdfJsTextContent> => {
+  const stream = page.streamTextContent();
+  const reader = stream.getReader();
+  const result: PdfJsTextContent = {
+    items: [],
+    styles: {},
+    lang: null,
+  };
+
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      if (!chunk.value) continue;
+
+      if (Array.isArray(chunk.value.items)) {
+        result.items.push(...chunk.value.items);
+      }
+      if (chunk.value.styles) {
+        Object.assign(result.styles, chunk.value.styles);
+      }
+      if (result.lang == null && chunk.value.lang != null) {
+        result.lang = chunk.value.lang;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return result;
+};
+
+const MONTHS: Record<string, string> = {
+  jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+  jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
+};
+
+const parseMatchDateFromText = (value: string) => {
+  const match = value.match(
+    /\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,?\s+(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})\b/i
+  );
+  if (!match) return "";
+  const month = MONTHS[match[2].slice(0, 3).toLowerCase()];
+  if (!month) return "";
+  return `${match[3]}-${month}-${match[1].padStart(2, "0")}`;
+};
+
+const parsePlayerSide = (
+  rawParts: string[],
+  stripGroupNumber: boolean
+): MatchLabelPlayer | null => {
+  const parts = rawParts
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (stripGroupNumber && parts.length && /^\d+$/.test(parts[0])) {
+    parts.shift();
+  }
+
+  const firstNumeric = parts.findIndex((part) => /^-?\d+(?:\.\d+)?$/.test(part));
+  if (firstNumeric <= 0) return null;
+
+  const name = parts.slice(0, firstNumeric).join(" ").trim();
+  const numbers = parts
+    .slice(firstNumeric)
+    .filter((part) => /^-?\d+(?:\.\d+)?$/.test(part));
+
+  if (!name || numbers.length < 3) return null;
+
+  return {
+    name,
+    hi: numbers[0],
+    ph: numbers[2],
+    shots: numbers[3] ?? "0",
+  };
+};
+
+const extractMatchSheetData = async (
+  page: Awaited<ReturnType<Awaited<ReturnType<typeof pdfjsLib.getDocument>["promise"]>["getPage"]>>,
+  sourceFileName: string
+): Promise<MatchSheetData> => {
+  const textContent = await getTextContentSafely(page);
+  const viewport = page.getViewport({ scale: 1 });
+  const items: PdfTextItem[] = [];
+
+  for (const rawItem of textContent.items) {
+    if (!("str" in rawItem) || !rawItem.str.trim() || !("transform" in rawItem)) {
+      continue;
+    }
+    items.push({
+      str: rawItem.str.trim(),
+      x: rawItem.transform[4],
+      y: rawItem.transform[5],
+    });
+  }
+
+  const rows: PdfTextItem[][] = [];
+  const sorted = [...items].sort((a, b) => {
+    const yDiff = b.y - a.y;
+    return Math.abs(yDiff) > 2 ? yDiff : a.x - b.x;
+  });
+
+  for (const item of sorted) {
+    const existing = rows.find((row) => Math.abs(row[0].y - item.y) <= 2);
+    if (existing) {
+      existing.push(item);
+      existing.sort((a, b) => a.x - b.x);
+    } else {
+      rows.push([item]);
+    }
+  }
+
+  const rowTexts = rows.map((row) => row.map((item) => item.str).join(" ").trim());
+  let homeTeam = "Ramsdale Park GC";
+  let visitingTeam = "Visiting Team";
+
+  const titleRow = rowTexts.find((row) => /\bv\b/i.test(row) && /Ramsdale Park/i.test(row));
+  if (titleRow) {
+    const titleMatch = titleRow.match(
+      /Ramsdale Park(?:\s+GC)?\s+v\s+(.+?)(?=\s*:\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b|\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b|$)/i
+    );
+    if (titleMatch?.[1]?.trim()) {
+      visitingTeam = titleMatch[1].trim().replace(/\s*:\s*$/, "");
+    }
+  }
+
+  const teamHeaderRow = rows.find((row) => {
+    const rowText = row.map((item) => item.str).join(" ");
+    return /Ramsdale Park/i.test(rowText) && row.some((item) => item.x > viewport.width * 0.5);
+  });
+
+  if (teamHeaderRow) {
+    const leftHeader = teamHeaderRow
+      .filter((item) => item.x < viewport.width * 0.5)
+      .map((item) => item.str)
+      .join(" ")
+      .trim();
+    const rightHeader = teamHeaderRow
+      .filter((item) => item.x >= viewport.width * 0.5)
+      .map((item) => item.str)
+      .join(" ")
+      .trim();
+
+    if (/Ramsdale Park/i.test(leftHeader)) {
+      homeTeam = "Ramsdale Park GC";
+    }
+    const cleanedRightHeader = rightHeader.replace(/\s+\(90%\).*$/i, "").trim();
+    const looksLikeDateFragment =
+      /^[:\s]*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/i.test(cleanedRightHeader) ||
+      /\b\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/i.test(cleanedRightHeader);
+
+    if (
+      cleanedRightHeader &&
+      !looksLikeDateFragment &&
+      !/^(HI|CH|PH|Diff|Shots|\(90%\))+$/i.test(cleanedRightHeader)
+    ) {
+      visitingTeam = cleanedRightHeader;
+    }
+  }
+
+  const groups: MatchLabelGroup[] = [];
+  let currentGroup: MatchLabelGroup | null = null;
+
+  for (const row of rows) {
+    const left = row.filter((item) => item.x < viewport.width * 0.5);
+    const right = row.filter((item) => item.x >= viewport.width * 0.5);
+    const leftParts = left.map((item) => item.str);
+    const rightParts = right.map((item) => item.str);
+
+    const groupToken = leftParts.find((part) => /^\d+$/.test(part));
+    const possibleGroup = groupToken ? Number(groupToken) : NaN;
+    const hasNewGroup =
+      Number.isInteger(possibleGroup) &&
+      possibleGroup >= 1 &&
+      possibleGroup <= 40 &&
+      leftParts.indexOf(groupToken!) <= 1;
+
+    const homePlayer = parsePlayerSide(leftParts, hasNewGroup);
+    const visitingPlayer = parsePlayerSide(rightParts, false);
+
+    if (!homePlayer || !visitingPlayer) {
+      continue;
+    }
+
+    if (hasNewGroup) {
+      currentGroup = {
+        groupNumber: possibleGroup,
+        ramsdale: [],
+        visitors: [],
+      };
+      groups.push(currentGroup);
+    }
+
+    if (!currentGroup) continue;
+
+    if (currentGroup.ramsdale.length < 2) {
+      currentGroup.ramsdale.push(homePlayer);
+    }
+    if (currentGroup.visitors.length < 2) {
+      currentGroup.visitors.push(visitingPlayer);
+    }
+  }
+
+  const completeGroups = groups.filter(
+    (group) => group.ramsdale.length === 2 && group.visitors.length === 2
+  );
+
+  if (!completeGroups.length) {
+    throw new Error(
+      "Player groups could not be extracted from this PDF. The booklet image can still be used, but labels cannot be generated automatically from this sheet."
+    );
+  }
+
+  return {
+    homeTeam,
+    visitingTeam,
+    groups: completeGroups,
+    sourceFileName,
+    importedAt: new Date().toISOString(),
+  };
+};
+
 function MatchBooklets({ onBack }: MatchBookletsProps) {
   const [view, setView] = useState<MatchBookletView>("overview");
   const [seasonCover, setSeasonCover] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const startSheetInputRef = useRef<HTMLInputElement | null>(null);
   const [startSheetPreview, setStartSheetPreview] = useState<string | null>(null);
+  const [matchSheetData, setMatchSheetData] = useState<MatchSheetData | null>(null);
   const [orderDayRows, setOrderDayRows] = useState(DEFAULT_ORDER_DAY);
   const [orderDayNotes, setOrderDayNotes] = useState("");
   const [matchInfo, setMatchInfo] = useState(DEFAULT_MATCH_INFO);
@@ -206,6 +465,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
 
         if (draft) {
           setStartSheetPreview(draft.startSheetPreview ?? null);
+          setMatchSheetData(draft.matchSheetData ?? null);
           setBookletTitle(draft.title ?? "");
           setMatchDate(draft.matchDate ?? "");
           setActiveBookletId(draft.activeBookletId ?? null);
@@ -241,6 +501,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
         title: bookletTitle,
         matchDate,
         startSheetPreview,
+        matchSheetData,
       };
 
       void idbPut(DRAFTS_STORE, draft).catch((error) => {
@@ -249,7 +510,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
     }, 150);
 
     return () => window.clearTimeout(timer);
-  }, [persistenceReady, activeBookletId, bookletTitle, matchDate, startSheetPreview]);
+  }, [persistenceReady, activeBookletId, bookletTitle, matchDate, startSheetPreview, matchSheetData]);
 
   useEffect(() => {
     if (!persistenceReady || !activeBookletId) return;
@@ -262,6 +523,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
         updatedAt: new Date().toISOString(),
         seasonCover,
         startSheetPreview,
+        matchSheetData,
         orderDayRows,
         orderDayNotes,
         matchInfo,
@@ -289,6 +551,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
     matchDate,
     seasonCover,
     startSheetPreview,
+    matchSheetData,
     orderDayRows,
     orderDayNotes,
     matchInfo,
@@ -322,6 +585,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
         updatedAt: new Date().toISOString(),
         seasonCover,
         startSheetPreview,
+        matchSheetData,
         orderDayRows,
         orderDayNotes,
         matchInfo,
@@ -354,6 +618,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
       setMatchDate(record.matchDate);
       setSeasonCover(record.seasonCover);
       setStartSheetPreview(record.startSheetPreview);
+      setMatchSheetData(record.matchSheetData ?? null);
       setOrderDayRows(record.orderDayRows);
       setOrderDayNotes(record.orderDayNotes);
       setMatchInfo(record.matchInfo);
@@ -387,6 +652,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
     setBookletTitle("");
     setMatchDate("");
     setStartSheetPreview(null);
+    setMatchSheetData(null);
     setOrderDayRows(rows);
     setOrderDayNotes("");
     setMatchInfo({ ...DEFAULT_MATCH_INFO });
@@ -436,7 +702,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
 
       if (file.type === "application/pdf") {
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableStream: true, disableAutoFetch: true }).promise;
         const page = await pdf.getPage(1);
 
         const viewport = page.getViewport({ scale: 2 });
@@ -577,7 +843,7 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableStream: true, disableAutoFetch: true }).promise;
       const page = await pdf.getPage(1);
 
       const viewport = page.getViewport({ scale: 2 });
@@ -599,6 +865,33 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
 
       recolorStartSheetHighlights(canvas);
       setStartSheetPreview(canvas.toDataURL("image/png"));
+
+      try {
+        const extracted = await extractMatchSheetData(page, file.name);
+        setMatchSheetData(extracted);
+
+        if (!bookletTitle.trim()) {
+          setBookletTitle(`${extracted.homeTeam} v ${extracted.visitingTeam}`);
+        }
+
+        if (!matchDate) {
+          const textContent = await getTextContentSafely(page);
+          const pageText = textContent.items
+            .filter((item) => "str" in item)
+            .map((item) => ("str" in item ? item.str : ""))
+            .join(" ");
+          const extractedDate = parseMatchDateFromText(pageText);
+          if (extractedDate) setMatchDate(extractedDate);
+        }
+      } catch (extractError) {
+        console.error("Start sheet image loaded but match data extraction failed", extractError);
+        setMatchSheetData(null);
+        window.alert(
+          extractError instanceof Error
+            ? `The start sheet has been imported for the booklet.\n\n${extractError.message}`
+            : "The start sheet has been imported, but its player data could not be extracted for labels."
+        );
+      }
     } catch (error) {
       console.error("Failed to load Match Booklets start sheet", error);
       window.alert("The match start-sheet PDF could not be loaded.");
@@ -2756,8 +3049,9 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
                   lineHeight: 1.55,
                 }}
               >
-                Page 2 changes for every home match. The supplied PDF is kept
-                intact rather than rebuilding or retyping the player data.
+                Import the supplied match PDF once. Event Desk keeps the start
+                sheet for Page 2 and also reads the teams, groups, HI and PH for
+                the Match Scorecard Labels.
               </p>
 
               <button
@@ -2776,9 +3070,40 @@ function MatchBooklets({ onBack }: MatchBookletsProps) {
                 }}
               >
                 {startSheetPreview
-                  ? "Replace Start Sheet PDF"
-                  : "Choose Start Sheet PDF"}
+                  ? "Replace Match Sheet PDF"
+                  : "Import Match Sheet PDF"}
               </button>
+            </div>
+
+            <div
+              style={{
+                background: matchSheetData ? "#f0fdf4" : "#f8fbff",
+                border: matchSheetData ? "1px solid #bbf7d0" : "1px solid #dbe7f3",
+                borderRadius: "14px",
+                padding: "22px",
+              }}
+            >
+              <strong
+                style={{
+                  display: "block",
+                  color: matchSheetData ? "#166534" : "#205b9f",
+                  marginBottom: "8px",
+                }}
+              >
+                Label Data
+              </strong>
+              {matchSheetData ? (
+                <span style={{ color: "#526174", lineHeight: 1.55 }}>
+                  {matchSheetData.homeTeam} v {matchSheetData.visitingTeam}
+                  <br />
+                  {matchSheetData.groups.length} groups extracted • {matchSheetData.groups.length * 2} labels ready • HI / PH / Shots Diff captured
+                </span>
+              ) : (
+                <span style={{ color: "#526174", lineHeight: 1.55 }}>
+                  Import the supplied match PDF to prepare the booklet start sheet
+                  and scorecard-label data in one step.
+                </span>
+              )}
             </div>
 
             <div
