@@ -115,7 +115,137 @@ const MatchScorecardLabels = () => {
     });
   }, [data]);
 
-  const printLabels = () => window.print();
+  const printLabels = () => {
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) return;
+
+    const escapeHtml = (value: string | number) =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    const pages = labels
+      .map((label) => {
+        const rows = label.players
+          .map(
+            (player, index) => `
+              <div class="row ${index < label.homeCount ? "owner" : "opponent"}">
+                <span class="name">${escapeHtml(player.name)}</span>
+                <span>${escapeHtml(player.hi)}</span>
+                <span>${escapeHtml(player.ph)}</span>
+                <span>${escapeHtml(player.shots)}</span>
+              </div>`,
+          )
+          .join("");
+
+        return `
+          <section class="label">
+            <div class="label-inner">
+            <div class="title">
+              <span>${escapeHtml(label.title)}</span>
+              <span class="match">Match ${escapeHtml(label.group)}</span>
+            </div>
+            <div class="head">
+              <span></span><span>HI</span><span>PH</span><span>Shots Diff</span>
+            </div>
+            ${rows}
+            </div>
+          </section>`;
+      })
+      .join("");
+
+    printWindow.document.open();
+    printWindow.document.write(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Match Scorecard Labels</title>
+<style>
+@page { size: 29mm 60mm; margin: 0; }
+* { box-sizing: border-box; }
+html, body { width:29mm; margin:0; padding:0; font-family:Arial, Helvetica, sans-serif; color:#000; background:#fff; }
+.label {
+  box-sizing:border-box;
+  width:60mm;
+  height:29mm;
+  margin:0;
+  padding:0.8mm 1.3mm;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  transform:rotate(90deg) translateY(-29mm);
+  transform-origin:top left;
+  break-after:page;
+  page-break-after:always;
+}
+.label:last-child { break-after:auto; page-break-after:auto; }
+.label-inner {
+  width:100%;
+  height:100%;
+  padding:1mm 2.2mm 0 2.2mm;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.title {
+  font-size:8.6pt;
+  line-height:1;
+  font-weight:700;
+  display:flex;
+  justify-content:space-between;
+  gap:1mm;
+  margin-bottom:0.25mm;
+  white-space:nowrap;
+}
+.match { font-size:7.1pt; font-weight:700; }
+.head, .row {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 7mm 7mm 12mm;
+  align-items:center;
+}
+.head {
+  font-size:6.6pt;
+  line-height:1;
+  font-weight:700;
+  min-height:3.5mm;
+  border-bottom:0.2mm solid #777;
+}
+.row {
+  font-size:7.1pt;
+  line-height:1;
+  flex:1;
+  min-height:0;
+  border-bottom:0.15mm solid #ccc;
+}
+.row:last-child { border-bottom:0; }
+.head > span:not(:first-child), .row > span:not(:first-child) {
+  text-align:center;
+  border-left:0.15mm solid #ccc;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.name {
+  padding-left:0.5mm;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-weight:700;
+}
+@media screen {
+  body { background:#e5e7eb; padding:10mm; }
+  .label { background:white; margin:0 auto 8mm; box-shadow:0 2px 10px rgba(0,0,0,.18); }
+}
+</style>
+</head>
+<body>${pages}<script>window.addEventListener("load",()=>{window.setTimeout(()=>window.print(),250);});<\/script></body>
+</html>`);
+    printWindow.document.close();
+  };
 
   if (loading) {
     return <div style={{ padding: 36 }}>Loading match scorecard labels…</div>;
@@ -150,22 +280,6 @@ const MatchScorecardLabels = () => {
         .match-label-row.opponent { background:#f5f8fc; }
         .match-label-head > span:not(:first-child), .match-label-row > span:not(:first-child) { text-align:center; border-left:1px solid #d7e0ea; height:100%; display:flex; align-items:center; justify-content:center; }
         .match-label-name { padding-left:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; }
-        @media print {
-          @page { size: 60mm 29mm; margin: 0; }
-          body * { visibility: hidden !important; }
-          .match-label-print-area, .match-label-print-area * { visibility: visible !important; }
-          .match-label-print-area { position:absolute; left:0; top:0; display:block; }
-          .match-label {
-            width:60mm !important; height:29mm !important; aspect-ratio:auto !important;
-            border:0 !important; border-radius:0 !important; padding:0.65mm 1mm !important; display:flex !important; flex-direction:column !important;
-            break-after:page; page-break-after:always;
-          }
-          .match-label-title { font-size:10.5pt !important; line-height:1 !important; margin-bottom:0.25mm !important; }
-          .match-label-title span:last-child { font-size:8pt !important; }
-          .match-label-head { font-size:7.5pt !important; min-height:3.5mm !important; line-height:1 !important; }
-          .match-label-row { font-size:10pt !important; line-height:1 !important; min-height:0 !important; flex:1 !important; }
-          .match-label-head, .match-label-row { grid-template-columns:minmax(0,1fr) 7mm 7mm 12mm !important; }
-        }
       `}</style>
 
       <div style={{ ...cardStyle, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20 }}>

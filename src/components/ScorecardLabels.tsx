@@ -148,7 +148,7 @@ export default function ScorecardLabels({
           return `<div class="player-row"><span class="name">${escapeHtml(name)}</span><span>HI ${escapeHtml(hi)}</span><span>PH ${escapeHtml(ph)}</span></div>`;
         }).join("");
 
-        return `<section class="label"><div class="title">${escapeHtml(event.eventName || "Competition")}</div><div class="tee-time">${escapeHtml(group.teeTime)} - Tee ${escapeHtml(tee)}</div><div class="players">${rows}</div></section>`;
+        return `<section class="label"><div class="label-inner"><div class="title">${escapeHtml(event.eventName || "Competition")}</div><div class="tee-time">${escapeHtml(group.teeTime)} - Tee ${escapeHtml(tee)}</div><div class="players">${rows}</div></div></section>`;
       })
       .join("");
 
@@ -156,15 +156,32 @@ export default function ScorecardLabels({
     printWindow.document.write(`<!doctype html>
 <html><head><meta charset="utf-8"><title>Scorecard Labels</title>
 <style>
-@page { size: 60mm 29mm; margin: 0; }
+@page { size: 29mm 60mm; margin: 0; }
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
-.label { width: 60mm; height: 29mm; padding: 0.8mm 1.3mm; overflow: hidden; break-after: page; page-break-after: always; }
+html, body { width: 29mm; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
+.label {
+  box-sizing: border-box;
+  width: 60mm;
+  height: 29mm;
+  margin: 0;
+  padding: 0.8mm 1.3mm;
+  overflow: hidden;
+  transform: rotate(90deg) translateY(-29mm);
+  transform-origin: top left;
+  break-after: page;
+  page-break-after: always;
+}
 .label:last-child { break-after: auto; page-break-after: auto; }
-.title { font-size: 8.6pt; line-height: 1.05; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tee-time { font-size: 8pt; line-height: 1.08; font-weight: 700; margin-top: 0.5mm; }
+.label-inner {
+  width: 100%;
+  height: 100%;
+  padding: 1mm 2.2mm 0 2.2mm;
+  overflow: hidden;
+}
+.title { font-size: 11.5pt; line-height: 1.05; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tee-time { font-size: 10.5pt; line-height: 1.08; font-weight: 700; margin-top: 0.5mm; }
 .players { margin-top: 0.55mm; }
-.player-row { display: grid; grid-template-columns: minmax(0, 1fr) 11.5mm 11.5mm; column-gap: 0.8mm; align-items: baseline; font-size: 7.1pt; line-height: 1.17; white-space: nowrap; }
+.player-row { display: grid; grid-template-columns: minmax(0, 1fr) 11.5mm 11.5mm; column-gap: 0.8mm; align-items: baseline; font-size: 9.6pt; line-height: 1.16; white-space: nowrap; }
 .name { overflow: hidden; text-overflow: ellipsis; }
 @media screen { body { background: #e5e7eb; padding: 10mm; } .label { background: white; margin: 0 auto 8mm; box-shadow: 0 2px 10px rgba(0,0,0,.18); } }
 @media print { body { background: white; } }
