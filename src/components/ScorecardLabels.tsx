@@ -37,6 +37,14 @@ function teeTimeToMinutes(value: string): number {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
+function prizeTitleSize(value: string): { preview: string; print: string } {
+  const length = value.trim().length;
+  if (length <= 12) return { preview: "28px", print: "19pt" };
+  if (length <= 20) return { preview: "23px", print: "16pt" };
+  if (length <= 30) return { preview: "19px", print: "13pt" };
+  return { preview: "16px", print: "11pt" };
+}
+
 export default function ScorecardLabels({
   event,
   players,
@@ -48,6 +56,7 @@ export default function ScorecardLabels({
   const [startingTees, setStartingTees] = useState<Record<string, string>>({});
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
   const [leadPlayerMode, setLeadPlayerMode] = useState(false);
+  const [prizeWinnerMode, setPrizeWinnerMode] = useState(false);
 
   // Always open the Scorecard Labels page at the top.
   useEffect(() => {
@@ -283,6 +292,73 @@ html, body { width: 120mm; height: 29mm; margin: 0; padding: 0; font-family: Ari
     setLeadPlayerMode(false);
   }
 
+  function printPrizeWinnerLabels() {
+    const prizes = event.prizes ?? [];
+    if (prizes.length === 0) {
+      alert("There are no prizes set up for this event. Add prizes on the Prizes page first.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=900,height=760");
+    if (!printWindow) {
+      alert("The label print window could not be opened. Please allow pop-ups and try again.");
+      return;
+    }
+
+    const pages = prizes.map((prize) => {
+      const prizeTitle = prize.title?.trim() || "Prize";
+      const winner = prize.winner?.trim() || "";
+      const holeText = prize.hole?.trim() ? `Hole ${prize.hole.trim()}` : "";
+      const rightTitle = holeText ? `${prizeTitle} - ${holeText}` : prizeTitle;
+      const titleSize = prizeTitleSize(rightTitle);
+
+      return `<section class="label"><div class="label-inner">
+        <div class="flag-wrap"><img class="flag-image" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMjEwIj4KPHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIyMTAiIGZpbGw9IndoaXRlIi8+CjxlbGxpcHNlIGN4PSI5MCIgY3k9IjE3NCIgcng9Ijc2IiByeT0iMjciIGZpbGw9IiM2OWFkM2IiLz4KPGVsbGlwc2UgY3g9IjkwIiBjeT0iMTc0IiByeD0iMTciIHJ5PSI1IiBmaWxsPSIjMjIyIi8+CjxyZWN0IHg9Ijg0IiB5PSIyNCIgd2lkdGg9IjgiIGhlaWdodD0iMTUxIiByeD0iNCIgZmlsbD0iIzIyMiIvPgo8cGF0aCBkPSJNOTIgMzEgTDE2NSA0OSBMMTM3IDcwIEwxNjUgOTEgTDkyIDEwNiBaIiBmaWxsPSIjZTEyNjFjIi8+Cjwvc3ZnPg==" alt="" /></div>
+        <div class="left-content">
+          <div class="seniors">RAMSDALE SENIORS</div>
+          <div class="competition">${escapeHtml(event.eventName || "Competition")}</div>
+          <div class="winner-caption">WINNER</div>
+          <div class="winner-name ${winner ? "" : "blank-winner"}">${winner ? escapeHtml(winner) : "&nbsp;"}</div>
+        </div>
+        <div class="divider"></div>
+        <div class="right-content">
+          <div class="prize-heading">PRIZE</div>
+          <div class="prize-title" style="font-size:${titleSize.print}">${escapeHtml(rightTitle)}</div>
+        </div>
+      </div></section>`;
+    }).join("");
+
+    printWindow.document.open();
+    printWindow.document.write(`<!doctype html>
+<html><head><meta charset="utf-8"><title>Prize Winner Labels</title>
+<style>
+@page { size: 120mm 29mm; margin: 0; }
+* { box-sizing: border-box; }
+html, body { width: 120mm; height: 29mm; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
+.label { box-sizing: border-box; width: 120mm; height: 29mm; margin: 0; padding: 0; overflow: hidden; break-after: page; page-break-after: always; }
+.label:last-child { break-after: auto; page-break-after: auto; }
+.label-inner { position: relative; width: 100%; height: 100%; overflow: hidden; border: 0.35mm solid #111; border-radius: 2mm; }
+.flag-wrap { position: absolute; left: 1.5mm; top: 2mm; width: 22mm; height: 25mm; display: flex; align-items: center; justify-content: center; }
+.flag-image { display: block; width: 100%; height: 100%; object-fit: contain; }
+.left-content { position: absolute; left: 23mm; top: 2.2mm; width: 52mm; height: 24.5mm; }
+.seniors { color: #174b91; font-size: 12pt; line-height: 1; font-weight: 900; letter-spacing: 0.55pt; }
+.competition { margin-top: 1.6mm; color: #111; font-size: 12.5pt; line-height: 1; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.winner-caption { margin-top: 2.6mm; color: #174b91; font-size: 9pt; line-height: 1; font-weight: 900; letter-spacing: 0.45pt; }
+.winner-name { margin-top: 1.2mm; color: #111; font-size: 17pt; line-height: 1; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 6mm; }
+.blank-winner { border-bottom: 0.45mm solid #111; }
+.divider { position: absolute; left: 76mm; top: 2mm; width: 0.35mm; height: 25mm; background: #c7ced8; }
+.right-content { position: absolute; left: 77.5mm; top: 2.2mm; width: 40mm; height: 24.5mm; text-align: center; }
+.prize-heading { color: #174b91; font-size: 12pt; line-height: 1; font-weight: 900; letter-spacing: 0.7pt; }
+.prize-title { margin-top: 2.6mm; color: #174b91; font-size: 19pt; line-height: 1.02; font-weight: 900; overflow-wrap: anywhere; max-height: 18mm; overflow: hidden; }
+@media screen { body { background: #e5e7eb; padding: 10mm; } .label { background: white; margin: 0 auto 8mm; box-shadow: 0 2px 10px rgba(0,0,0,.18); } }
+@media print { body { background: white; } }
+</style></head><body>${pages}<script>window.addEventListener('load',()=>{window.setTimeout(()=>window.print(),250);});<\/script></body></html>`);
+    printWindow.document.close();
+
+    // Prize Winner mode is temporary, like Lead Player mode.
+    setPrizeWinnerMode(false);
+  }
+
   const enteredPhCount = groups.reduce(
     (total, group) => total + group.players.filter((player) => playingHandicaps[player.id]?.trim()).length,
     0
@@ -295,7 +371,7 @@ html, body { width: 120mm; height: 29mm; margin: 0; padding: 0; font-family: Ari
         <div>
           <h1 style={{ margin: 0, color: "#1e4f89" }}>Scorecard Labels</h1>
           <p style={{ margin: "6px 0 0", color: "#64748b" }}>
-            {event.eventName || "Untitled Event"} • {leadPlayerMode ? "120 × 29 mm • Lead Player labels" : "60 × 29 mm • one label per tee time"}
+            {event.eventName || "Untitled Event"} • {prizeWinnerMode ? "120 × 29 mm • Prize Winner labels" : leadPlayerMode ? "120 × 29 mm • Lead Player labels" : "60 × 29 mm • one label per tee time"}
           </p>
         </div>
         <button type="button" onClick={onBack} style={{ border: "1px solid #cbd5e1", borderRadius: "9px", padding: "10px 16px", background: "white", color: "#334155", fontWeight: 700, cursor: "pointer" }}>
@@ -309,33 +385,116 @@ html, body { width: 120mm; height: 29mm; margin: 0; padding: 0; font-family: Ari
         <div style={{ background: "white", border: "1px solid #dbe7f3", borderRadius: "12px", padding: "16px" }}><strong>PH entered</strong><div style={{ fontSize: "26px", color: "#1e4f89", fontWeight: 800 }}>{enteredPhCount} / {labelPlayerCount}</div></div>
       </div>
 
-      <div style={{ background: "white", border: "1px solid #dbe7f3", borderRadius: "12px", padding: "15px 16px", marginBottom: "18px" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 800, color: "#334155", cursor: "pointer" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px", marginBottom: "18px" }}>
+        <label style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          minHeight: "40px",
+          padding: "7px 12px",
+          background: leadPlayerMode ? "#eef6ff" : "white",
+          border: leadPlayerMode ? "2px solid #2468b3" : "1px solid #dbe7f3",
+          borderRadius: "12px",
+          color: "#334155",
+          cursor: "pointer",
+          boxShadow: "0 2px 8px rgba(31,91,159,0.05)"
+        }}>
           <input
             type="checkbox"
             checked={leadPlayerMode}
-            onChange={(e) => setLeadPlayerMode(e.target.checked)}
-            style={{ width: "18px", height: "18px", cursor: "pointer" }}
+            onChange={(e) => {
+              setLeadPlayerMode(e.target.checked);
+              if (e.target.checked) setPrizeWinnerMode(false);
+            }}
+            style={{ width: "16px", height: "16px", cursor: "pointer", flex: "0 0 auto" }}
           />
-          Lead Player / Tee Time Labels (120 × 29 mm)
+          <span>
+            <span style={{ display: "block", fontSize: "14px", fontWeight: 900, color: "#1e4f89" }}>Lead Player / Tee Time</span>
+            <span style={{ display: "block", marginTop: "1px", fontSize: "11px", fontWeight: 700, color: "#64748b" }}>120 × 29 mm labels</span>
+          </span>
+        </label>
+
+        <label style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          minHeight: "40px",
+          padding: "7px 12px",
+          background: prizeWinnerMode ? "#eef6ff" : "white",
+          border: prizeWinnerMode ? "2px solid #2468b3" : "1px solid #dbe7f3",
+          borderRadius: "12px",
+          color: "#334155",
+          cursor: "pointer",
+          boxShadow: "0 2px 8px rgba(31,91,159,0.05)"
+        }}>
+          <input
+            type="checkbox"
+            checked={prizeWinnerMode}
+            onChange={(e) => {
+              setPrizeWinnerMode(e.target.checked);
+              if (e.target.checked) setLeadPlayerMode(false);
+            }}
+            style={{ width: "16px", height: "16px", cursor: "pointer", flex: "0 0 auto" }}
+          />
+          <span>
+            <span style={{ display: "block", fontSize: "14px", fontWeight: 900, color: "#1e4f89" }}>Prize Winner</span>
+            <span style={{ display: "block", marginTop: "1px", fontSize: "11px", fontWeight: 700, color: "#64748b" }}>120 × 29 mm labels</span>
+          </span>
         </label>
       </div>
 
-      {leadPlayerMode && (
-        <div style={{ background: "#fff7ed", border: "2px solid #f97316", borderRadius: "12px", padding: "16px 18px", marginBottom: "20px", color: "#9a3412" }}>
+      {(leadPlayerMode || prizeWinnerMode) && (
+        <div style={{ background: "#fff7ed", border: "2px solid #f97316", borderRadius: "12px", padding: "7px 12px", marginBottom: "20px", color: "#9a3412" }}>
           <div style={{ fontSize: "17px", fontWeight: 900, marginBottom: "5px" }}>⚠ PRINTER SETUP REQUIRED</div>
           <div style={{ fontWeight: 700 }}>Change the Brother QL-800 label length to 120 × 29 mm in Print Setup before printing these labels.</div>
           <div style={{ marginTop: "5px" }}>After the print run, Event Desk will automatically return to the normal 60 × 29 mm Scorecard Labels screen.</div>
         </div>
       )}
 
-      {groups.length === 0 ? (
+      {groups.length === 0 && !prizeWinnerMode ? (
         <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "12px", padding: "22px", color: "#9a3412" }}>
           No Start List tee times are available yet. Import or complete the Start List on the Players page first.
         </div>
       ) : (
         <>
-          {leadPlayerMode ? (
+          {prizeWinnerMode ? (
+            (event.prizes ?? []).length === 0 ? (
+              <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "12px", padding: "22px", color: "#9a3412" }}>
+                No prizes have been set up for this event. Add prizes on the Prizes page first.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(520px, 1fr))", gap: "18px" }}>
+                {(event.prizes ?? []).map((prize) => {
+                  const winner = prize.winner?.trim() || "";
+                  const holeText = prize.hole?.trim() ? `Hole ${prize.hole.trim()}` : "";
+                  const prizeTitle = prize.title?.trim() || "Prize";
+                  const rightTitle = holeText ? `${prizeTitle} - ${holeText}` : prizeTitle;
+                  const titleSize = prizeTitleSize(rightTitle);
+                  return (
+                    <div key={prize.id} style={{ background: "white", border: "1px solid #dbe7f3", borderRadius: "14px", padding: "16px", boxShadow: "0 2px 8px rgba(31,91,159,0.06)" }}>
+                      <div style={{ color: "#1e4f89", fontWeight: 800, marginBottom: "10px" }}>{rightTitle}{winner ? ` • ${winner}` : " • Blank write-in"}</div>
+                      <div style={{ position: "relative", width: "100%", aspectRatio: "120 / 29", border: "1px solid #111", borderRadius: "8px", background: "white", color: "black", overflow: "hidden" }}>
+                        <div style={{ position: "absolute", left: "1.2%", top: "7%", width: "18%", height: "86%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMjEwIj4KPHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIyMTAiIGZpbGw9IndoaXRlIi8+CjxlbGxpcHNlIGN4PSI5MCIgY3k9IjE3NCIgcng9Ijc2IiByeT0iMjciIGZpbGw9IiM2OWFkM2IiLz4KPGVsbGlwc2UgY3g9IjkwIiBjeT0iMTc0IiByeD0iMTciIHJ5PSI1IiBmaWxsPSIjMjIyIi8+CjxyZWN0IHg9Ijg0IiB5PSIyNCIgd2lkdGg9IjgiIGhlaWdodD0iMTUxIiByeD0iNCIgZmlsbD0iIzIyMiIvPgo8cGF0aCBkPSJNOTIgMzEgTDE2NSA0OSBMMTM3IDcwIEwxNjUgOTEgTDkyIDEwNiBaIiBmaWxsPSIjZTEyNjFjIi8+Cjwvc3ZnPg==" alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+                        </div>
+                        <div style={{ position: "absolute", left: "19.5%", top: "9%", width: "43%" }}>
+                          <div style={{ color: "#174b91", fontSize: "18px", lineHeight: 1, fontWeight: 900, letterSpacing: "0.8px" }}>RAMSDALE SENIORS</div>
+                          <div style={{ marginTop: "7px", fontSize: "18px", lineHeight: 1, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{event.eventName || "Competition"}</div>
+                          <div style={{ marginTop: "11px", color: "#174b91", fontSize: "13px", lineHeight: 1, fontWeight: 900, letterSpacing: "1px" }}>WINNER</div>
+                          <div style={{ marginTop: "5px", fontSize: "26px", lineHeight: 1, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minHeight: "28px", borderBottom: winner ? "none" : "2px solid #111" }}>{winner || "\u00a0"}</div>
+                        </div>
+                        <div style={{ position: "absolute", left: "63.5%", top: "7%", width: "1px", height: "86%", background: "#c7ced8" }} />
+                        <div style={{ position: "absolute", left: "65%", top: "9%", width: "33%", textAlign: "center" }}>
+                          <div style={{ color: "#174b91", fontSize: "19px", lineHeight: 1, fontWeight: 900, letterSpacing: "1px" }}>PRIZE</div>
+                          <div style={{ marginTop: "8px", color: "#174b91", fontSize: titleSize.preview, lineHeight: 1.02, fontWeight: 900, overflowWrap: "anywhere", maxHeight: "58px", overflow: "hidden" }}>{rightTitle}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : leadPlayerMode ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(520px, 1fr))", gap: "18px" }}>
               {groups.map((group) => {
                 const leadPlayer = group.players[0];
@@ -392,7 +551,7 @@ html, body { width: 120mm; height: 29mm; margin: 0; padding: 0; font-family: Ari
                   </div>
 
                   {group.players.slice(0, 4).map((player) => (
-                    <div key={player.id} style={{ display: "grid", gridTemplateColumns: "1fr 70px 82px", gap: "10px", alignItems: "center", padding: "6px 0", borderTop: "1px solid #eef2f7" }}>
+                    <div key={player.id} style={{ display: "grid", gridTemplateColumns: "1fr 70px 82px", gap: "8px", alignItems: "center", padding: "6px 0", borderTop: "1px solid #eef2f7" }}>
                       <span style={{ fontWeight: 700 }}>{player.firstName} {player.lastName}</span>
                       <span style={{ color: "#64748b" }}>HI {player.handicapIndex.toFixed(1)}</span>
                       <input aria-label={`Playing Handicap for ${player.firstName} ${player.lastName}`} placeholder="PH" value={playingHandicaps[player.id] ?? ""} onChange={(e) => updatePlayingHandicap(player.id, e.target.value)} style={{ width: "100%", padding: "7px 8px", border: "1px solid #cbd5e1", borderRadius: "7px", textAlign: "center", fontWeight: 700 }} />
@@ -405,8 +564,8 @@ html, body { width: 120mm; height: 29mm; margin: 0; padding: 0; font-family: Ari
           )}
 
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "22px" }}>
-            <button type="button" onClick={leadPlayerMode ? printLeadPlayerLabels : printScorecardLabels} style={{ border: "none", borderRadius: "10px", padding: "13px 22px", background: "#2468b3", color: "white", fontSize: "16px", fontWeight: 800, cursor: "pointer" }}>
-              {leadPlayerMode ? "Print All Lead Player Labels" : "Print All Labels"}
+            <button type="button" onClick={prizeWinnerMode ? printPrizeWinnerLabels : leadPlayerMode ? printLeadPlayerLabels : printScorecardLabels} style={{ border: "none", borderRadius: "10px", padding: "13px 22px", background: "#2468b3", color: "white", fontSize: "16px", fontWeight: 800, cursor: "pointer" }}>
+              {prizeWinnerMode ? "Print All Prize Winner Labels" : leadPlayerMode ? "Print All Lead Player Labels" : "Print All Labels"}
             </button>
           </div>
         </>

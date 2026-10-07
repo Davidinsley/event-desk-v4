@@ -236,7 +236,8 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
                                   }
                                 >
                                   <option value="">Select...</option>
-                                  <option value="Winner/s">Winner/s</option>
+                                  <option value="Winner">Winner</option>
+                                  <option value="Winners">Winners</option>
                                   <option value="2nd Place">2nd Place</option>
                                   <option value="3rd Place">3rd Place</option>
                                   <option value="4th Place">4th Place</option>
