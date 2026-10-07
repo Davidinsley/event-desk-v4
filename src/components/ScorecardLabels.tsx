@@ -49,6 +49,13 @@ export default function ScorecardLabels({
   const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
   const [leadPlayerMode, setLeadPlayerMode] = useState(false);
 
+  // Always open the Scorecard Labels page at the top.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, []);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -230,9 +237,9 @@ html, body { width: 29mm; margin: 0; padding: 0; font-family: Arial, Helvetica, 
     printWindow.document.write(`<!doctype html>
 <html><head><meta charset="utf-8"><title>Lead Player Labels</title>
 <style>
-@page { size: 29mm 120mm; margin: 0; }
+@page { size: 120mm 29mm; margin: 0; }
 * { box-sizing: border-box; }
-html, body { width: 29mm; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
+html, body { width: 120mm; height: 29mm; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
 .label {
   box-sizing: border-box;
   width: 120mm;
@@ -240,8 +247,6 @@ html, body { width: 29mm; margin: 0; padding: 0; font-family: Arial, Helvetica, 
   margin: 0;
   padding: 0;
   overflow: hidden;
-  transform: rotate(90deg) translateY(-29mm);
-  transform-origin: top left;
   break-after: page;
   page-break-after: always;
 }
