@@ -903,7 +903,7 @@ export default function Diary({
               fontSize: "18px",
             }}
           >
-            A quick view of upcoming Ramsdale Seniors events and actions.
+            A quick view of upcoming Ramsdale Park GC Par 3 Club events and actions.
           </p>
         </div>
 

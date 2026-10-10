@@ -2,7 +2,7 @@
 // Revision: Core Event Details report reads live Catering V4 data
 // NewEvent.tsx
 
-// Ramsdale Seniors Event Desk
+// Par 3 Club Event Desk
 
 // Revision: Add Meeting-Ready Event Preview
 
@@ -805,11 +805,6 @@ export default function NewEvent({
 
       100;
 
-    const teeColour =
-
-      event.teeColour?.trim() ||
-
-      "Not yet entered";
 
     const competitionRules =
 
@@ -1809,7 +1804,7 @@ export default function NewEvent({
 
             <div class="organisation">
 
-              Ramsdale Seniors
+              Ramsdale Par 3 Club
 
             </div>
 
@@ -2113,22 +2108,6 @@ export default function NewEvent({
 
                 <div class="detail-label">
 
-                  Tee Colour
-
-                </div>
-
-                <div class="detail-value">
-
-                  ${escapeHtml(teeColour)}
-
-                </div>
-
-              </div>
-
-              <div class="detail">
-
-                <div class="detail-label">
-
                   Event Media
 
                 </div>
@@ -2417,7 +2396,7 @@ export default function NewEvent({
 
             <span>
 
-              Ramsdale Seniors Event Desk
+              Par 3 Club Event Desk
 
             </span>
 
@@ -2716,7 +2695,7 @@ export default function NewEvent({
 
         title="Event Details"
 
-        subtitle="Create and configure a new Ramsdale Seniors event."
+        subtitle="Create and configure a new Ramsdale Par 3 Club event."
 
         summary={summary}
 

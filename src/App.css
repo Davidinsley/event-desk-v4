@@ -432,48 +432,26 @@ table {
   }
 }
 
-/* ======================================================
-   REGULAR COMPETITION THEME
-   Applies only to MC-numbered regular competition records.
-   Special Events retain the existing blue Event Desk theme.
-====================================================== */
+/* Par 3 Club: regular competitions use the same blue theme as other events. */
 
-.regular-comp-mode .header {
-  background: linear-gradient(90deg, #d7ead6, #eef6ec);
-  border-bottom-color: #c8d9c6;
+/* Par 3 Event Desk — dark-blue Chromebook theme */
+html, body, #root { background: #eef2f8; }
+.header, .regular-comp-mode .header {
+  background: linear-gradient(90deg, #18365f, #315887);
+  border-bottom-color: #122b4c;
 }
-
-.regular-comp-mode .main {
-  background: #f3f7f1;
+.header-title h1, .header-title p { color: #ffffff; }
+.main, .regular-comp-mode .main { background: #f1f4f9; }
+.sidebar, .regular-comp-mode .sidebar { background: #fbfcff; border-right-color: #d5deeb; }
+.sidebar li:hover, .regular-comp-mode .sidebar li:hover { background: #e5edf8; color: #173c6a; }
+.sidebar li.active, .regular-comp-mode .sidebar li.active {
+  background: #dbe7f6; color: #173c6a; border-left-color: #28588c;
 }
-
-.regular-comp-mode .sidebar {
-  background: #fbfdfb;
-  border-right-color: #d6e1d4;
+.dashboard-card:hover { border-color: #4677ab; }
+.field input:focus, .field select:focus,
+.regular-comp-mode .field input:focus, .regular-comp-mode .field select:focus {
+  border-color: #35699f; box-shadow: 0 0 0 3px rgba(53,105,159,.15);
 }
-
-.regular-comp-mode .sidebar li:hover {
-  background: #edf5eb;
-  color: #3f6844;
-}
-
-.regular-comp-mode .sidebar li.active {
-  background: #e2f0df;
-  color: #3f6844;
-  border-left-color: #6f956f;
-}
-
-.regular-comp-mode .field input:focus,
-.regular-comp-mode .field select:focus {
-  border-color: #7fa17f;
-  box-shadow: 0 0 0 3px rgba(111, 149, 111, 0.15);
-}
-
-.regular-comp-mode .primary-button {
-  background: #668b6b;
-}
-
-.regular-comp-mode .primary-button:hover {
-  background: #527657;
-}
-
+.primary-button, .regular-comp-mode .primary-button { background: #244e7e; }
+.primary-button:hover, .regular-comp-mode .primary-button:hover { background: #18385e; }
+.status { background: #e7edf5; border-top-color: #cbd7e6; }

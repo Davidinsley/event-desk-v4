@@ -1,6 +1,6 @@
 // Players.tsx
 // Event Desk - Players Management
-// Revision: Gender capture/import + CSV + Excel + Start List merge + Home Club / Tee Time / Group preservation + Event capacity + PDF Export + reserve/payment logic
+// Par 3 Club: hide Gender and Home Club; preserve legacy import data and all reserve/payment logic
 
 import { useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -82,8 +82,6 @@ export default function Players({
   const [lastName, setLastName] = useState("");
   const [handicapIndex, setHandicapIndex] =
     useState("");
-  const [gender, setGender] =
-    useState<"" | "Male" | "Female">("");
 
   const [source, setSource] =
     useState<
@@ -98,33 +96,11 @@ export default function Players({
   // Handicap Cap Warnings
   // --------------------------------------------------
 
-  function getHandicapCapWarning(
-    player: Player
-  ): { cap: number; message: string } | null {
-    if (!applyHandicapCaps || !player.gender) {
-      return null;
-    }
-
-    const cap =
-      player.gender === "Female"
-        ? femaleMaxHI
-        : maleMaxHI;
-
-    if (
-      cap === undefined ||
-      !Number.isFinite(cap) ||
-      player.handicapIndex <= cap
-    ) {
-      return null;
-    }
-
-    return {
-      cap,
-      message: `HI ${player.handicapIndex.toFixed(1)} exceeds ${
-        player.gender === "Female" ? "Ladies" : "Men"
-      } maximum HI ${cap.toFixed(1)}`,
-    };
-  }
+  // Par 3 Club: no gender-specific handicap caps or warnings.
+  // Legacy cap props remain accepted for App.tsx compatibility.
+  void applyHandicapCaps;
+  void maleMaxHI;
+  void femaleMaxHI;
 
   // --------------------------------------------------
   // Clear All Players
@@ -197,7 +173,6 @@ export default function Players({
     setFirstName("");
     setLastName("");
     setHandicapIndex("");
-    setGender("");
     setSource("Manual");
     setPaid(false);
     setDietaryNeed(false);
@@ -446,20 +421,6 @@ export default function Players({
           ? parsedHandicap
           : 0;
 
-      const genderValue =
-        getCsvValue(row, [
-          "Gender",
-          "Sex",
-        ]);
-
-      const normalisedGender = genderValue.trim().toLowerCase();
-      const gender: "Male" | "Female" | undefined =
-        ["female", "f", "lady", "ladies", "woman", "women"].includes(normalisedGender)
-          ? "Female"
-          : ["male", "m", "man", "men"].includes(normalisedGender)
-          ? "Male"
-          : undefined;
-
       const statusValue =
         getCsvValue(row, [
           "Status",
@@ -510,8 +471,7 @@ export default function Players({
         firstName,
         lastName,
         handicapIndex,
-        ...(gender ? { gender } : {}),
-        status:
+          status:
           statusValue === ""
             ? "Registered"
             : parseStatus(statusValue),
@@ -579,7 +539,6 @@ export default function Players({
         // information. Do not create a second copy of the players.
         let updatedCount = 0;
         let addedCount = 0;
-        let homeClubCount = 0;
 
         setPlayers((current) => {
           const next = [...current];
@@ -613,10 +572,6 @@ export default function Players({
             const existing = next[existingIndex];
             const importedDisplay = imported as DisplayPlayer;
 
-            if ((importedDisplay.homeClub || "").trim() !== "") {
-              homeClubCount += 1;
-            }
-
             next[existingIndex] = {
               ...existing,
               handicapIndex: imported.handicapIndex,
@@ -646,11 +601,11 @@ export default function Players({
 
         if (skipped > 0) {
           alert(
-            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.\n${homeClubCount} Home Club value(s) imported.\n\n${skipped} row(s) were skipped because they were missing a first name or last name.`
+            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.\n\n${skipped} row(s) were skipped because they were missing a first name or last name.`
           );
         } else {
           alert(
-            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.\n${homeClubCount} Home Club value(s) imported.`
+            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.`
           );
         }
       } catch (error) {
@@ -756,7 +711,6 @@ export default function Players({
         // information. Do not create a second copy of the players.
         let updatedCount = 0;
         let addedCount = 0;
-        let homeClubCount = 0;
 
         setPlayers((current) => {
           const next = [...current];
@@ -790,10 +744,6 @@ export default function Players({
             const existing = next[existingIndex];
             const importedDisplay = imported as DisplayPlayer;
 
-            if ((importedDisplay.homeClub || "").trim() !== "") {
-              homeClubCount += 1;
-            }
-
             next[existingIndex] = {
               ...existing,
               handicapIndex: imported.handicapIndex,
@@ -823,11 +773,11 @@ export default function Players({
 
         if (skipped > 0) {
           alert(
-            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.\n${homeClubCount} Home Club value(s) imported.\n\n${skipped} row(s) were skipped because they were missing a first name or last name.`
+            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.\n\n${skipped} row(s) were skipped because they were missing a first name or last name.`
           );
         } else {
           alert(
-            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.\n${homeClubCount} Home Club value(s) imported.`
+            `${updatedCount} existing player(s) updated and ${addedCount} new player(s) added.`
           );
         }
       } catch (error) {
@@ -855,6 +805,25 @@ export default function Players({
     };
 
     reader.readAsArrayBuffer(file);
+  }
+
+  // Download a blank CSV that the existing CSV importer accepts.
+  // Tee times and groups are optional and can be completed by the organiser.
+  function handleDownloadStartListTemplate() {
+    const headings = ["First Name", "Last Name", "Tee Time", "Group", "Handicap Index"];
+    const blankRows = Array.from({ length: 36 }, () => ["", "", "", "", ""]);
+    const csv = [headings, ...blankRows]
+      .map((row) => row.join(","))
+      .join("\r\n");
+    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "Par3-Start-List-Template.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   // --------------------------------------------------
@@ -1327,13 +1296,6 @@ export default function Players({
       return;
     }
 
-    if (applyHandicapCaps && gender === "") {
-      alert(
-        "Please select Male or Female before saving the player because handicap caps are applied to this competition."
-      );
-      return;
-    }
-
     const storedVacancy = players.find((player) => {
       const displayPlayer = player as DisplayPlayer;
       return displayPlayer.vacantStartListSlot === true;
@@ -1549,7 +1511,6 @@ export default function Players({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           handicapIndex: Number(handicapIndex) || 0,
-          ...(gender ? { gender } : {}),
           status: "Registered",
           source,
           paid,
@@ -1581,7 +1542,6 @@ export default function Players({
       handicapIndex:
         Number(handicapIndex) || 0,
 
-      ...(gender ? { gender } : {}),
 
       // A Start List defines the actual playing field. Once a Start List
       // exists, every newly added player joins the Reserves unless they are
@@ -1816,7 +1776,6 @@ export default function Players({
         teeTime: startListPlayer.teeTime || "",
         group: startListPlayer.group || "",
         name: `${player.firstName} ${player.lastName}`.trim(),
-        homeClub: getPlayerHomeClub(player),
         handicap: player.handicapIndex.toFixed(1),
         status:
           player.status === "Waiting"
@@ -1838,7 +1797,6 @@ export default function Players({
             <td>${newGroup ? escapeHtml(player.teeTime) : ""}</td>
             <td>${newGroup ? escapeHtml(player.group) : ""}</td>
             <td>${escapeHtml(player.name)}</td>
-            <td>${escapeHtml(player.homeClub)}</td>
             ${includeHandicapInReport ? `<td class="handicap">${escapeHtml(player.handicap)}</td>` : ""}
             <td>${escapeHtml(player.status)}</td>
           </tr>
@@ -1937,19 +1895,17 @@ export default function Players({
 
     ${includeHandicapInReport
       ? `
-    th:nth-child(1), td:nth-child(1) { width: 16%; }
-    th:nth-child(2), td:nth-child(2) { width: 10%; }
-    th:nth-child(3), td:nth-child(3) { width: 25%; }
-    th:nth-child(4), td:nth-child(4) { width: 25%; }
-    th:nth-child(5), td:nth-child(5) { width: 9%; }
-    th:nth-child(6), td:nth-child(6) { width: 15%; }
+    th:nth-child(1), td:nth-child(1) { width: 18%; }
+    th:nth-child(2), td:nth-child(2) { width: 12%; }
+    th:nth-child(3), td:nth-child(3) { width: 40%; }
+    th:nth-child(4), td:nth-child(4) { width: 12%; }
+    th:nth-child(5), td:nth-child(5) { width: 18%; }
     `
       : `
-    th:nth-child(1), td:nth-child(1) { width: 17%; }
-    th:nth-child(2), td:nth-child(2) { width: 11%; }
-    th:nth-child(3), td:nth-child(3) { width: 28%; }
-    th:nth-child(4), td:nth-child(4) { width: 28%; }
-    th:nth-child(5), td:nth-child(5) { width: 16%; }
+    th:nth-child(1), td:nth-child(1) { width: 20%; }
+    th:nth-child(2), td:nth-child(2) { width: 12%; }
+    th:nth-child(3), td:nth-child(3) { width: 48%; }
+    th:nth-child(4), td:nth-child(4) { width: 20%; }
     `}
 
     .handicap { text-align: center; }
@@ -1991,7 +1947,6 @@ export default function Players({
           <th>Tee Time</th>
           <th>Group</th>
           <th>Player</th>
-          <th>Home Club</th>
           ${includeHandicapInReport ? "<th>HI</th>" : ""}
           <th>Status</th>
         </tr>
@@ -2400,6 +2355,13 @@ export default function Players({
       />
 
       <ActionTile
+        icon={FileSpreadsheet}
+        subtitle="Download"
+        title="Start List Template"
+        onClick={handleDownloadStartListTemplate}
+      />
+
+      <ActionTile
         icon={Download}
         title="Export"
         onClick={handleExport}
@@ -2508,8 +2470,6 @@ export default function Players({
                 <th>Tee Time</th>
                 <th>Group</th>
                 <th>Name</th>
-                <th>Home Club</th>
-                <th>Gender</th>
                 <th>HI</th>
                 <th>Paid</th>
                 <th>Source</th>
@@ -2522,7 +2482,7 @@ export default function Players({
               {players.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={9}
                     className="empty-table"
                   >
                     <strong>
@@ -2549,7 +2509,7 @@ export default function Players({
                     startsReserveSection ? (
                         <tr key={`reserve-divider-${player.id}`}>
                           <td
-                            colSpan={11}
+                            colSpan={9}
                             style={{
                               padding: "14px 16px",
                               borderTop: "4px solid #1f5fbf",
@@ -2619,56 +2579,7 @@ export default function Players({
                         )}
                       </td>
 
-                      <td>
-                        {getPlayerHomeClub(player)}
-                      </td>
-
-                      <td>
-                        {player.gender || "—"}
-                      </td>
-
-                    <td>
-                      {(() => {
-                        const capWarning =
-                          getHandicapCapWarning(player);
-
-                        return (
-                          <>
-                            <span
-                              style={
-                                capWarning
-                                  ? {
-                                      color: "#b45309",
-                                      fontWeight: 800,
-                                    }
-                                  : undefined
-                              }
-                            >
-                              {player.handicapIndex.toFixed(
-                                1
-                              )}
-                            </span>
-
-                            {capWarning && (
-                              <span
-                                title={capWarning.message}
-                                style={{
-                                  display: "block",
-                                  marginTop: "3px",
-                                  color: "#b45309",
-                                  fontSize: "0.72rem",
-                                  fontWeight: 800,
-                                  lineHeight: 1.15,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                ⚠ CAP {capWarning.cap.toFixed(1)}
-                              </span>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </td>
+                    <td>{player.handicapIndex.toFixed(1)}</td>
 
                     <td>
                       <button
@@ -2821,28 +2732,6 @@ export default function Players({
                     )
                   }
                 />
-              </div>
-
-              <div>
-                <label>
-                  Gender
-                </label>
-
-                <select
-                  value={gender}
-                  onChange={(e) =>
-                    setGender(
-                      e.target.value as
-                        | ""
-                        | "Male"
-                        | "Female"
-                    )
-                  }
-                >
-                  <option value="">Select...</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
               </div>
 
               <div>

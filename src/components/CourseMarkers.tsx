@@ -7,7 +7,7 @@
 // - Longest Drive
 // - Nearest the Line
 // - Hole 1–18
-// - Open / Men Only / Ladies Only
+// - All markers open to all members
 // - Maximum 18 markers
 // - Per-event persistence
 // - Four marker forms per A4 portrait sheet
@@ -28,10 +28,7 @@ type MarkerType =
   | "Longest Drive"
   | "Nearest the Line";
 
-type Eligibility =
-  | "Open"
-  | "Men Only"
-  | "Ladies Only";
+type Eligibility = "Open";
 
 type Prize =
   | "Sleeve of Balls"
@@ -74,7 +71,7 @@ export default function CourseMarkers({
         const parsed = JSON.parse(saved);
 
         return Array.isArray(parsed)
-          ? parsed
+          ? parsed.map((marker: CourseMarker) => ({ ...marker, eligibility: "Open" as const }))
           : [];
       } catch (error) {
         console.error(
@@ -113,7 +110,7 @@ export default function CourseMarkers({
 
       setMarkers(
         Array.isArray(parsed)
-          ? parsed
+          ? parsed.map((marker: CourseMarker) => ({ ...marker, eligibility: "Open" as const }))
           : []
       );
     } catch (error) {
@@ -275,22 +272,6 @@ export default function CourseMarkers({
     );
   };
 
-  const handleEligibilityChange = (
-    markerId: string,
-    eligibility: Eligibility
-  ) => {
-    setMarkers((current) =>
-      current.map((marker) =>
-        marker.id === markerId
-          ? {
-              ...marker,
-              eligibility,
-            }
-          : marker
-      )
-    );
-  };
-
   const handlePrizeChange = (
     markerId: string,
     prize: Prize
@@ -369,7 +350,6 @@ export default function CourseMarkers({
             <td>${index + 1}</td>
             <td>${escapeOverviewHtml(marker.type)}</td>
             <td class="centre">${marker.hole}</td>
-            <td>${escapeOverviewHtml(marker.eligibility)}</td>
             <td>${escapeOverviewHtml(marker.prize || "Sleeve of Balls")}</td>
           </tr>`
       )
@@ -407,12 +387,12 @@ export default function CourseMarkers({
           <div class="page">
             <div class="actions"><button onclick="window.print()">Print / Save as PDF</button></div>
             <h1>Course Markers Overview</h1>
-            <div class="subtitle">Ramsdale Seniors Event Desk</div>
+            <div class="subtitle">Par 3 Club Event Desk</div>
             <div class="rule"></div>
             <div class="event">${escapeOverviewHtml(event.eventName || "Untitled Event")}</div>
             <div class="date">${escapeOverviewHtml(formatEventDate(event.eventDate))}</div>
             <table>
-              <thead><tr><th>#</th><th>Marker Type</th><th>Hole</th><th>Eligibility</th><th>Prize</th></tr></thead>
+              <thead><tr><th>#</th><th>Marker Type</th><th>Hole</th><th>Prize</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
             <div class="summary">${markers.length} Course Marker${markers.length === 1 ? "" : "s"}</div>
@@ -519,14 +499,6 @@ export default function CourseMarkers({
           { align: "center" }
         );
 
-        pdf.setTextColor(51, 65, 85);
-        pdf.setFontSize(7);
-        pdf.text(
-          marker.eligibility.toUpperCase(),
-          centreX,
-          y + 43,
-          { align: "center" }
-        );
 
         tableTop = y + 48;
         firstNumber = 1;
@@ -708,9 +680,8 @@ export default function CourseMarkers({
 
       const eventName = escapeHtml(event.eventName || "Untitled Event");
       const markerType = escapeHtml(marker.type.toUpperCase());
-      const eligibility = escapeHtml(marker.eligibility.toUpperCase());
       const hole = escapeHtml(String(marker.hole));
-      const emblem = `<img class="marker-emblem" src="${SENIORS_EMBLEM}" alt="Ramsdale Seniors emblem" />`;
+      const emblem = `<img class="marker-emblem" src="${SENIORS_EMBLEM}" alt="Ramsdale Par 3 Club emblem" />`;
 
       if (side === "front") {
         return `
@@ -720,7 +691,6 @@ export default function CourseMarkers({
             <div class="event-date">${escapeHtml(formatEventDate(event.eventDate))}</div>
             <div class="marker-type">${markerType}</div>
             <div class="hole">HOLE ${hole}</div>
-            <div class="eligibility">${eligibility}</div>
             ${buildNameTable(1, FRONT_NAME_ROWS)}
             <div class="continue-note">Name list continues on reverse</div>
           </div>
@@ -794,7 +764,6 @@ export default function CourseMarkers({
             .event-date { text-align: center; margin-top: 1.5mm; color: #64748b; font-size: 7.5pt; }
             .marker-type { text-align: center; margin-top: 4mm; color: #205b9f; font-size: 14pt; font-weight: 800; line-height: 1; }
             .hole { text-align: center; margin-top: 2.2mm; color: #111827; font-size: 12pt; font-weight: 800; }
-            .eligibility { text-align: center; margin-top: 1.5mm; font-size: 7pt; font-weight: 800; }
             .reverse-warning-primary { text-align: center; margin-top: 2mm; color: #b91c1c; font-size: 11.5pt; font-weight: 900; line-height: 1.05; }
             .reverse-warning-secondary { text-align: center; margin-top: 2mm; color: #111827; font-size: 8.5pt; font-weight: 900; line-height: 1.1; }
             .name-table { margin-top: 2.5mm; border: 0.25mm solid #475569; }
@@ -1041,7 +1010,7 @@ export default function CourseMarkers({
       side === "front"
         ? `
           <div class="marker-form">
-            <img class="marker-emblem" src="${SENIORS_EMBLEM}" alt="Ramsdale Seniors emblem" />
+            <img class="marker-emblem" src="${SENIORS_EMBLEM}" alt="Ramsdale Par 3 Club emblem" />
             <div class="write-line event-line"><strong>EVENT / COMPETITION:</strong><span></span></div>
             <div class="write-line"><strong>MARKER:</strong><span></span></div>
             <div class="write-line hole-line"><strong>HOLE:</strong><span></span></div>
@@ -1420,7 +1389,7 @@ export default function CourseMarkers({
                           <>
                         <img
                           src={SENIORS_EMBLEM}
-                          alt="Ramsdale Seniors emblem"
+                          alt="Ramsdale Par 3 Club emblem"
                           style={{
                             position: "absolute",
                             top: "10px",
@@ -1514,46 +1483,7 @@ export default function CourseMarkers({
                           {marker.hole}
                         </div>
 
-                        {/* ELIGIBILITY */}
 
-                        <div
-                          style={{
-                            textAlign:
-                              "center",
-                            marginTop:
-                              "4px",
-                          }}
-                        >
-                          <span
-                            style={{
-                              display:
-                                "inline-block",
-                              padding:
-                                "3px 11px",
-                              borderRadius:
-                                "14px",
-                              background:
-                                marker.eligibility ===
-                                "Open"
-                                  ? "#eef6ff"
-                                  : "#f1f5f9",
-                              border:
-                                "1px solid #cbd5e1",
-                              color:
-                                "#334155",
-                              fontSize:
-                                "10px",
-                              fontWeight:
-                                800,
-                              textTransform:
-                                "uppercase",
-                            }}
-                          >
-                            {
-                              marker.eligibility
-                            }
-                          </span>
-                        </div>
 
                         {/* NAME TABLE */}
 
@@ -1893,7 +1823,7 @@ export default function CourseMarkers({
             style={{
               display: "grid",
               gridTemplateColumns:
-                "1.7fr 0.6fr 1.2fr 1.2fr 90px",
+                "1.8fr 0.65fr 1.3fr 90px",
               background: "#205b9f",
               color: "white",
               fontWeight: 700,
@@ -1906,10 +1836,6 @@ export default function CourseMarkers({
 
             <div style={{ padding: "15px 18px" }}>
               Hole
-            </div>
-
-            <div style={{ padding: "15px 18px" }}>
-              Eligibility
             </div>
 
             <div style={{ padding: "15px 18px" }}>
@@ -1947,7 +1873,7 @@ export default function CourseMarkers({
                 style={{
                   display: "grid",
                   gridTemplateColumns:
-                    "1.7fr 0.6fr 1.2fr 1.2fr 90px",
+                    "1.8fr 0.65fr 1.3fr 90px",
                   alignItems: "center",
                   borderTop:
                     index === 0
@@ -2022,41 +1948,6 @@ export default function CourseMarkers({
                       </option>
                     )
                   )}
-                </select>
-
-                <select
-                  value={
-                    marker.eligibility
-                  }
-                  onChange={(e) =>
-                    handleEligibilityChange(
-                      marker.id,
-                      e.target
-                        .value as Eligibility
-                    )
-                  }
-                  style={{
-                    width: "100%",
-                    height: "44px",
-                    padding: "0 12px",
-                    border:
-                      "1px solid #cfd7df",
-                    borderRadius: "8px",
-                    background: "white",
-                    fontSize: "15px",
-                  }}
-                >
-                  <option value="Open">
-                    Open
-                  </option>
-
-                  <option value="Men Only">
-                    Men Only
-                  </option>
-
-                  <option value="Ladies Only">
-                    Ladies Only
-                  </option>
                 </select>
 
                 <select

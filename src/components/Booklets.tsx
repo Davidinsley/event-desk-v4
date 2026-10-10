@@ -138,6 +138,45 @@ const getOpenTextFontSize = (value: string): number => {
 };
 
 const BOOKLET_KEY_PREFIX = "eventDeskBookletV1:";
+
+const BOOKLET_DB_NAME = "eventDeskEventBookletLibrary";
+const BOOKLET_DB_STORE = "records";
+
+const openBookletDatabase = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+  const request = indexedDB.open(BOOKLET_DB_NAME, 1);
+  request.onupgradeneeded = () => {
+    if (!request.result.objectStoreNames.contains(BOOKLET_DB_STORE)) {
+      request.result.createObjectStore(BOOKLET_DB_STORE, { keyPath: "id" });
+    }
+  };
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+
+const readStoredBooklet = async (id: string): Promise<BookletData | null> => {
+  const db = await openBookletDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const request = db.transaction(BOOKLET_DB_STORE, "readonly").objectStore(BOOKLET_DB_STORE).get(id);
+      request.onsuccess = () => resolve(request.result?.data ?? null);
+      request.onerror = () => reject(request.error);
+    });
+  } finally { db.close(); }
+};
+
+const writeStoredBooklet = async (id: string, data: BookletData): Promise<void> => {
+  const db = await openBookletDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(BOOKLET_DB_STORE, "readwrite");
+      transaction.objectStore(BOOKLET_DB_STORE).put({ id, data });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  } finally { db.close(); }
+};
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
   import.meta.url,
@@ -274,6 +313,7 @@ export default function Booklets({
   const [data, setData] = useState<BookletData>(() =>
     loadBookletData(event.eventNumber, attachedPosterIds),
   );
+  const [bookletLoadedFor, setBookletLoadedFor] = useState<string | null>(null);
   const [openData, setOpenData] = useState<OpenBookletData>(() =>
     loadOpenBookletData(event.eventNumber),
   );
@@ -291,7 +331,33 @@ export default function Booklets({
   >({});
 
   useEffect(() => {
-    setData(loadBookletData(event.eventNumber, attachedPosterIds));
+    let cancelled = false;
+    setBookletLoadedFor(null);
+    const id = event.eventNumber;
+    const legacy = loadBookletData(id, attachedPosterIds);
+    void (async () => {
+      try {
+        const stored = await readStoredBooklet(id);
+        if (cancelled) return;
+        if (stored) {
+          setData(stored);
+        } else {
+          // Migrate the old localStorage record without deleting it until safely written.
+          const oldKey = `${BOOKLET_KEY_PREFIX}${id}`;
+          if (localStorage.getItem(oldKey)) {
+            await writeStoredBooklet(id, legacy);
+            localStorage.removeItem(oldKey);
+          }
+          if (cancelled) return;
+          setData(legacy);
+        }
+        setBookletLoadedFor(id);
+      } catch (error) {
+        console.error("Failed to load booklet from IndexedDB", error);
+        if (!cancelled) window.alert("Booklet storage could not be opened. Changes will not be saved.");
+      }
+    })();
+    return () => { cancelled = true; };
   }, [event.eventNumber, attachedPosterIds]);
 
   useEffect(() => {
@@ -336,17 +402,14 @@ export default function Booklets({
   }, []);
 
   useEffect(() => {
-    if (readOnly) return;
-
-    try {
-      localStorage.setItem(
-        `${BOOKLET_KEY_PREFIX}${event.eventNumber}`,
-        JSON.stringify(data),
-      );
-    } catch (error) {
-      console.error("Failed to save booklet data", error);
-    }
-  }, [data, event.eventNumber, readOnly]);
+    if (readOnly || bookletLoadedFor !== event.eventNumber) return;
+    void writeStoredBooklet(event.eventNumber, data)
+      .then(() => localStorage.removeItem(`${BOOKLET_KEY_PREFIX}${event.eventNumber}`))
+      .catch((error) => {
+        console.error("Failed to save booklet data", error);
+        window.alert("The booklet could not be saved. Please keep your backup file.");
+      });
+  }, [data, event.eventNumber, readOnly, bookletLoadedFor]);
 
   useEffect(() => {
     if (readOnly) return;

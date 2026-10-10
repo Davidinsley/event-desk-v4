@@ -23,6 +23,7 @@ type EventDeskBackup = {
 };
 
 const DATABASE_SCHEMAS = [
+  { name: "eventDeskEventBookletLibrary", version: 1, stores: [{ name: "records", keyPath: "id" }] },
   { name: "ramsdaleEventDesk", version: 1, stores: [{ name: "posterLibrary", keyPath: "id" }] },
   { name: "eventDeskMenuPdfLibrary", version: 2, stores: [{ name: "menus", keyPath: "id" }] },
   {
@@ -211,10 +212,37 @@ export default function BackupRestore({ onBack }: BackupRestoreProps) {
       );
       if (!confirmed) return;
 
-      localStorage.clear();
-      Object.entries(parsed.localStorage).forEach(([key, value]) => localStorage.setItem(key, value));
+      // Move legacy large booklet records into IndexedDB before writing localStorage.
+      // Keep the backup file untouched, including its original format.
+      const localEntries = Object.entries(parsed.localStorage);
+      const legacyBooklets = localEntries.filter(([key]) => key.startsWith("eventDeskBookletV1:"));
+      const bookletSchema = DATABASE_SCHEMAS.find((schema) => schema.name === "eventDeskEventBookletLibrary")!;
+      const bookletBackup = parsed.indexedDB.find((database) => database.name === bookletSchema.name);
+      const migratedRecords: EncodedValue[] = legacyBooklets.map(([key, value]) => ({
+        kind: "plain",
+        value: { id: key.slice("eventDeskBookletV1:".length), data: JSON.parse(value) },
+      }));
+      // Existing IndexedDB booklet records take precedence over legacy localStorage copies.
+      const combined = new Map<string, EncodedValue>();
+      migratedRecords.forEach((record) => {
+        const value = (record as { kind: "plain"; value: { id: string } }).value;
+        combined.set(value.id, record);
+      });
+      (bookletBackup?.stores?.records ?? []).forEach((record) => {
+        const decoded = decodeValue(record) as { id: string };
+        combined.set(decoded.id, record);
+      });
+      // Restore all databases first, so a localStorage quota failure cannot lose booklet images.
       for (const schema of DATABASE_SCHEMAS) {
-        await restoreDatabase(schema, parsed.indexedDB.find((database) => database.name === schema.name));
+        const backup = schema.name === bookletSchema.name
+          ? { name: schema.name, version: 1, stores: { records: [...combined.values()] } }
+          : parsed.indexedDB.find((database) => database.name === schema.name);
+        await restoreDatabase(schema, backup);
+      }
+      // Exclude legacy booklet image data from localStorage to avoid Chromebook quota limits.
+      localStorage.clear();
+      for (const [key, value] of localEntries) {
+        if (!key.startsWith("eventDeskBookletV1:")) localStorage.setItem(key, value);
       }
       window.alert("Event Desk backup restored successfully. Event Desk will now reload.");
       window.location.reload();

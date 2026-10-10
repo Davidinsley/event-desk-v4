@@ -1,5 +1,5 @@
 // Dashboard.tsx
-// Ramsdale Seniors Event Desk
+// Ramsdale Par 3 Event Desk
 // Revision: Three uniform dashboard tiles with descriptors
 
 import "./Dashboard.css";
@@ -93,27 +93,13 @@ function DiaryIcon() {
   );
 }
 
-function OpenBookIcon() {
-  return (
-    <svg className="dashboard-icon dashboard-book-icon" viewBox="0 0 100 80" aria-hidden="true">
-      <path d="M50 15c-10-9-22-12-38-10v52c16-2 28 1 38 10" />
-      <path d="M50 15c10-9 22-12 38-10v52c-16 2-28 1-38 10" />
-      <line x1="50" y1="15" x2="50" y2="67" />
-      <path d="M12 57c15-2 27 1 38 10" />
-      <path d="M88 57c-15-2-27 1-38 10" />
-    </svg>
-  );
-}
-
 function Dashboard({
   onNewEvent,
   onPriorityEvent,
   onEventDesk,
   onRecentEvents,
-  onMatchBooklets,
   onDiary,
   onBackupRestore,
-  onRegularCompetitions,
   hasDiaryRedNotice = false,
   priorityEventName,
   priorityEventDate,
@@ -123,13 +109,13 @@ function Dashboard({
 
   return (
     <section className="dashboard-screen">
-      <div className="dashboard-grid">
+      <div className="dashboard-grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
         <button type="button" className="dashboard-card" onClick={onNewEvent}>
           <span className="dashboard-card-content">
             <NewEventIcon />
             <span className="dashboard-card-title">New Event</span>
             <span className="dashboard-card-description">
-              Create a brand new Ramsdale Seniors event.
+              Create a brand new Ramsdale Park GC Par 3 Club event.
             </span>
           </span>
         </button>
@@ -175,19 +161,6 @@ function Dashboard({
           </span>
         </button>
 
-        <button
-          type="button"
-          className="dashboard-card"
-          onClick={onMatchBooklets}
-        >
-          <span className="dashboard-card-content">
-            <OpenBookIcon />
-            <span className="dashboard-card-title">Match Booklets and Labels</span>
-            <span className="dashboard-card-description">
-              Create and print match booklets and scorecard labels.
-            </span>
-          </span>
-        </button>
       </div>
 
       <div className="dashboard-secondary-row">
@@ -232,14 +205,6 @@ function Dashboard({
           <span>Backup &amp; Restore</span>
         </button>
 
-        <button
-          type="button"
-          className="dashboard-secondary-button"
-          onClick={() => onRegularCompetitions?.()}
-        >
-          <span aria-hidden="true" style={{ fontSize: "22px", lineHeight: 1 }}>▦</span>
-          <span>Regular Comp Templates</span>
-        </button>
       </div>
     </section>
   );

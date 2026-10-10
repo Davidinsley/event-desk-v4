@@ -56,12 +56,12 @@ const ARCHIVED_EVENT_KEY =
 const defaultEvent: Event = {
   eventNumber: "0001",
   eventName:
-    "Monday Club Home & Away Championship",
+    "",
   eventDate: "",
   venue: "Ramsdale Park Golf Club",
-  competition: "Pairs Championship",
-  entryFee: 15,
-  playerLimit: 76,
+  competition: "",
+  entryFee: 0,
+  playerLimit: 36,
   competitionCategory: "",
   competitionFormat: "",
   competitionRounds: 1,
@@ -204,6 +204,26 @@ const loadInitialEventRecords = (): EventRecord[] => {
             : { ...record, archived: false, archivedAt: null };
         });
 
+        // One-time removal of the unwanted Monday Club test event MC0007.
+        // Keep every other event (including the Xmas Turkey Trot) unchanged.
+        const cleanedRecords = normalisedRecords.filter(
+          (record) => !(record?.id === "MC0007" || record?.event?.eventNumber === "MC0007")
+        );
+        if (cleanedRecords.length !== normalisedRecords.length) {
+          const safeRecords = cleanedRecords.length > 0
+            ? cleanedRecords
+            : [createEventRecord(defaultEvent)];
+          localStorage.setItem(EVENT_RECORDS_KEY, JSON.stringify(safeRecords));
+          if (localStorage.getItem(ACTIVE_EVENT_ID_KEY) === "MC0007") {
+            localStorage.setItem(ACTIVE_EVENT_ID_KEY, safeRecords[0].id);
+          }
+          if (localStorage.getItem(CURRENT_WORKING_EVENT_ID_KEY) === "MC0007") {
+            const nextWorking = safeRecords.find((item) => !item.archived);
+            if (nextWorking) localStorage.setItem(CURRENT_WORKING_EVENT_ID_KEY, nextWorking.id);
+            else localStorage.removeItem(CURRENT_WORKING_EVENT_ID_KEY);
+          }
+          return safeRecords;
+        }
         return normalisedRecords;
       }
     }
@@ -217,9 +237,8 @@ const loadInitialEventRecords = (): EventRecord[] => {
     const savedMeta = localStorage.getItem(PUBLICATION_META_KEY);
     const savedArchived = localStorage.getItem(ARCHIVED_EVENT_KEY);
 
-    const event = savedEvent
-      ? JSON.parse(savedEvent)
-      : defaultEvent;
+    const legacyEvent = savedEvent ? JSON.parse(savedEvent) : defaultEvent;
+    const event = legacyEvent?.eventNumber === "MC0007" ? defaultEvent : legacyEvent;
 
     const players = savedPlayers
       ? JSON.parse(savedPlayers)
@@ -487,7 +506,7 @@ export default function App() {
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
       setShowSplash(false);
-    }, 2000);
+    }, 3000);
 
     return () => {
       window.clearTimeout(splashTimer);
@@ -1712,6 +1731,14 @@ export default function App() {
       return;
     }
 
+    // Persist the deletion immediately so Diary and Event Desk share
+    // the same remaining records after navigation or a refresh.
+    try {
+      localStorage.setItem(EVENT_RECORDS_KEY, JSON.stringify(remainingRecords));
+    } catch (error) {
+      console.error("Failed to persist deleted event", error);
+    }
+
     setEventRecords(remainingRecords);
 
     if (record.id === currentWorkingEventId) {
@@ -1978,12 +2005,12 @@ export default function App() {
           width: "100vw",
           height: "100vh",
           overflow: "hidden",
-          background: "#dbeafe",
+          background: "#e8eef8",
         }}
       >
         <img
           src={splashImage}
-          alt="Ramsdale Seniors Event Desk"
+          alt="Par 3 Club Event Desk"
           style={{
             width: "100%",
             height: "100%",
@@ -2010,14 +2037,14 @@ export default function App() {
 
         <img
           src={logo}
-          alt="Ramsdale Park Golf Club"
+          alt="Ramsdale Park GC Par 3 Club"
           className="logo"
         />
 
         <div className="header-title">
 
           <h1>
-            Ramsdale Seniors Event Desk
+            Par 3 Club Event Desk
           </h1>
 
           <p>
@@ -2026,7 +2053,7 @@ export default function App() {
               : currentPage === "regularCompetitions" ||
                 (eventOpen && /^MC\d+$/i.test(event.eventNumber?.trim() ?? ""))
               ? "Regular Competition Management"
-              : "Special Events Management"}
+              : "Ramsdale Park GC Par 3 Club"}
           </p>
 
         </div>
@@ -2349,18 +2376,6 @@ export default function App() {
               </li>
             )}
 
-            <li
-              className={
-                currentPage === "handicap"
-                  ? "active"
-                  : ""
-              }
-              onClick={() =>
-                handleNavigate("handicap")
-              }
-            >
-              🏌️ Field & Draw
-            </li>
 
             <li
               className={
@@ -2562,8 +2577,8 @@ export default function App() {
                     }}
                   >
                     {recentEventsOnly
-                      ? "Past and completed Ramsdale Seniors events."
-                      : "Create, open and manage your Ramsdale Seniors events."}
+                      ? "Past and completed Ramsdale Park GC Par 3 Club events."
+                      : "Create, open and manage your Ramsdale Park GC Par 3 Club events."}
                   </p>
                 </div>
 

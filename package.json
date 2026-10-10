@@ -1,5 +1,5 @@
 {
-  "name": "event-desk-v4",
+  "name": "par3-club-event-desk",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -39,8 +39,8 @@
     "vite": "^8.1.1"
   },
   "build": {
-    "appId": "uk.co.ramsdale-seniors.eventdesk",
-    "productName": "Event Desk",
+    "appId": "uk.co.ramsdale.par3club.eventdesk",
+    "productName": "Par 3 Club Event Desk",
     "directories": {
       "output": "release"
     },

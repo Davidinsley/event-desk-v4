@@ -14,10 +14,6 @@ import ActionTile from "../ui/ActionTile";
 
 import {
   Save,
-  FolderOpen,
-  ClipboardList,
-  Eye,
-  Copy,
 } from "lucide-react";
 
 const CUSTOM_FORMATS_KEY = "eventDeskCustomCompetitionFormats";
@@ -55,6 +51,15 @@ export default function Competition({
   setEvent,
 }: CompetitionProps) {
   const [showSaved, setShowSaved] = useState(false);
+
+  // The Lee Course uses one round only. Preserve other event fields.
+  useEffect(() => {
+    setEvent((current) =>
+      current.competitionRounds === 1
+        ? current
+        : { ...current, competitionRounds: 1 },
+    );
+  }, [setEvent]);
   const [customFormats, setCustomFormats] =
     useState<string[]>(loadCustomFormats);
   const [showAddFormat, setShowAddFormat] = useState(false);
@@ -253,25 +258,11 @@ export default function Competition({
         }
       `}</style>
 
-      <div className="page-summary competition-summary">
+      <div className="page-summary competition-summary" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "14px" }}>
         <SummaryCard
           title="Format"
           value={event.competitionFormat || "—"}
         />
-
-      <SummaryCard
-        title="Rounds"
-        value={String(event.competitionRounds || 1)}
-      />
-
-      <SummaryCard
-        title="Tees"
-        value={
-          event.ladiesTeeColour && event.ladiesTeeColour !== event.teeColour
-            ? `${event.teeColour || "—"} / ${event.ladiesTeeColour}`
-            : event.teeColour || event.ladiesTeeColour || "—"
-        }
-      />
 
       <SummaryCard
         title="Allowance"
@@ -287,41 +278,13 @@ export default function Competition({
   );
 
   const actions = (
-    <div className="page-actions">
+    <div className="page-actions" style={{ display: "flex", justifyContent: "center" }}>
 
       <ActionTile
         icon={Save}
         title={showSaved ? "Saved" : "Save"}
         primary
         onClick={handleSave}
-      />
-
-      <ActionTile
-        icon={FolderOpen}
-        title="Template"
-        subtitle="FD"
-        disabled
-      />
-
-      <ActionTile
-        icon={Copy}
-        title="Duplicate"
-        subtitle="FD"
-        disabled
-      />
-
-      <ActionTile
-        icon={ClipboardList}
-        title="Rules"
-        subtitle="FD"
-        disabled
-      />
-
-      <ActionTile
-        icon={Eye}
-        title="Preview"
-        subtitle="FD"
-        disabled
       />
 
     </div>
@@ -501,27 +464,6 @@ export default function Competition({
           </div>
 
           <div className="field">
-            <label htmlFor="rounds">
-              Number of Rounds
-            </label>
-
-            <input
-              id="rounds"
-              type="number"
-              min="1"
-              value={event.competitionRounds}
-              onChange={(e) =>
-                updateEvent({
-                  competitionRounds: Math.max(
-                    1,
-                    Number(e.target.value)
-                  ),
-                })
-              }
-            />
-          </div>
-
-          <div className="field">
             <label htmlFor="allowance">
               Playing Handicap Allowance (%)
             </label>
@@ -544,122 +486,6 @@ export default function Competition({
                 })
               }
             />
-          </div>
-
-          <div className="field full-width">
-            <label
-              htmlFor="applyHandicapCaps"
-              style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}
-            >
-              <input
-                id="applyHandicapCaps"
-                type="checkbox"
-                checked={Boolean(event.applyHandicapCaps)}
-                onChange={(e) =>
-                  updateEvent({ applyHandicapCaps: e.target.checked })
-                }
-                style={{ width: "18px", height: "18px" }}
-              />
-              Apply Handicap Caps
-            </label>
-
-            {event.applyHandicapCaps && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                  gap: "16px",
-                  marginTop: "12px",
-                  padding: "14px",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "10px",
-                  background: "#f8fafc",
-                }}
-              >
-                <div className="field">
-                  <label htmlFor="maleMaxHI">Men – Maximum HI</label>
-                  <input
-                    id="maleMaxHI"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={event.maleMaxHI ?? ""}
-                    placeholder="Enter maximum HI"
-                    onChange={(e) =>
-                      updateEvent({
-                        maleMaxHI:
-                          e.target.value === ""
-                            ? undefined
-                            : Number(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="field">
-                  <label htmlFor="femaleMaxHI">Ladies – Maximum HI</label>
-                  <input
-                    id="femaleMaxHI"
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={event.femaleMaxHI ?? ""}
-                    placeholder="Enter maximum HI"
-                    onChange={(e) =>
-                      updateEvent({
-                        femaleMaxHI:
-                          e.target.value === ""
-                            ? undefined
-                            : Number(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="field">
-            <label htmlFor="teeColour">
-              Men – Tee Colour
-            </label>
-
-            <select
-              id="teeColour"
-              value={event.teeColour}
-              onChange={(e) =>
-                updateEvent({
-                  teeColour: e.target.value,
-                })
-              }
-            >
-              <option value="Yellow">Yellow</option>
-              <option value="White">White</option>
-              <option value="Red">Red</option>
-              <option value="Blue">Blue</option>
-            </select>
-          </div>
-
-          <div className="field">
-            <label htmlFor="ladiesTeeColour">
-              Ladies – Tee Colour
-            </label>
-
-            <select
-              id="ladiesTeeColour"
-              value={event.ladiesTeeColour || ""}
-              onChange={(e) =>
-                updateEvent({
-                  ladiesTeeColour: e.target.value,
-                })
-              }
-            >
-              <option value="">Select...</option>
-              <option value="Red">Red</option>
-              <option value="Yellow">Yellow</option>
-              <option value="White">White</option>
-              <option value="Blue">Blue</option>
-            </select>
           </div>
 
           <div className="field full-width">

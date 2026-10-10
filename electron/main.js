@@ -13,7 +13,7 @@ function createWindow() {
     height: 950,
     minWidth: 1100,
     minHeight: 700,
-    title: 'Ramsdale Seniors Event Desk',
+    title: 'Par 3 Club Event Desk',
     backgroundColor: '#f4f7fb',
     webPreferences: {
       contextIsolation: true,
