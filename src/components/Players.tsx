@@ -93,6 +93,8 @@ export default function Players({
   const [paid, setPaid] = useState(false);
   const [dietaryNeed, setDietaryNeed] = useState(false);
   const [notes, setNotes] = useState("");
+  const [selectedVacancy, setSelectedVacancy] = useState("");
+  const [reserveToPromote, setReserveToPromote] = useState<string | null>(null);
 
   // --------------------------------------------------
   // Handicap Cap Warnings
@@ -202,6 +204,7 @@ export default function Players({
     setPaid(false);
     setDietaryNeed(false);
     setNotes("");
+    setSelectedVacancy("");
   }
 
   function closeModal() {
@@ -1334,77 +1337,25 @@ export default function Players({
       return;
     }
 
-    // Collect every preserved vacancy, then infer any additional empty
-    // positions in existing four-player Start List groups.
-    const vacancies: DisplayPlayer[] = players.filter(
-      (player) => (player as DisplayPlayer).vacantStartListSlot === true
-    ) as DisplayPlayer[];
-
-    if (hasStartList) {
-      const groups = new Map<string, { teeTime: string; group: string; count: number }>();
-      players.forEach((player) => {
-        const item = player as DisplayPlayer;
-        if (player.status !== "Registered" || item.vacantStartListSlot || !item.teeTime || !item.group) return;
-        const key = `${item.teeTime}|${item.group}`;
-        const existing = groups.get(key);
-        if (existing) existing.count += 1;
-        else groups.set(key, { teeTime: item.teeTime, group: String(item.group), count: 1 });
-      });
-      groups.forEach((group) => {
-        const tracked = vacancies.filter((vacancy) =>
-          vacancy.teeTime === group.teeTime && String(vacancy.group) === group.group
-        ).length;
-        for (let i = tracked + group.count; i < 4; i += 1) {
-          vacancies.push({
-            id: "", firstName: "", lastName: "", handicapIndex: 0,
-            status: "Waiting", source: "Start List", paid: false, notes: "",
-            teeTime: group.teeTime, group: group.group, vacantStartListSlot: true,
-          } as DisplayPlayer);
-        }
-      });
+    const vacancy = selectedVacancy === "" ? undefined : availableVacancies[Number(selectedVacancy)];
+    if (selectedVacancy !== "" && !vacancy) {
+      alert("That vacancy is no longer available. Please select again.");
+      return;
     }
-
-    vacancies.sort((a, b) =>
-      teeTimeToMinutes(a.teeTime) - teeTimeToMinutes(b.teeTime) ||
-      Number(a.group || 0) - Number(b.group || 0)
-    );
-
-    const existingReserve = players.find((player) =>
-      player.status === "Waiting" && !(player as DisplayPlayer).vacantStartListSlot
-    );
-
-    // An existing reserve has priority. The new player can still be saved
-    // as a reserve, without being forced to accept a proposed promotion.
-    if (hasStartList && vacancies.length > 0 && !existingReserve) {
-      const choices = vacancies.map((vacancy, index) =>
-        `${index + 1}. ${vacancy.teeTime || "Time unspecified"} • Group ${vacancy.group || "unspecified"}`
-      ).join("\n");
-      const answer = window.prompt(
-        `Choose a vacancy for ${firstName.trim()} ${lastName.trim()}:\n\n${choices}\n\n` +
-        `Enter a number to promote immediately, or leave blank / Cancel to keep as Reserve.`,
-        ""
-      );
-      if (answer !== null && answer.trim() !== "") {
-        const selection = Number(answer.trim());
-        if (!Number.isInteger(selection) || selection < 1 || selection > vacancies.length) {
-          alert("Please enter one of the vacancy numbers shown, or leave blank to keep as Reserve.");
-          return;
-        }
-        const vacancy = vacancies[selection - 1];
-        const promotedPlayer: Player = {
-          id: crypto.randomUUID(), firstName: firstName.trim(), lastName: lastName.trim(),
-          handicapIndex: Number(handicapIndex) || 0,
-          ...(gender ? { gender } : {}), status: "Registered", source, paid,
-          dietaryNeed, notes: notes.trim(), teeTime: vacancy.teeTime ?? "",
-          group: vacancy.group ?? "", promotedReserve: true,
-        } as Player;
-        setPlayers((current) => [
-          ...current.filter((player) => !vacancy.id || player.id !== vacancy.id),
-          promotedPlayer,
-        ]);
-        closeModal();
-        return;
-      }
+    if (vacancy) {
+      const promotedPlayer: Player = {
+        id: crypto.randomUUID(), firstName: firstName.trim(), lastName: lastName.trim(),
+        handicapIndex: Number(handicapIndex) || 0,
+        ...(gender ? { gender } : {}), status: "Registered", source, paid,
+        dietaryNeed, notes: notes.trim(), teeTime: vacancy.teeTime ?? "",
+        group: vacancy.group ?? "", promotedReserve: true,
+      } as Player;
+      setPlayers((current) => [
+        ...current.filter((player) => !vacancy.id || player.id !== vacancy.id),
+        promotedPlayer,
+      ]);
+      closeModal();
+      return;
     }
 
     const newPlayer: Player = {
@@ -1498,130 +1449,86 @@ export default function Players({
   // --------------------------------------------------
 
   function deletePlayer(id: string) {
-    const player = players.find(
-      (item) => item.id === id
-    );
+    const player = players.find((item) => item.id === id);
+    if (!player) return;
 
-    if (!player) {
-      return;
-    }
-
-    const isRegistered =
-      player.status === "Registered";
-
-    const withdrawnPlayer =
-      player as DisplayPlayer;
-
+    const withdrawn = player as DisplayPlayer;
+    const isRegistered = player.status === "Registered";
     const firstReserve = isRegistered
-      ? players.find((item) => {
-          const displayItem = item as DisplayPlayer;
-          return item.status === "Waiting" && !displayItem.vacantStartListSlot;
-        })
+      ? players.find((item) =>
+          item.status === "Waiting" && !(item as DisplayPlayer).vacantStartListSlot
+        )
       : undefined;
 
-    let message: string;
+    const name = `${player.firstName} ${player.lastName}`.trim();
+    let promote = false;
 
     if (isRegistered && firstReserve) {
-      const vacancyDetails = [
-        withdrawnPlayer.teeTime
-          ? `Tee Time ${withdrawnPlayer.teeTime}`
-          : "",
-        withdrawnPlayer.group
-          ? `Group ${withdrawnPlayer.group}`
-          : "",
-      ]
-        .filter(Boolean)
-        .join(" • ");
+      const slot = [
+        withdrawn.teeTime ? `Tee Time ${withdrawn.teeTime}` : "",
+        withdrawn.group ? `Group ${withdrawn.group}` : "",
+      ].filter(Boolean).join(" • ");
 
-      message =
-        `${player.firstName} ${player.lastName} will be withdrawn.\n\n` +
-        `Reserve #1 ${firstReserve.firstName} ${firstReserve.lastName} will be promoted to Registered` +
-        (vacancyDetails
-          ? ` and will take the vacant place: ${vacancyDetails}.`
-          : ".") +
-        "\n\nContinue?";
+      const answer = window.prompt(
+        `Withdraw ${name}?\n\n` +
+        `1 — Withdraw & Promote Reserve #1 (${firstReserve.firstName} ${firstReserve.lastName})` +
+        (slot ? ` into ${slot}` : "") +
+        `\n2 — Withdraw & Leave Vacancy\n3 — Cancel\n\nEnter 1, 2 or 3:`,
+        "1"
+      );
+      if (answer === null || answer.trim() === "3") return;
+      if (answer.trim() !== "1" && answer.trim() !== "2") {
+        window.alert("No changes made. Please select 1, 2 or 3.");
+        return;
+      }
+      promote = answer.trim() === "1";
     } else if (isRegistered) {
-      message =
-        `${player.firstName} ${player.lastName} will be withdrawn.\n\n` +
-        "There are no Reserves waiting. This Start List place will be kept as a vacancy so it can be filled by a later Reserve.\n\nContinue?";
+      if (!window.confirm(
+        `${name} will be withdrawn.\n\n` +
+        "There are no Reserves waiting. The Start List place will be kept as a vacancy where applicable.\n\nContinue?"
+      )) return;
     } else {
-      const reservePosition =
-        reservePositionForPlayer(player.id);
-
-      message =
-        `Remove ${player.firstName} ${player.lastName}` +
-        (reservePosition
-          ? ` (Reserve #${reservePosition})`
-          : " from the Reserves list") +
-        "?";
-    }
-
-    if (!window.confirm(message)) {
-      return;
+      const position = reservePositionForPlayer(id);
+      if (!window.confirm(
+        `Remove ${name}` +
+        (position ? ` (Reserve #${position})` : " from the Reserves list") + "?"
+      )) return;
     }
 
     setPlayers((current) => {
-      const remaining = current.filter(
-        (item) => item.id !== id
-      );
+      const remaining = current.filter((item) => item.id !== id);
+      if (!isRegistered) return remaining;
 
-      if (!isRegistered) {
-        return remaining;
-      }
-
-      const reserveIndex = remaining.findIndex((item) => {
-        const displayItem = item as DisplayPlayer;
-        return item.status === "Waiting" && !displayItem.vacantStartListSlot;
-      });
-
-      if (reserveIndex === -1) {
-        if (
-          hasStartList &&
-          (withdrawnPlayer.teeTime || withdrawnPlayer.group)
-        ) {
-          const vacancyRecord: Player = {
-            id: crypto.randomUUID(),
-            firstName: "",
-            lastName: "",
-            handicapIndex: 0,
-            status: "Waiting",
-            source: "Start List",
-            paid: false,
-            notes: "",
-            teeTime: withdrawnPlayer.teeTime ?? "",
-            group: withdrawnPlayer.group ?? "",
-            vacantStartListSlot: true,
+      if (promote && firstReserve) {
+        const index = remaining.findIndex((item) => item.id === firstReserve.id);
+        if (index !== -1) {
+          const reserve = remaining[index] as DisplayPlayer;
+          remaining[index] = {
+            ...reserve,
+            status: "Registered",
+            teeTime: withdrawn.teeTime ?? reserve.teeTime ?? "",
+            group: withdrawn.group ?? reserve.group ?? "",
+            promotedReserve: true,
           } as Player;
-
-          return [...remaining, vacancyRecord];
+          return remaining;
         }
-
-        return remaining;
       }
 
-      const promoted = remaining[reserveIndex];
-
-      if (!promoted) {
-        return remaining;
+      if (hasStartList && (withdrawn.teeTime || withdrawn.group)) {
+        return [...remaining, {
+          id: crypto.randomUUID(),
+          firstName: "",
+          lastName: "",
+          handicapIndex: 0,
+          status: "Waiting",
+          source: "Start List",
+          paid: false,
+          notes: "",
+          teeTime: withdrawn.teeTime ?? "",
+          group: withdrawn.group ?? "",
+          vacantStartListSlot: true,
+        } as Player];
       }
-
-      const promotedDisplay =
-        promoted as DisplayPlayer;
-
-      remaining[reserveIndex] = {
-        ...promoted,
-        status: "Registered",
-        teeTime:
-          withdrawnPlayer.teeTime ??
-          promotedDisplay.teeTime ??
-          "",
-        group:
-          withdrawnPlayer.group ??
-          promotedDisplay.group ??
-          "",
-        promotedReserve: true,
-      } as Player;
-
       return remaining;
     });
   }
@@ -2145,6 +2052,52 @@ export default function Players({
     return Number(match[1]) * 60 + Number(match[2]);
   }
 
+  // Vacancies are shown directly on the page, never in a browser prompt.
+  // Keep explicit withdrawn-player vacancies and infer unfilled four-ball places.
+  const availableVacancies: DisplayPlayer[] = players
+    .filter((p) => (p as DisplayPlayer).vacantStartListSlot === true) as DisplayPlayer[];
+  if (hasStartList) {
+    const groups = new Map<string, { teeTime: string; group: string; count: number }>();
+    players.forEach((p) => {
+      const item = p as DisplayPlayer;
+      if (p.status !== "Registered" || item.vacantStartListSlot || !item.teeTime || !item.group) return;
+      const key = `${item.teeTime}|${item.group}`;
+      const found = groups.get(key);
+      if (found) found.count += 1;
+      else groups.set(key, { teeTime: item.teeTime, group: String(item.group), count: 1 });
+    });
+    groups.forEach((group) => {
+      const tracked = availableVacancies.filter((v) =>
+        v.teeTime === group.teeTime && String(v.group) === group.group
+      ).length;
+      for (let i = tracked + group.count; i < 4; i += 1) {
+        availableVacancies.push({
+          id: "", firstName: "", lastName: "", handicapIndex: 0,
+          status: "Waiting", source: "Start List", paid: false, notes: "",
+          teeTime: group.teeTime, group: group.group, vacantStartListSlot: true,
+        } as DisplayPlayer);
+      }
+    });
+  }
+  availableVacancies.sort((a, b) =>
+    teeTimeToMinutes(a.teeTime) - teeTimeToMinutes(b.teeTime) ||
+    Number(a.group || 0) - Number(b.group || 0)
+  );
+
+  function promoteReserveToVacancy() {
+    if (!reserveToPromote || selectedVacancy === "") return;
+    const vacancy = availableVacancies[Number(selectedVacancy)];
+    if (!vacancy) return;
+    setPlayers((current) => current
+      .filter((p) => !vacancy.id || p.id !== vacancy.id)
+      .map((p) => p.id === reserveToPromote ? ({
+        ...p, status: "Registered", teeTime: vacancy.teeTime ?? "",
+        group: vacancy.group ?? "", promotedReserve: true,
+      } as Player) : p));
+    setReserveToPromote(null);
+    setSelectedVacancy("");
+  }
+
   const displayPlayers = players
     .filter((player) => !(player as DisplayPlayer).vacantStartListSlot)
     .sort((a, b) => {
@@ -2573,6 +2526,14 @@ export default function Players({
                       </td>
 
                       <td style={{ textAlign: "center" }}>
+                        {player.status === "Waiting" && availableVacancies.length > 0 && (
+                          <button type="button" onClick={() => {
+                            setReserveToPromote(player.id);
+                            setSelectedVacancy("");
+                          }} style={{ marginRight: "8px", padding: "7px 9px", cursor: "pointer" }}>
+                            Promote
+                          </button>
+                        )}
                         <button
                           type="button"
                           title="Delete Player"
@@ -2605,6 +2566,30 @@ export default function Players({
         </div>
       </PageLayout>
 
+      {reserveToPromote && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Promote Reserve</h2>
+            <p>Select the vacant tee time and group.</p>
+            <select value={selectedVacancy} onChange={(e) => setSelectedVacancy(e.target.value)}
+              style={{ width: "100%", padding: "10px" }}>
+              <option value="">Select a vacancy...</option>
+              {availableVacancies.map((v, i) => (
+                <option key={i} value={String(i)}>
+                  {v.teeTime || "Time unspecified"} — Group {v.group || "unspecified"}
+                </option>
+              ))}
+            </select>
+            <div className="modal-buttons">
+              <button className="secondary-button" onClick={() => {
+                setReserveToPromote(null); setSelectedVacancy("");
+              }}>Cancel</button>
+              <button className="primary-button" disabled={selectedVacancy === ""}
+                onClick={promoteReserveToVacancy}>Promote Reserve</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showAddPlayer && (
         <div className="modal-overlay">
           <div className="modal">
@@ -2754,6 +2739,21 @@ export default function Players({
               </div>
             </div>
 
+            {hasStartList && availableVacancies.length > 0 && (
+              <div style={{ marginTop: "12px" }}>
+                <label htmlFor="new-player-vacancy">Place on Start List (optional)</label>
+                <select id="new-player-vacancy" value={selectedVacancy}
+                  onChange={(e) => setSelectedVacancy(e.target.value)}
+                  style={{ display: "block", width: "100%", padding: "10px", marginTop: "6px" }}>
+                  <option value="">Keep as Reserve</option>
+                  {availableVacancies.map((v, i) => (
+                    <option key={i} value={String(i)}>
+                      {v.teeTime || "Time unspecified"} — Group {v.group || "unspecified"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="checkbox-field">
               <label>
                 <input
