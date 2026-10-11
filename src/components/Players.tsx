@@ -1334,239 +1334,74 @@ export default function Players({
       return;
     }
 
-    const storedVacancy = players.find((player) => {
-      const displayPlayer = player as DisplayPlayer;
-      return displayPlayer.vacantStartListSlot === true;
-    }) as DisplayPlayer | undefined;
+    // Collect every preserved vacancy, then infer any additional empty
+    // positions in existing four-player Start List groups.
+    const vacancies: DisplayPlayer[] = players.filter(
+      (player) => (player as DisplayPlayer).vacantStartListSlot === true
+    ) as DisplayPlayer[];
 
-    // If a Reserve already exists and a Start List vacancy is waiting,
-    // offer that vacancy to Reserve #1 before processing the newly entered player.
-    if (hasStartList && storedVacancy) {
-      const firstExistingReserve = players.find((player) => {
-        const displayPlayer = player as DisplayPlayer;
-        return (
-          player.status === "Waiting" &&
-          !displayPlayer.vacantStartListSlot
-        );
-      });
-
-      if (firstExistingReserve) {
-        const vacancyDetails = [
-          storedVacancy.teeTime ? `Tee Time ${storedVacancy.teeTime}` : "",
-          storedVacancy.group ? `Group ${storedVacancy.group}` : "",
-        ]
-          .filter(Boolean)
-          .join(" • ");
-
-        const reserveName =
-          `${firstExistingReserve.firstName} ${firstExistingReserve.lastName}`.trim();
-
-        const confirmed = window.confirm(
-          `There is already a vacant Start List place${vacancyDetails ? `: ${vacancyDetails}` : ""}.\n\n` +
-            `Reserve #1 ${reserveName} is waiting.\n\n` +
-            `Promote Reserve #1 into that vacant place before adding ${firstName.trim()} ${lastName.trim()}?`
-        );
-
-        if (confirmed) {
-          const reserveDisplay = firstExistingReserve as DisplayPlayer;
-
-          setPlayers((current) => {
-            const withoutVacancy = current.filter(
-              (player) => player.id !== storedVacancy.id
-            );
-
-            return withoutVacancy.map((player) =>
-              player.id === firstExistingReserve.id
-                ? ({
-                    ...player,
-                    status: "Registered",
-                    teeTime:
-                      storedVacancy.teeTime ??
-                      reserveDisplay.teeTime ??
-                      "",
-                    group:
-                      storedVacancy.group ??
-                      reserveDisplay.group ??
-                      "",
-                    promotedReserve: true,
-                  } as Player)
-                : player
-            );
-          });
-
-          // Keep the Add Player form open. The newly entered player has not
-          // yet been saved; clicking Save Player again will now add them as
-          // the next Reserve.
-          return;
-        }
-
-        // Cancel means leave Reserve #1 waiting and do not allow the newly
-        // entered player to jump the queue into the same vacancy.
-        return;
-      }
-    }
-
-    // A vacancy created before vacancy tracking was introduced will not have
-    // an internal vacancy record. Reconstruct such a vacancy from an
-    // under-filled four-player Start List group so older test/live data can
-    // still be repaired correctly.
-    const inferredVacancy = (() => {
-      if (!hasStartList || storedVacancy) return undefined;
-
-      const grouped = new Map<
-        string,
-        { teeTime: string; group: string | number; count: number }
-      >();
-
+    if (hasStartList) {
+      const groups = new Map<string, { teeTime: string; group: string; count: number }>();
       players.forEach((player) => {
-        const displayPlayer = player as DisplayPlayer;
-        if (
-          player.status !== "Registered" ||
-          displayPlayer.vacantStartListSlot ||
-          !displayPlayer.teeTime ||
-          displayPlayer.group === undefined ||
-          displayPlayer.group === null ||
-          String(displayPlayer.group).trim() === ""
-        ) {
-          return;
-        }
-
-        const key = `${displayPlayer.teeTime}|${String(displayPlayer.group)}`;
-        const current = grouped.get(key);
-
-        if (current) {
-          current.count += 1;
-        } else {
-          grouped.set(key, {
-            teeTime: displayPlayer.teeTime,
-            group: displayPlayer.group,
-            count: 1,
-          });
+        const item = player as DisplayPlayer;
+        if (player.status !== "Registered" || item.vacantStartListSlot || !item.teeTime || !item.group) return;
+        const key = `${item.teeTime}|${item.group}`;
+        const existing = groups.get(key);
+        if (existing) existing.count += 1;
+        else groups.set(key, { teeTime: item.teeTime, group: String(item.group), count: 1 });
+      });
+      groups.forEach((group) => {
+        const tracked = vacancies.filter((vacancy) =>
+          vacancy.teeTime === group.teeTime && String(vacancy.group) === group.group
+        ).length;
+        for (let i = tracked + group.count; i < 4; i += 1) {
+          vacancies.push({
+            id: "", firstName: "", lastName: "", handicapIndex: 0,
+            status: "Waiting", source: "Start List", paid: false, notes: "",
+            teeTime: group.teeTime, group: group.group, vacantStartListSlot: true,
+          } as DisplayPlayer);
         }
       });
-
-      const underFilled = Array.from(grouped.values())
-        .filter((entry) => entry.count < 4)
-        .sort((a, b) => {
-          const timeDifference =
-            teeTimeToMinutes(a.teeTime) - teeTimeToMinutes(b.teeTime);
-          if (timeDifference !== 0) return timeDifference;
-          return Number(a.group) - Number(b.group);
-        })[0];
-
-      if (!underFilled) return undefined;
-
-      return {
-        id: "",
-        firstName: "",
-        lastName: "",
-        handicapIndex: 0,
-        status: "Waiting",
-        source: "Start List",
-        paid: false,
-        notes: "",
-        teeTime: underFilled.teeTime,
-        group: underFilled.group,
-        vacantStartListSlot: true,
-      } as DisplayPlayer;
-    })();
-
-    const vacancy = storedVacancy ?? inferredVacancy;
-
-    // Older data may have a real Start List vacancy without an internal
-    // vacancy record. Once that vacancy has been reconstructed, Reserve #1
-    // must still have priority over the newly entered player.
-    if (hasStartList && vacancy && !storedVacancy) {
-      const firstExistingReserve = players.find((player) => {
-        const displayPlayer = player as DisplayPlayer;
-        return (
-          player.status === "Waiting" &&
-          !displayPlayer.vacantStartListSlot
-        );
-      });
-
-      if (firstExistingReserve) {
-        const vacancyDetails = [
-          vacancy.teeTime ? `Tee Time ${vacancy.teeTime}` : "",
-          vacancy.group ? `Group ${vacancy.group}` : "",
-        ]
-          .filter(Boolean)
-          .join(" • ");
-
-        const reserveName =
-          `${firstExistingReserve.firstName} ${firstExistingReserve.lastName}`.trim();
-
-        const confirmed = window.confirm(
-          `There is already a vacant Start List place${vacancyDetails ? `: ${vacancyDetails}` : ""}.\n\n` +
-            `Reserve #1 ${reserveName} is waiting.\n\n` +
-            `Promote Reserve #1 ${reserveName} into that vacant place?`
-        );
-
-        if (confirmed) {
-          const reserveDisplay = firstExistingReserve as DisplayPlayer;
-
-          setPlayers((current) =>
-            current.map((player) =>
-              player.id === firstExistingReserve.id
-                ? ({
-                    ...player,
-                    status: "Registered",
-                    teeTime: vacancy.teeTime ?? reserveDisplay.teeTime ?? "",
-                    group: vacancy.group ?? reserveDisplay.group ?? "",
-                    promotedReserve: true,
-                  } as Player)
-                : player
-            )
-          );
-        }
-
-        // Whether promoted or cancelled, do not process the newly entered
-        // player in the same click. This prevents anyone jumping Reserve #1.
-        return;
-      }
     }
 
-    const shouldFillVacancy =
-      hasStartList && vacancy !== undefined;
+    vacancies.sort((a, b) =>
+      teeTimeToMinutes(a.teeTime) - teeTimeToMinutes(b.teeTime) ||
+      Number(a.group || 0) - Number(b.group || 0)
+    );
 
-    if (shouldFillVacancy && vacancy) {
-      const vacancyDetails = [
-        vacancy.teeTime ? `Tee Time ${vacancy.teeTime}` : "",
-        vacancy.group ? `Group ${vacancy.group}` : "",
-      ]
-        .filter(Boolean)
-        .join(" • ");
+    const existingReserve = players.find((player) =>
+      player.status === "Waiting" && !(player as DisplayPlayer).vacantStartListSlot
+    );
 
-      const confirmed = window.confirm(
-        `${firstName.trim()} ${lastName.trim()} will be added to the Reserves.\n\n` +
-          `There is already a vacant Start List place${vacancyDetails ? `: ${vacancyDetails}` : ""}.\n\n` +
-          `Promote this player immediately into that vacant place?`
+    // An existing reserve has priority. The new player can still be saved
+    // as a reserve, without being forced to accept a proposed promotion.
+    if (hasStartList && vacancies.length > 0 && !existingReserve) {
+      const choices = vacancies.map((vacancy, index) =>
+        `${index + 1}. ${vacancy.teeTime || "Time unspecified"} • Group ${vacancy.group || "unspecified"}`
+      ).join("\n");
+      const answer = window.prompt(
+        `Choose a vacancy for ${firstName.trim()} ${lastName.trim()}:\n\n${choices}\n\n` +
+        `Enter a number to promote immediately, or leave blank / Cancel to keep as Reserve.`,
+        ""
       );
-
-      if (confirmed) {
+      if (answer !== null && answer.trim() !== "") {
+        const selection = Number(answer.trim());
+        if (!Number.isInteger(selection) || selection < 1 || selection > vacancies.length) {
+          alert("Please enter one of the vacancy numbers shown, or leave blank to keep as Reserve.");
+          return;
+        }
+        const vacancy = vacancies[selection - 1];
         const promotedPlayer: Player = {
-          id: crypto.randomUUID(),
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
+          id: crypto.randomUUID(), firstName: firstName.trim(), lastName: lastName.trim(),
           handicapIndex: Number(handicapIndex) || 0,
-          ...(gender ? { gender } : {}),
-          status: "Registered",
-          source,
-          paid,
-          dietaryNeed,
-          notes: notes.trim(),
-          teeTime: vacancy.teeTime ?? "",
-          group: vacancy.group ?? "",
-          promotedReserve: true,
+          ...(gender ? { gender } : {}), status: "Registered", source, paid,
+          dietaryNeed, notes: notes.trim(), teeTime: vacancy.teeTime ?? "",
+          group: vacancy.group ?? "", promotedReserve: true,
         } as Player;
-
         setPlayers((current) => [
-          ...current.filter(
-            (player) => !vacancy.id || player.id !== vacancy.id
-          ),
+          ...current.filter((player) => !vacancy.id || player.id !== vacancy.id),
           promotedPlayer,
         ]);
-
         closeModal();
         return;
       }
