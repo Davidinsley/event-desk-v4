@@ -1,5 +1,6 @@
 // Revision: Field Management 7/7/5 action layout + Menu Overview; retains event-number draw persistence and Clash integrations.
 import { useState } from "react";
+import type { CSSProperties } from "react";
 
 import type { Player } from "../types/Player";
 import type { Event } from "../types/Event";
@@ -20,7 +21,7 @@ import {
   CheckCircle,
   Printer,
   BookOpen,
-  Construction,
+  RefreshCw,
 } from "lucide-react";
 
 interface FieldManagementProps {
@@ -1739,6 +1740,8 @@ export default function FieldManagement({
   // carry a separate id/eventId field. Using those missing fields caused
   // every event to fall back to the same ":event" storage key.
   const [showMenuOverview, setShowMenuOverview] = useState(false);
+  const [showRoundRotation, setShowRoundRotation] = useState(false);
+  const [showPairArrangement, setShowPairArrangement] = useState(false);
 
   const eventStorageIdentity = event.eventNumber.trim() || "event";
 
@@ -3406,16 +3409,14 @@ export default function FieldManagement({
         )
       )}
       <ActionTile
-        icon={Construction}
-        title="FD1"
-        onClick={() => undefined}
-        disabled
+        icon={RefreshCw}
+        title="Round Rotation"
+        onClick={() => setShowRoundRotation(true)}
       />
       <ActionTile
-        icon={Construction}
-        title="FD2"
-        onClick={() => undefined}
-        disabled
+        icon={Users}
+        title="Pair Arrangement"
+        onClick={() => setShowPairArrangement(true)}
       />
       <ActionTile
         icon={BookOpen}
@@ -3504,16 +3505,14 @@ export default function FieldManagement({
         "Uses tee times and groups already imported through Players, preserving that starting order rather than creating a new draw.",
     },
     {
-      title: "FD1",
-      icon: Construction,
-      description: "Reserved for a future Field Management development.",
-      muted: true,
+      title: "Round Rotation",
+      icon: RefreshCw,
+      description: "Arranges 4–80 registered players across 2–5 rounds, minimising repeated playing partners and using four-balls wherever possible.",
     },
     {
-      title: "FD2",
-      icon: Construction,
-      description: "Reserved for a future Field Management development.",
-      muted: true,
+      title: "Pair Arrangement",
+      icon: Users,
+      description: "Takes the saved Round Rotation groups and arranges two pairs within each four-ball, without changing which players share a group.",
     },
   ];
 
@@ -4956,7 +4955,19 @@ export default function FieldManagement({
       footer="Team draw and starting sheet management."
     >
       {menuOverviewSheet}
-      <div className="players-table">
+      {showPairArrangement ? (
+        <PairArrangementPanel
+          players={registeredPlayers}
+          eventNumber={eventStorageIdentity}
+          onClose={() => setShowPairArrangement(false)}
+        />
+      ) : showRoundRotation ? (
+        <RoundRotationPanel
+          players={registeredPlayers}
+          eventNumber={eventStorageIdentity}
+          onClose={() => setShowRoundRotation(false)}
+        />
+      ) : <div className="players-table">
         {isUsingExistingStartList ? (
           <div style={{ width: "100%", overflowX: "auto" }}>
             <div style={{ padding: "1rem 1rem 0.75rem" }}>
@@ -5156,7 +5167,281 @@ export default function FieldManagement({
               )
           )
         )}
-      </div>
+      </div>}
     </PageLayout>
+  );
+}
+
+// Round Rotation is deliberately independent of normal draw and start-list state.
+type RotationRound = string[][];
+type RotationSave = { signature: string; rounds: RotationRound[] };
+
+function rotationSizes(count: number): number[] {
+  if (count < 4) return [];
+  if (count === 5) return [3, 2];
+  const fours = Math.floor(count / 4);
+  const remainder = count % 4;
+  if (remainder === 0) return Array(fours).fill(4);
+  if (remainder === 1) return [...Array(fours - 2).fill(4), 3, 3, 3];
+  if (remainder === 2) return [...Array(fours - 1).fill(4), 3, 3];
+  return [...Array(fours).fill(4), 3];
+}
+
+function rotationPairs(groups: RotationRound, counts: Map<string, number>) {
+  groups.forEach(group => group.forEach((a, i) => group.slice(i + 1).forEach(b => {
+    const key = [a, b].sort().join("|");
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  })));
+}
+
+function rotationPenalty(groups: RotationRound, previous: Map<string, number>): number {
+  let penalty = 0;
+  groups.forEach(group => group.forEach((a, i) => group.slice(i + 1).forEach(b => {
+    const met = previous.get([a, b].sort().join("|")) ?? 0;
+    penalty += met === 0 ? 0 : 100 * met * met;
+  })));
+  return penalty;
+}
+
+function makeRotation(ids: string[], roundCount: number): RotationRound[] {
+  const sizes = rotationSizes(ids.length);
+  const rounds: RotationRound[] = [];
+  const previous = new Map<string, number>();
+  for (let r = 0; r < roundCount; r++) {
+    let best: RotationRound = [];
+    let bestScore = Infinity;
+    // Random restarts plus local swaps keep the draw responsive for 80 players.
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const shuffled = [...ids];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const groups: RotationRound = [];
+      let offset = 0;
+      sizes.forEach(size => { groups.push(shuffled.slice(offset, offset + size)); offset += size; });
+      let score = rotationPenalty(groups, previous);
+      for (let pass = 0; pass < 12; pass++) {
+        let improved = false;
+        for (let a = 0; a < groups.length; a++) {
+          for (let b = a + 1; b < groups.length; b++) {
+            for (let i = 0; i < groups[a].length; i++) {
+              for (let j = 0; j < groups[b].length; j++) {
+                [groups[a][i], groups[b][j]] = [groups[b][j], groups[a][i]];
+                const candidate = rotationPenalty(groups, previous);
+                if (candidate < score) { score = candidate; improved = true; }
+                else [groups[a][i], groups[b][j]] = [groups[b][j], groups[a][i]];
+              }
+            }
+          }
+        }
+        if (!improved || score === 0) break;
+      }
+      if (score < bestScore) { bestScore = score; best = groups.map(g => [...g]); }
+      if (bestScore === 0) break;
+    }
+    rounds.push(best);
+    rotationPairs(best, previous);
+  }
+  return rounds;
+}
+
+function RoundRotationPanel({ players, eventNumber, onClose }: {
+  players: Player[]; eventNumber: string; onClose: () => void;
+}) {
+  const eligible = players.slice(0, 80);
+  const signature = eligible.map(p => p.id).sort().join("|");
+  const key = `event-desk-round-rotation-v1:${eventNumber}`;
+  const [roundCount, setRoundCount] = useState(5);
+  const [rounds, setRounds] = useState<RotationRound[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || "null") as RotationSave | null;
+      return saved?.signature === signature ? saved.rounds : [];
+    } catch { return []; }
+  });
+  const names = new Map(players.map(p => [p.id, `${p.firstName} ${p.lastName}`.trim()]));
+  const repeats = new Map<string, number>();
+  rounds.forEach(round => rotationPairs(round, repeats));
+  const repeatedPairs = [...repeats.values()].filter(n => n > 1).length;
+  const valid = players.length >= 4 && players.length <= 80;
+  const generate = () => {
+    if (!valid) return;
+    const next = makeRotation(players.map(p => p.id), roundCount);
+    setRounds(next);
+    localStorage.setItem(key, JSON.stringify({ signature, rounds: next } satisfies RotationSave));
+  };
+  const print = () => window.print();
+  const panel: CSSProperties = { background: "#fff", border: "1px solid #d9e4f2", borderRadius: 14, boxShadow: "0 3px 12px rgba(29,66,115,.06)" };
+  const action: CSSProperties = { padding: "13px 20px", borderRadius: 10, border: "1px solid #b7cfee", background: "#eef5ff", color: "#1758a6", fontSize: 15, fontWeight: 700, cursor: "pointer" };
+  const stat = (label: string, value: string | number) => (
+    <div style={{ ...panel, padding: "16px 20px", flex: "1 1 150px", minWidth: 140 }}>
+      <div style={{ color: "#66768a", fontSize: 13, fontWeight: 600, marginBottom: 7 }}>{label}</div>
+      <div style={{ color: "#1d579b", fontSize: 27, fontWeight: 750 }}>{value}</div>
+    </div>
+  );
+  return (
+    <section style={{ width: "100%", padding: "20px 24px", boxSizing: "border-box", color: "#24364a" }}>
+      <div style={{ ...panel, padding: "22px 26px", marginBottom: 18, borderTop: "5px solid #2d78ce" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ color: "#68829e", fontSize: 12, fontWeight: 700, letterSpacing: 1.3, textTransform: "uppercase" }}>Field Management</div>
+            <h2 style={{ margin: "5px 0 7px", color: "#1b559d", fontSize: 28 }}>Round Rotation</h2>
+            <div style={{ color: "#617287", fontSize: 14 }}>Multi-round playing groups · minimise repeated partners · original start lists remain unchanged</div>
+          </div>
+          <button type="button" style={action} onClick={onClose}>← Field Management</button>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+        {stat("Registered Players", `${players.length} / 80`)}
+        {stat("Rounds Generated", rounds.length || "—")}
+        {stat("Groups Per Round", rounds[0]?.length ?? (valid ? rotationSizes(players.length).length : "—"))}
+        {stat("Repeated Partnerships", rounds.length ? repeatedPairs : "—")}
+      </div>
+      <div style={{ ...panel, padding: "20px 24px", marginBottom: 22 }}>
+        <div style={{ fontWeight: 750, color: "#234e80", marginBottom: 14, fontSize: 17 }}>Rotation Controls</div>
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <label htmlFor="rotation-round-count" style={{ fontWeight: 650 }}>Number of rounds</label>
+          <select id="rotation-round-count" value={roundCount} onChange={e => setRoundCount(Number(e.target.value))} style={{ border: "1px solid #b9cce2", borderRadius: 9, padding: "12px 14px", fontSize: 15, background: "white", minWidth: 85 }}>
+            {[2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <button type="button" onClick={generate} disabled={!valid} style={{ ...action, background: valid ? "#246ec0" : "#b4becb", color: "white", borderColor: "transparent", cursor: valid ? "pointer" : "not-allowed" }}>↻ Generate Rotation</button>
+          {rounds.length > 0 && <button type="button" style={action} onClick={print}>▤ Print Rotation</button>}
+        </div>
+        {!valid && <div style={{ marginTop: 14, color: "#ad3434", fontWeight: 650 }}>Round Rotation requires between 4 and 80 registered players.</div>}
+        {rounds.length > 0 && <div style={{ marginTop: 16, padding: "12px 16px", borderRadius: 9, background: repeatedPairs === 0 ? "#e9f6ee" : "#fff5e4", color: repeatedPairs === 0 ? "#236d40" : "#8b5819", fontWeight: 650 }}>
+          {repeatedPairs === 0 ? "✓ No repeated playing partnerships across the generated rounds." : `⚠ ${repeatedPairs} repeated playing-partner combinations. Some repeats could not be avoided by this draw.`}
+        </div>}
+      </div>
+      {rounds.map((round, r) => (
+        <div key={r} style={{ ...panel, overflow: "hidden", marginBottom: 20, breakInside: "avoid-page" }}>
+          <div style={{ background: "#eaf2fc", borderBottom: "1px solid #d6e5f5", padding: "15px 22px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ margin: 0, fontSize: 19, color: "#1e5da7" }}>Round {r + 1}</h3>
+            <span style={{ color: "#567394", fontSize: 13, fontWeight: 650 }}>{round.length} playing groups</span>
+          </div>
+          <div style={{ padding: "8px 20px 18px" }}>
+            {round.map((group, g) => (
+              <div key={g} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "12px 4px", borderBottom: g === round.length - 1 ? "none" : "1px solid #e9eef5" }}>
+                <div style={{ minWidth: 84, fontWeight: 750, color: "#2769b4", paddingTop: 6 }}>Group {g + 1}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 9, flex: 1 }}>
+                  {group.map((id, i) => <div key={`${id}-${i}`} style={{ padding: "9px 12px", border: "1px solid #e1eaf5", background: "#f7faff", borderRadius: 8, fontSize: 14, fontWeight: 550 }}>{names.get(id) || "Player unavailable"}</div>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+
+// Pair Arrangement reads the saved rotation; it never changes Players or the original draw.
+function PairArrangementPanel({ players, eventNumber, onClose }: {
+  players: Player[]; eventNumber: string; onClose: () => void;
+}) {
+  const signature = players.map(p => p.id).sort().join("|");
+  const storageKey = `event-desk-round-rotation-v1:${eventNumber}`;
+  const [rounds] = useState<RotationRound[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "null") as RotationSave | null;
+      return saved?.signature === signature ? saved.rounds : [];
+    } catch { return []; }
+  });
+  const [pairOrder, setPairOrder] = useState<Record<string, string[]>>({});
+  const names = new Map(players.map(p => [p.id, `${p.firstName} ${p.lastName}`.trim()]));
+  const panel: CSSProperties = { background: "#fff", border: "1px solid #d9e4f2", borderRadius: 14, boxShadow: "0 3px 12px rgba(29,66,115,.06)" };
+  const action: CSSProperties = { padding: "12px 18px", borderRadius: 10, border: "1px solid #b7cfee", background: "#eef5ff", color: "#1758a6", fontSize: 15, fontWeight: 700, cursor: "pointer" };
+  const getOrder = (group: string[], key: string) => {
+    const saved = pairOrder[key];
+    return saved && saved.length === group.length && saved.every(id => group.includes(id)) ? saved : group;
+  };
+  // Each four-ball has exactly three distinct two-pair combinations.
+  // Keep the original four players in their group and cycle those combinations.
+  const swapPartners = (key: string, group: string[]) => {
+    if (group.length !== 4) return;
+    const [a, b, c, d] = group;
+    const combinations = [
+      [a, b, c, d],
+      [a, c, b, d],
+      [a, d, b, c],
+    ];
+    const current = getOrder(group, key);
+    const currentIndex = combinations.findIndex(
+      combination => combination.every((id, index) => id === current[index])
+    );
+    setPairOrder(previous => ({
+      ...previous,
+      [key]: combinations[(currentIndex + 1) % combinations.length],
+    }));
+  };
+  return (
+    <section style={{ width: "100%", padding: "20px 24px", boxSizing: "border-box", color: "#24364a" }}>
+      <div style={{ ...panel, padding: "22px 26px", marginBottom: 18, borderTop: "5px solid #2d78ce" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ color: "#68829e", fontSize: 12, fontWeight: 700, letterSpacing: 1.3, textTransform: "uppercase" }}>Field Management</div>
+            <h2 style={{ margin: "5px 0 7px", color: "#1b559d", fontSize: 28 }}>Pair Arrangement</h2>
+            <div style={{ color: "#617287", fontSize: 14 }}>Arrange pairs within each saved rotation group · player separation remains unchanged</div>
+          </div>
+          <button type="button" style={action} onClick={onClose}>← Field Management</button>
+        </div>
+      </div>
+      {rounds.length === 0 ? (
+        <div style={{ ...panel, padding: 26, color: "#8b5819", background: "#fff9ee" }}>
+          <strong>No current Round Rotation found.</strong>
+          <p style={{ marginBottom: 0 }}>Generate a Round Rotation first. If the registered player list has changed, generate it again before arranging pairs.</p>
+        </div>
+      ) : (
+        <>
+          <div style={{ ...panel, padding: "17px 22px", marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <strong style={{ color: "#234e80" }}>{players.length} players · {rounds.length} rounds · groups preserved</strong>
+            <button type="button" style={action} onClick={() => window.print()}>▤ Print Pair Arrangements</button>
+          </div>
+          {rounds.map((round, r) => (
+            <div key={r} style={{ ...panel, overflow: "hidden", marginBottom: 20, breakInside: "avoid-page" }}>
+              <div style={{ background: "#eaf2fc", padding: "15px 22px", borderBottom: "1px solid #d6e5f5" }}>
+                <h3 style={{ margin: 0, color: "#1e5da7", fontSize: 19 }}>Round {r + 1}</h3>
+              </div>
+              <div style={{ padding: "12px 20px" }}>
+                {round.map((group, g) => {
+                  const key = `${r}-${g}`;
+                  const ordered = getOrder(group, key);
+                  return (
+                    <div key={key} style={{ borderBottom: g === round.length - 1 ? "none" : "1px solid #e9eef5", padding: "12px 4px" }}>
+                      <div style={{ color: "#2769b4", fontWeight: 750, marginBottom: 10 }}>Group {g + 1} {group.length !== 4 ? `· ${group.length}-ball` : ""}</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                        {[0, 2].map((start, pairIndex) => {
+                          const ids = ordered.slice(start, start + 2);
+                          if (!ids.length) return null;
+                          return (
+                            <div key={start} style={{ border: "1px solid #dbe7f6", borderRadius: 10, padding: 12, background: "#f7faff" }}>
+                              <div style={{ fontWeight: 750, color: "#245eaa", marginBottom: 8 }}>{ids.length === 2 ? `Pair ${pairIndex + 1}` : "Unpaired player"}</div>
+                              {ids.map(id => (
+                                <div key={id} style={{ padding: "5px 0", fontSize: 14 }}>
+                                  {names.get(id) ?? "Player unavailable"}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {group.length === 4 ? (
+                        <button
+                          type="button"
+                          onClick={() => swapPartners(key, group)}
+                          style={{ ...action, marginTop: 10, padding: "8px 14px", fontSize: 13 }}
+                        >
+                          Swap Partners
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </section>
   );
 }
