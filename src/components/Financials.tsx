@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 
 interface FinancialsProps {
-  players?: unknown[];
+  players?: Array<{ paid?: boolean; status?: string; vacantStartListSlot?: boolean }>;
 }
 
 interface FinancialData {
@@ -238,12 +238,23 @@ const loadCateringCharge = (eventId?: string): number => {
 export default function Financials({ players = [] }: FinancialsProps) {
   const [data, setData] = useState<FinancialData>(loadFinancials);
   const [cateringCharge, setCateringCharge] = useState(0);
+  // Forecast is a separate planning input; it never changes player payments.
+  const [forecastPlayers, setForecastPlayers] = useState<number | null>(null);
+  const [showForecast, setShowForecast] = useState(false);
 
   const activeEvent = useMemo(() => readActiveEvent(), []);
 
   useEffect(() => {
     setData(loadFinancials());
     setCateringCharge(loadCateringCharge(activeEvent?.id));
+    try {
+      const saved = localStorage.getItem(`eventDeskFinancialForecast:${activeEvent?.id || "default"}`);
+      const parsed: unknown = saved === null ? null : JSON.parse(saved);
+      setForecastPlayers(typeof parsed === "number" && Number.isFinite(parsed) && parsed >= 0
+        ? Math.floor(parsed) : null);
+    } catch {
+      setForecastPlayers(null);
+    }
   }, [activeEvent?.id]);
 
   useEffect(() => {
@@ -258,11 +269,12 @@ export default function Financials({ players = [] }: FinancialsProps) {
    * kept separate so that we do not duplicate or alter the
    * existing Event Details financial data.
    */
-  const playerCount = players.length;
+  const playerCount = players.filter((player) => player.status === "Registered" && !player.vacantStartListSlot).length;
+  const paidPlayerCount = players.filter((player) => player.status === "Registered" && !player.vacantStartListSlot && player.paid === true).length;
 
   const entryFee = Number(activeEvent?.event?.entryFee || 0);
 
-  const entryFeeIncome = playerCount * entryFee;
+  const entryFeeIncome = paidPlayerCount * entryFee;
 
   const basicIncome =
     entryFeeIncome +
@@ -279,6 +291,22 @@ export default function Financials({ players = [] }: FinancialsProps) {
     basicIncome -
     basicOutgoings -
     data.charity;
+
+  const projectedPlayerCount = forecastPlayers ?? playerCount;
+  const forecastIncome = projectedPlayerCount * entryFee + data.sponsorship + data.sectionSupport;
+  const forecastSurplus = forecastIncome - basicOutgoings - data.charity;
+
+  const updateForecastPlayers = (value: number | null) => {
+    const next = value === null ? null : Math.max(0, Math.floor(value));
+    setForecastPlayers(next);
+    try {
+      const key = `eventDeskFinancialForecast:${activeEvent?.id || "default"}`;
+      if (next === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, JSON.stringify(next));
+    } catch (error) {
+      console.error("Failed to save financial forecast", error);
+    }
+  };
 
   const printFinancialSummary = () => {
     const eventTitle =
@@ -329,7 +357,7 @@ export default function Financials({ players = [] }: FinancialsProps) {
 
   <h2>Income</h2>
   <table>
-    ${row(`Entry Fees (${playerCount} players × ${formatCurrency(entryFee)})`, formatCurrency(entryFeeIncome))}
+    ${row(`Entry Fees (${paidPlayerCount} paid players × ${formatCurrency(entryFee)})`, formatCurrency(entryFeeIncome))}
     ${row("Sponsorship", formatCurrency(data.sponsorship))}
     ${row("Section Support", formatCurrency(data.sectionSupport))}
     ${row("Basic Income", formatCurrency(basicIncome), true)}
@@ -431,6 +459,66 @@ export default function Financials({ players = [] }: FinancialsProps) {
       summary={summary}
       footer="Event financial management."
     >
+      <label style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 4px", fontWeight: 700, color: "#1755a5", cursor: "pointer" }}>
+        <input type="checkbox" checked={showForecast} onChange={(event) => setShowForecast(event.target.checked)} style={{ width: "19px", height: "19px" }} />
+        Show Financial Forecast
+      </label>
+      {showForecast && (
+      <section className="financial-card" style={{ border: "2px solid #8ab6e8" }}>
+        <div className="financial-card-header">
+          <div>
+            <h2>Financial Forecast — What If?</h2>
+            <p>Test different paying-player numbers without changing actual payments or event records.</p>
+          </div>
+          <PoundSterling size={24} />
+        </div>
+        <div className="financial-grid">
+          <label className="financial-entry editable">
+            <span className="financial-entry-label">Virtual Paying Players</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={forecastPlayers ?? ""}
+              placeholder={String(playerCount)}
+              onChange={(event) => {
+                const value = event.target.value;
+                updateForecastPlayers(value === "" ? null : Number(value));
+              }}
+              aria-label="Virtual paying players for forecast"
+              style={{ width: "100%", padding: "10px", boxSizing: "border-box", borderRadius: "8px", border: "1px solid #a9bdd3", fontSize: "18px" }}
+            />
+            <div className="financial-entry-note">Blank = current player count ({playerCount}). Entry fee: {formatCurrency(entryFee)} per player.</div>
+          </label>
+          <div className="financial-entry">
+            <div className="financial-entry-label">Projected Entry Fees</div>
+            <div className="financial-entry-value">{formatCurrency(projectedPlayerCount * entryFee)}</div>
+            <div className="financial-entry-note">{projectedPlayerCount} × {formatCurrency(entryFee)}</div>
+          </div>
+          <div className="financial-entry">
+            <div className="financial-entry-label">Projected Basic Income</div>
+            <div className="financial-entry-value">{formatCurrency(forecastIncome)}</div>
+          </div>
+          <div className="financial-entry">
+            <div className="financial-entry-label">Projected Surplus / Deficit</div>
+            <div className="financial-entry-value" style={{ color: forecastSurplus < 0 ? "#b42318" : "#176b43" }}>
+              {forecastSurplus < 0 ? "−" : ""}{formatCurrency(Math.abs(forecastSurplus))}
+            </div>
+            <div className="financial-entry-note">Includes current recorded outgoings and charity.</div>
+          </div>
+        </div>
+        <div style={{ marginTop: "14px", display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+          <button type="button" onClick={() => updateForecastPlayers(null)}
+            style={{ padding: "9px 14px", borderRadius: "8px", border: "1px solid #2f75c9", background: "#fff", color: "#1755a5", cursor: "pointer" }}>
+            Reset Forecast
+          </button>
+          <span style={{ color: "#64748b", fontSize: "13px" }}>
+            Forecast only. Food charge stays linked to Catering and is not recalculated from virtual players.
+          </span>
+        </div>
+      </section>
+      )}
+
       <section className="financial-card">
         <div className="financial-card-header">
           <div>
@@ -454,7 +542,7 @@ export default function Financials({ players = [] }: FinancialsProps) {
             </div>
 
             <div className="financial-entry-note">
-              {playerCount} players × {formatCurrency(entryFee)}
+              {paidPlayerCount} paid players × {formatCurrency(entryFee)}
             </div>
           </div>
 

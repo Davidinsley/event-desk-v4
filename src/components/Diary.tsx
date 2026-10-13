@@ -395,49 +395,52 @@ const getPlanningAidRedNotices = (
     }
   }
 
+  // Use the same saved field information for both draw and readiness notices.
+  // An imported start list is complete when every registered player has a
+  // group and tee time. This avoids a false readiness warning for a full field.
+  const fieldManagement =
+    readJson<FieldManagementSnapshot>(
+      `${FIELD_MANAGEMENT_PREFIX}:${eventNumber || "event"}`
+    ) ?? {};
+
+  const confirmedDrawCount = Array.isArray(fieldManagement.confirmedDraw)
+    ? fieldManagement.confirmedDraw.length
+    : 0;
+
+  const registeredPlayers = (record.players ?? []).filter(
+    (player) => player.status === "Registered"
+  );
+
+  const hasImportedStartList =
+    registeredPlayers.length > 0 &&
+    registeredPlayers.every(
+      (player) => Boolean(player.teeTime?.trim()) && Boolean(player.group?.trim())
+    );
+
+  const hasFinalDraw =
+    hasImportedStartList ||
+    fieldManagement.drawConfirmed === true ||
+    confirmedDrawCount > 0;
+
   if (
     settings.drawRequired === true &&
     daysUntilEvent <= 2 &&
-    !fastReactionDraw
+    !fastReactionDraw &&
+    !hasFinalDraw
   ) {
-    const fieldManagement =
-      readJson<FieldManagementSnapshot>(
-        `${FIELD_MANAGEMENT_PREFIX}:${eventNumber || "event"}`
-      ) ?? {};
-
-    const confirmedDrawCount = Array.isArray(fieldManagement.confirmedDraw)
-      ? fieldManagement.confirmedDraw.length
-      : 0;
-
-    const registeredPlayers = (record.players ?? []).filter(
-      (player) => player.status === "Registered"
-    );
-
-    const hasImportedStartList =
-      registeredPlayers.length > 0 &&
-      registeredPlayers.every(
-        (player) => Boolean(player.teeTime?.trim()) && Boolean(player.group?.trim())
-      );
-
-    const hasFinalDraw =
-      hasImportedStartList ||
-      fieldManagement.drawConfirmed === true ||
-      confirmedDrawCount > 0;
-
-    if (!hasFinalDraw) {
-      notices.push({
-        key: `${record.id}-draw`,
-        recordId: record.id,
-        eventName,
-        label: "Field & Draw",
-        detail: "Final usable draw / start sheet is now required.",
-      });
-    }
+    notices.push({
+      key: `${record.id}-draw`,
+      recordId: record.id,
+      eventName,
+      label: "Field & Draw",
+      detail: "Final usable draw / start sheet is now required.",
+    });
   }
 
   if (
     daysUntilEvent <= 3 &&
     settings.fieldSetupReady !== true &&
+    !hasFinalDraw &&
     !fastReactionFieldSetup
   ) {
     notices.push({

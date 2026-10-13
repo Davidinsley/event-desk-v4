@@ -437,42 +437,42 @@ const eventRecordHasDiaryRedNotice = (
     if (catering?.clubAdvised !== true) return true;
   }
 
+  const fieldManagement =
+    readDiaryJson<DiaryFieldManagementSnapshot>(
+      `${DIARY_FIELD_MANAGEMENT_PREFIX}:${eventNumber || "event"}`
+    ) ?? {};
+
+  const confirmedDrawCount = Array.isArray(fieldManagement.confirmedDraw)
+    ? fieldManagement.confirmedDraw.length
+    : 0;
+
+  const registeredPlayers = (record.players ?? []).filter(
+    (player) => player.status === "Registered"
+  );
+
+  const hasImportedStartList =
+    registeredPlayers.length > 0 &&
+    registeredPlayers.every(
+      (player) =>
+        Boolean(player.teeTime?.trim()) && Boolean(player.group?.trim())
+    );
+
+  const hasFinalDraw =
+    hasImportedStartList ||
+    fieldManagement.drawConfirmed === true ||
+    confirmedDrawCount > 0;
+
   if (
     settings.drawRequired === true &&
     daysUntilEvent <= 2 &&
-    !fastReactionDraw
-  ) {
-    const fieldManagement =
-      readDiaryJson<DiaryFieldManagementSnapshot>(
-        `${DIARY_FIELD_MANAGEMENT_PREFIX}:${eventNumber || "event"}`
-      ) ?? {};
-
-    const confirmedDrawCount = Array.isArray(fieldManagement.confirmedDraw)
-      ? fieldManagement.confirmedDraw.length
-      : 0;
-
-    const registeredPlayers = (record.players ?? []).filter(
-      (player) => player.status === "Registered"
-    );
-
-    const hasImportedStartList =
-      registeredPlayers.length > 0 &&
-      registeredPlayers.every(
-        (player) =>
-          Boolean(player.teeTime?.trim()) && Boolean(player.group?.trim())
-      );
-
-    const hasFinalDraw =
-      hasImportedStartList ||
-      fieldManagement.drawConfirmed === true ||
-      confirmedDrawCount > 0;
-
-    if (!hasFinalDraw) return true;
-  }
+    !fastReactionDraw &&
+    !hasFinalDraw
+  ) return true;
 
   if (
     daysUntilEvent <= 3 &&
     settings.fieldSetupReady !== true &&
+    !hasFinalDraw &&
     !fastReactionFieldSetup
   ) return true;
 
