@@ -495,6 +495,7 @@ export default function App() {
     };
   }, []);
 
+  const [diaryVoucherId, setDiaryVoucherId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] =
     useState("dashboard");
 
@@ -2904,7 +2905,7 @@ export default function App() {
           )}
 
           {currentPage === "voucherRegister" && (
-            <VoucherRegister onBack={() => handleNavigate("dashboard")} />
+            <VoucherRegister initialVoucherId={diaryVoucherId} onBack={() => { setDiaryVoucherId(null); handleNavigate("dashboard"); }} />
           )}
 
           {currentPage === "diary" && (
@@ -2912,6 +2913,7 @@ export default function App() {
               eventRecords={eventRecords}
               onBack={() => handleNavigate("dashboard")}
               onOpenSource={handleOpenDiarySource}
+              onOpenVoucher={(voucherId) => { setDiaryVoucherId(voucherId); handleNavigate("voucherRegister"); }}
             />
           )}
 

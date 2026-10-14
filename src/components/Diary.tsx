@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Event } from "../types/Event";
 import type { Player } from "../types/Player";
+import { loadVouchers, voucherWarning, daysUntilVoucherExpiry } from "./VoucherRegister";
 
 export interface DiaryEventRecord {
   id: string;
@@ -12,6 +13,7 @@ export interface DiaryEventRecord {
 interface DiaryProps {
   eventRecords: DiaryEventRecord[];
   onBack: () => void;
+  onOpenVoucher: (voucherId: string) => void;
   onOpenSource: (
     recordId: string,
     page: "new" | "planningAid" | "checklist" | "players" | "catering" | "field"
@@ -25,7 +27,9 @@ type DiaryView =
   | "milestones"
   | "todos"
   | "full"
-  | "history";
+  | "history"
+  | "vouchersQuick"
+  | "vouchersDetailed";
 
 const parseEventDate = (value: string): Date | null => {
   const raw = value?.trim();
@@ -618,6 +622,7 @@ const getPlanningDiaryItems = (
 export default function Diary({
   eventRecords,
   onBack,
+  onOpenVoucher,
   onOpenSource,
 }: DiaryProps) {
   const [view, setView] = useState<DiaryView>("quick");
@@ -663,6 +668,26 @@ export default function Diary({
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // Read the independent Voucher Register storage when Diary opens.
+  const voucherAlerts = loadVouchers().flatMap((voucher) => {
+    const level = voucherWarning(voucher);
+    if (!level) return [];
+    const days = daysUntilVoucherExpiry(voucher.expiryDate);
+    return [{ voucher, level, days }];
+  }).sort((a, b) => (a.days ?? 9999) - (b.days ?? 9999));
+
+  // Planning view includes every voucher, not just those near expiry.
+  const allPlanningVouchers = loadVouchers().sort((a, b) =>
+    (a.expiryDate || "9999-12-31").localeCompare(b.expiryDate || "9999-12-31") ||
+    a.club.localeCompare(b.club)
+  );
+  const voucherCounts = {
+    red: allPlanningVouchers.filter(v => voucherWarning(v) === "red").length,
+    amber: allPlanningVouchers.filter(v => voucherWarning(v) === "amber").length,
+    available: allPlanningVouchers.filter(v => v.status === "Available").length,
+    committed: allPlanningVouchers.filter(v => v.status === "Allocated" || v.status === "Issued").length,
+  };
 
   const redNotices = eventRecords
     .filter((record) => !record.archived)
@@ -943,6 +968,8 @@ export default function Diary({
             >
               <option value="quick">Quick View</option>
               <option value="events">Events Only</option>
+              <option value="vouchersQuick">Vouchers — Quick View</option>
+              <option value="vouchersDetailed">Vouchers — Detailed View</option>
               <option value="planning">Planning</option>
               <option value="milestones">Milestones</option>
               <option value="todos">To Dos</option>
@@ -1112,6 +1139,29 @@ export default function Diary({
         </div>
       )}
 
+      {voucherAlerts.length > 0 && (
+        <section style={{ marginBottom: 18, padding: "18px 22px", background: "white", border: "1px solid #dbe7f3", borderRadius: 14 }}>
+          <h2 style={{ margin: "0 0 12px", color: "#205b9f", fontSize: 21 }}>Voucher Expiry Alerts</h2>
+          <div style={{ display: "grid", gap: 9 }}>
+            {voucherAlerts.map(({ voucher, level, days }) => (
+              <button key={voucher.id} type="button" onClick={() => onOpenVoucher(voucher.id)}
+                title="Open voucher in Voucher Register"
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 14px", borderRadius: 9, cursor: "pointer",
+                  border: `1px solid ${level === "red" ? "#fecaca" : "#fcd34d"}`,
+                  background: level === "red" ? "#fef2f2" : "#fffbeb", color: "#334155" }}>
+                <strong style={{ color: level === "red" ? "#991b1b" : "#92400e" }}>
+                  {level === "red" ? "RED" : "AMBER"} — {voucher.club} · {voucher.type}
+                </strong>
+                <div style={{ marginTop: 3, fontSize: 14 }}>
+                  Expires {voucher.expiryDate} · {days !== null && days < 0 ? `${Math.abs(days)} days overdue` : `${days} days remaining`}
+                  {voucher.reference ? ` · Ref: ${voucher.reference}` : ""} · Open voucher →
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {redNotices.length > 0 && (
         <div
           style={{
@@ -1181,6 +1231,116 @@ export default function Diary({
           boxShadow: "0 2px 8px rgba(31,91,159,0.06)",
         }}
       >
+        {view === "vouchersQuick" && (
+          <div>
+            <h2 style={{ margin: "0 0 8px", color: "#205b9f", fontSize: 24 }}>Vouchers — Quick View</h2>
+            <p style={{ color: "#64748b", margin: "0 0 18px" }}>
+              Vouchers listed by expiry date, earliest first. Select any row to open its record.
+            </p>
+            {allPlanningVouchers.length === 0 ? (
+              <p style={{ color: "#64748b" }}>No vouchers have been recorded yet.</p>
+            ) : (
+              <div style={{ display: "grid", gap: 9 }}>
+                {allPlanningVouchers.map((voucher) => {
+                  const warning = voucherWarning(voucher);
+                  const expiry = voucher.expiryDate
+                    ? parseEventDate(voucher.expiryDate)
+                    : null;
+                  return (
+                    <button
+                      key={voucher.id}
+                      type="button"
+                      onClick={() => onOpenVoucher(voucher.id)}
+                      title="Open voucher in Voucher Register"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "170px minmax(0, 1fr) auto",
+                        gap: 16,
+                        alignItems: "center",
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "13px 16px",
+                        border: `1px solid ${warning === "red" ? "#fecaca" : warning === "amber" ? "#fcd34d" : "#e2e8f0"}`,
+                        borderRadius: 10,
+                        background: warning === "red" ? "#fef2f2" : warning === "amber" ? "#fffbeb" : "#fbfdff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <strong style={{ color: "#205b9f", fontSize: 15 }}>
+                        {expiry ? formatDate(expiry) : voucher.expiryDate || "No expiry date"}
+                      </strong>
+                      <span style={{ color: "#334155", fontSize: 16, fontWeight: 600 }}>
+                        {voucher.club || "Unnamed donor"} · {voucher.type}
+                      </span>
+                      <span style={{ color: warning === "red" ? "#991b1b" : warning === "amber" ? "#92400e" : "#64748b", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+                        {warning ? warning.toUpperCase() : voucher.status}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {view === "vouchersDetailed" && (
+          <div>
+            <h2 style={{ margin: "0 0 8px", color: "#205b9f", fontSize: 24 }}>Voucher Planner</h2>
+            <p style={{ color: "#64748b", margin: "0 0 18px" }}>
+              All vouchers in expiry-date order. Select a voucher to open its record.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 18 }}>
+              {([
+                ["Red · 30 days or less", voucherCounts.red, "#991b1b"],
+                ["Amber · 31–60 days", voucherCounts.amber, "#92400e"],
+                ["Available", voucherCounts.available, "#205b9f"],
+                ["Allocated / Issued", voucherCounts.committed, "#205b9f"],
+              ] as [string, number, string][]).map(([label, count, colour]) => (
+                <div key={label} style={{ border: "1px solid #dbe7f3", borderRadius: 10, padding: 14, background: "#f8fbff" }}>
+                  <div style={{ fontSize: 13, color: "#64748b" }}>{label}</div>
+                  <strong style={{ display: "block", fontSize: 26, marginTop: 5, color: colour }}>{count}</strong>
+                </div>
+              ))}
+            </div>
+            {allPlanningVouchers.length === 0 ? (
+              <p style={{ color: "#64748b" }}>No vouchers have been recorded yet.</p>
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                {allPlanningVouchers.map(voucher => {
+                  const warning = voucherWarning(voucher);
+                  const days = daysUntilVoucherExpiry(voucher.expiryDate);
+                  return (
+                    <button key={voucher.id} type="button" onClick={() => onOpenVoucher(voucher.id)}
+                      title="Open voucher in Voucher Register"
+                      style={{ width: "100%", textAlign: "left", padding: "13px 16px", borderRadius: 10,
+                        border: `1px solid ${warning === "red" ? "#fecaca" : warning === "amber" ? "#fcd34d" : "#dbe7f3"}`,
+                        background: warning === "red" ? "#fef2f2" : warning === "amber" ? "#fffbeb" : "#fbfdff",
+                        color: "#334155", cursor: "pointer" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                        <strong style={{ color: "#205b9f" }}>{voucher.club || "Unnamed donor"} · {voucher.type}</strong>
+                        <strong style={{ color: warning === "red" ? "#991b1b" : warning === "amber" ? "#92400e" : "#475569" }}>
+                          {warning ? warning.toUpperCase() : voucher.status}
+                        </strong>
+                      </div>
+                      <div style={{ marginTop: 5, fontSize: 14 }}>
+                        {voucher.direction === "In" ? "Incoming" : "Outgoing"} · {voucher.status}
+                        {voucher.expiryDate ? ` · Expires ${voucher.expiryDate}` : " · No expiry date"}
+                        {days !== null && warning ? (days < 0 ? ` · ${Math.abs(days)} days overdue` : ` · ${days} days remaining`) : ""}
+                        {voucher.reference ? ` · Ref: ${voucher.reference}` : ""}
+                      </div>
+                      {(voucher.recipient || voucher.fundraisingEvent) && (
+                        <div style={{ marginTop: 4, color: "#64748b", fontSize: 13 }}>
+                          {[voucher.recipient, voucher.fundraisingEvent].filter(Boolean).join(" · ")}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {(view === "quick" || view === "events") && (
           <>
             <h2

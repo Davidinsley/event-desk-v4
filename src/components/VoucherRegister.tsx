@@ -76,7 +76,16 @@ export default function VoucherRegister({ onBack, initialVoucherId }: Props) {
   const [message, setMessage] = useState("");
 
   useEffect(() => { localStorage.setItem(VOUCHER_STORAGE_KEY, JSON.stringify(vouchers)); window.dispatchEvent(new Event("eventDeskVouchersChanged")); }, [vouchers]);
-  useEffect(() => { if (initialVoucherId) setSelectedId(initialVoucherId); }, [initialVoucherId]);
+  useEffect(() => {
+    if (!initialVoucherId) return;
+    const match = vouchers.find(v => v.id === initialVoucherId);
+    if (!match) return;
+    setSelectedId(match.id);
+    setFilter("All");
+    setSearch("");
+    setEditing({ ...match });
+    setMessage("");
+  }, [initialVoucherId]);
 
   const selected = vouchers.find(v => v.id === selectedId);
   const visible = useMemo(() => vouchers.filter(v => (filter === "All" || v.direction === filter) &&
