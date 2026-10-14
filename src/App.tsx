@@ -11,6 +11,7 @@ import type { Player } from "./types/Player";
 import type { Event } from "./types/Event";
 
 import Dashboard from "./components/Dashboard";
+import VoucherRegister from "./components/VoucherRegister";
 import Booklets from "./components/Booklets";
 import CourseMarkers from "./components/CourseMarkers";
 import MatchBooklets from "./components/MatchBooklets";
@@ -1954,6 +1955,7 @@ export default function App() {
     currentPage !== "dashboard" &&
     currentPage !== "eventManager" &&
     currentPage !== "diary" &&
+    currentPage !== "voucherRegister" &&
     currentPage !== "backupRestore" &&
     currentPage !== "regularCompetitions" &&
     currentPage !== "posterPreview" &&
@@ -2878,6 +2880,7 @@ export default function App() {
               onRecentEvents={handleOpenRecentEvents}
               onMatchBooklets={handleOpenMatchBooklets}
               onDiary={() => handleNavigate("diary")}
+              onVoucherRegister={() => handleNavigate("voucherRegister")}
               onBackupRestore={() => handleNavigate("backupRestore")}
               onRegularCompetitions={() => handleNavigate("regularCompetitions")}
               hasDiaryRedNotice={hasDiaryRedNotice}
@@ -2898,6 +2901,10 @@ export default function App() {
                   : ""
               }
             />
+          )}
+
+          {currentPage === "voucherRegister" && (
+            <VoucherRegister onBack={() => handleNavigate("dashboard")} />
           )}
 
           {currentPage === "diary" && (

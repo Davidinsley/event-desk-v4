@@ -13,6 +13,7 @@ interface DashboardProps {
   onDiary?: () => void;
   onBackupRestore?: () => void;
   onRegularCompetitions?: () => void;
+  onVoucherRegister?: () => void;
   hasDiaryRedNotice?: boolean;
   priorityEventName?: string;
   priorityEventDate?: string;
@@ -114,6 +115,7 @@ function Dashboard({
   onDiary,
   onBackupRestore,
   onRegularCompetitions,
+  onVoucherRegister,
   hasDiaryRedNotice = false,
   priorityEventName,
   priorityEventDate,
@@ -239,6 +241,11 @@ function Dashboard({
         >
           <span aria-hidden="true" style={{ fontSize: "22px", lineHeight: 1 }}>▦</span>
           <span>Regular Comp Templates</span>
+        </button>
+
+        <button type="button" className="dashboard-secondary-button" onClick={() => onVoucherRegister?.()}>
+          <span aria-hidden="true" style={{ fontSize: "22px", lineHeight: 1 }}>▤</span>
+          <span>Voucher Register</span>
         </button>
       </div>
     </section>
