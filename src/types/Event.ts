@@ -57,6 +57,11 @@ export interface Event {
 
   competitionRules: string;
 
+  // Optional website publication fields; existing saved events remain compatible.
+  websiteEntriesOpen?: string;
+  websiteEntriesClose?: string;
+  websiteDescription?: string;
+
   // Optional so existing saved events remain compatible.
   // Prizes belong to the individual event.
   prizes?: EventPrize[];

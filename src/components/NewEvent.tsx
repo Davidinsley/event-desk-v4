@@ -3101,6 +3101,33 @@ export default function NewEvent({
 
           </div>
 
+          <section className="event-poster-section" aria-label="Website Publication Details">
+            <h2>Website Publication Details</h2>
+            <p className="field-help">For the WordPress administrator only. These dates do not control player entries.</p>
+            <div className="form-grid">
+              <div className="field">
+                <label htmlFor="website-entries-open">Entries Open</label>
+                <input id="website-entries-open" type="date"
+                  value={event.websiteEntriesOpen ?? ""}
+                  onChange={(e) => updateEvent({ websiteEntriesOpen: e.target.value })} />
+              </div>
+              <div className="field">
+                <label htmlFor="website-entries-close">Entries Close</label>
+                <input id="website-entries-close" type="date"
+                  value={event.websiteEntriesClose ?? ""}
+                  onChange={(e) => updateEvent({ websiteEntriesClose: e.target.value })} />
+              </div>
+              <div className="field full-width">
+                <label htmlFor="website-description">Brief Website Description</label>
+                <textarea id="website-description" rows={4}
+                  placeholder="Brief description for the website administrator"
+                  value={event.websiteDescription ?? ""}
+                  onChange={(e) => updateEvent({ websiteDescription: e.target.value })}
+                  style={{ width: "100%", boxSizing: "border-box", resize: "vertical" }} />
+              </div>
+            </div>
+          </section>
+
           <div className="event-poster-section">
             <h2>
               Event Media
@@ -3420,58 +3447,51 @@ export default function NewEvent({
 
             </p>
 
-            <div className="event-confirmation-summary">
-
-              <strong>
-
-                {event.eventName ||
-
-                  "Event name not entered"}
-
-              </strong>
-
-              <span>
-
-                {event.eventDate}
-
-                {weekday
-
-                  ? ` — ${weekday}`
-
-                  : ""}
-
-              </span>
-
-              <span>
-
-                {event.venue ||
-
-                  DEFAULT_VENUE}
-
-              </span>
-
-              <span>
-
-                {event.competition ||
-
-                  "Competition descriptor not entered"}
-
-              </span>
-
-              <span>
-
-                £{event.entryFee}
-
-              </span>
-
-              <span>
-
-                Maximum players:{" "}
-
-                {event.playerLimit}
-
-              </span>
-
+            <div
+              className="event-confirmation-summary"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: "12px",
+                padding: "16px",
+                margin: "14px 0 20px",
+                border: "1px solid #dbe5ef",
+                borderRadius: "10px",
+                background: "#f7fafd",
+              }}
+            >
+              {[
+                { label: "Event", value: event.eventName || "Not entered" },
+                {
+                  label: "Date",
+                  value: `${event.eventDate}${weekday ? ` — ${weekday}` : ""}`,
+                },
+                { label: "Venue", value: event.venue || DEFAULT_VENUE },
+                {
+                  label: "Competition",
+                  value: event.competition || "Not entered",
+                },
+                { label: "Entry Fee", value: `£${event.entryFee}` },
+                { label: "Maximum Players", value: String(event.playerLimit) },
+              ].map(({ label, value }) => (
+                <div
+                  key={label}
+                  style={{
+                    minWidth: 0,
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    background: "#fff",
+                    border: "1px solid #e0e9f2",
+                  }}
+                >
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#61758a", marginBottom: "5px" }}>
+                    {label}
+                  </div>
+                  <div style={{ fontSize: "15px", fontWeight: 650, color: "#24476d", overflowWrap: "anywhere" }}>
+                    {value}
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="event-modal-actions">
