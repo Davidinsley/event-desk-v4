@@ -355,7 +355,7 @@ export default function CourseMarkers({
 
   const handlePrintScorecardLabel = () => {
     if (!markers.length) return;
-    const printWindow = window.open("", "_blank", "width=950,height=450");
+    const printWindow = window.open("", "_blank", "width=900,height=760");
     if (!printWindow) {
       window.alert("Please allow pop-ups to print the scorecard label.");
       return;
@@ -366,12 +366,13 @@ export default function CourseMarkers({
     const name = escapeHtml(event.eventName || "Untitled Event");
     const groups = labelGroups.map((group) => `<span>${escapeHtml(group)}</span>`).join("");
     printWindow.document.open();
-    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8" />
-      <title>${name} - Scorecard Label</title><style>
-      @page { size: 29mm 120mm; margin: 0; }
+    printWindow.document.write(`<!doctype html>
+<html><head><meta charset="utf-8"><title>${name} - Scorecard Label</title>
+<style>
+      @page { size: 120mm 29mm; margin: 0; }
       * { box-sizing: border-box; }
-      html, body { width: 29mm; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
-      .label { box-sizing: border-box; width: 120mm; height: 29mm; margin: 0; padding: 0; overflow: hidden; transform: rotate(90deg) translateY(-29mm); transform-origin: top left; break-after: page; page-break-after: always; }
+      html, body { width: 120mm; height: 29mm; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
+      .label { box-sizing: border-box; width: 120mm; height: 29mm; margin: 0; padding: 0; overflow: hidden; break-after: page; page-break-after: always; }
       .label:last-child { break-after: auto; page-break-after: auto; }
       .label-inner { position: relative; width: 100%; height: 100%; overflow: hidden; border: 0.35mm solid #111; border-radius: 2mm; }
       .flag-wrap { position: absolute; left: 1.5mm; top: 2mm; width: 22mm; height: 25mm; display: flex; align-items: center; justify-content: center; }
@@ -381,12 +382,12 @@ export default function CourseMarkers({
       .competition { margin-top: 1.6mm; color: #111; font-size: 12.5pt; line-height: 1; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .marker-caption { margin-top: 2.6mm; color: #174b91; font-size: 9pt; line-height: 1; font-weight: 900; letter-spacing: 0.45pt; }
       .marker-summary { margin-top: 1.2mm; color: #111; font-size: 11pt; line-height: 1.1; font-weight: 900; overflow: hidden; max-height: 12mm; }
-      .divider { position: absolute; left: 76mm; top: 2mm; width: 0.35mm; height: 25mm; background: #c7ced8; }
+      .divider { position: absolute; left: 76mm; top: 2mm; width: 1mm; height: 25mm; background: #111; }
       .right-content { position: absolute; left: 77.5mm; top: 2.2mm; width: 40mm; height: 24.5mm; text-align: center; overflow: hidden; }
       .right-heading { color: #174b91; font-size: 12pt; line-height: 1; font-weight: 900; letter-spacing: 0.7pt; }
       .right-holes { margin-top: 2.6mm; color: #174b91; font-size: 13pt; line-height: 1.1; font-weight: 900; overflow-wrap: anywhere; }
       @media screen { body { background: #e5e7eb; padding: 10mm; } .label { background: white; margin: 0 auto 8mm; box-shadow: 0 2px 10px rgba(0,0,0,.18); } }
-      @media print { body { background: white; } }
+      @media print { html, body { width: 120mm !important; height: 29mm !important; padding: 0 !important; margin: 0 !important; background: white; } }
       </style></head><body><section class="label"><div class="label-inner">
       <div class="flag-wrap"><img class="flag-image" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMjEwIj4KPHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIyMTAiIGZpbGw9IndoaXRlIi8+CjxlbGxpcHNlIGN4PSI5MCIgY3k9IjE3NCIgcng9Ijc2IiByeT0iMjciIGZpbGw9IiM2OWFkM2IiLz4KPGVsbGlwc2UgY3g9IjkwIiBjeT0iMTc0IiByeD0iMTciIHJ5PSI1IiBmaWxsPSIjMjIyIi8+CjxyZWN0IHg9Ijg0IiB5PSIyNCIgd2lkdGg9IjgiIGhlaWdodD0iMTUxIiByeD0iNCIgZmlsbD0iIzIyMiIvPgo8cGF0aCBkPSJNOTIgMzEgTDE2NSA0OSBMMTM3IDcwIEwxNjUgOTEgTDkyIDEwNiBaIiBmaWxsPSIjZTEyNjFjIi8+Cjwvc3ZnPg==" alt="" /></div>
       <div class="left-content"><div class="seniors">RAMSDALE SENIORS</div><div class="competition">${name}</div>
@@ -394,7 +395,7 @@ export default function CourseMarkers({
       <div class="divider"></div><div class="right-content"><div class="right-heading">HOLES</div>
       <div class="right-holes">${groups}</div></div>
       </div></section>
-      <script>window.addEventListener('load', () => setTimeout(() => window.print(), 250));<\/script>
+      <script>window.addEventListener('load',()=>{window.setTimeout(()=>window.print(),250);});<\/script>
       </body></html>`);
     printWindow.document.close();
   };
