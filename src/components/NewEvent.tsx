@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
+import { jsPDF } from "jspdf";
 
 import "./NewEvent.css";
 
@@ -36,6 +37,7 @@ import {
   ClipboardList,
 
   Eye,
+  Mail,
 
 } from "lucide-react";
 
@@ -487,6 +489,8 @@ export default function NewEvent({
 
   const [showAddVenue, setShowAddVenue] = useState(false);
   const [newVenueName, setNewVenueName] = useState("");
+  const [showWebsiteNotification, setShowWebsiteNotification] = useState(false);
+
 
   const currentStatus: EventStatus =
 
@@ -550,6 +554,117 @@ export default function NewEvent({
     [attachedPosterIds, posterLibrary]
   );
 
+  const formatWebsiteDate = (value?: string) => {
+    if (!value) return "Not entered";
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return match ? `${match[3]}/${match[2]}/${match[1]}` : value;
+  };
+
+  const websiteDetails = [
+    { label: "Competition", value: event.eventName?.trim() || "Not entered" },
+    { label: "Date", value: event.eventDate?.trim() || "Not entered" },
+    { label: "Venue", value: event.venue?.trim() || DEFAULT_VENUE },
+    { label: "Entries open", value: formatWebsiteDate(event.websiteEntriesOpen) },
+    { label: "Entries close", value: formatWebsiteDate(event.websiteEntriesClose) },
+    ...(event.competition?.trim() ? [{ label: "Competition type", value: event.competition.trim() }] : []),
+    ...(event.competitionFormat?.trim() ? [{ label: "Format", value: event.competitionFormat.trim() }] : []),
+    ...(Number(event.entryFee) >= 0 ? [{ label: "Entry fee", value: `£${event.entryFee}` }] : []),
+    ...(Number(event.playerLimit) > 0 ? [{ label: "Maximum players", value: String(event.playerLimit) }] : []),
+  ];
+
+  // Advertise prize opportunities only, never the rewards themselves.
+  // Titles already include categories such as Men/Ladies; on-course holes are public.
+  const websitePrizeGroups = [
+    { stream: "main", heading: "Overall competition prizes" },
+    { stream: "additional", heading: "Additional competition prizes" },
+    { stream: "onCourse", heading: "On-course prizes" },
+    { stream: "special", heading: "Special event prizes" },
+  ];
+
+  const websitePrizeSections = websitePrizeGroups.flatMap(({ stream, heading }) => {
+    const items = (event.prizes ?? []).filter(prize =>
+      prize.stream === stream && prize.title?.trim()
+    );
+    if (!items.length) return [];
+    return [{
+      heading,
+      body: items.map(prize => {
+        const title = prize.title.trim();
+        const hole = stream === "onCourse" && prize.hole?.trim()
+          ? ` (Hole ${prize.hole.trim()})` : "";
+        return `- ${title}${hole}`;
+      }).join("\n"),
+    }];
+  });
+
+  const websiteSections = [
+    ...(event.websiteDescription?.trim() ? [{ heading: "Competition description", body: event.websiteDescription.trim() }] : []),
+    ...websitePrizeSections,
+    ...(event.competitionRules?.trim() ? [{ heading: "Additional competition information", body: event.competitionRules.trim() }] : []),
+  ];
+
+  // A one-page PDF generated locally; never modifies stored events or posters.
+  const exportWebsitePdf = () => {
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const margin = 17;
+    const width = 176;
+    let y = 20;
+    pdf.setFillColor(222, 239, 250);
+    pdf.rect(0, 0, 210, 38, "F");
+    pdf.setTextColor(32, 91, 159);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(15);
+    pdf.text("RAMSDALE PARK GOLF CLUB", margin, 17);
+    pdf.setFontSize(10);
+    pdf.text("SENIORS EVENT DESK  |  WEBSITE PUBLICATION", margin, 25);
+    y = 49;
+    pdf.setFontSize(17);
+    pdf.text("Competition Notification", margin, y);
+    y += 11;
+    pdf.setDrawColor(190, 215, 236);
+    pdf.line(margin, y - 4, 193, y - 4);
+    pdf.setFontSize(10);
+    for (const { label, value } of websiteDetails) {
+      const lines = pdf.splitTextToSize(value, 119) as string[];
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(70, 97, 123);
+      pdf.text(label, margin, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(32, 55, 78);
+      pdf.text(lines, 73, y);
+      y += Math.max(8, lines.length * 5.1 + 3);
+    }
+    for (const section of websiteSections) {
+      y += 5;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.setTextColor(32, 91, 159);
+      pdf.text(section.heading, margin, y);
+      y += 7;
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+      pdf.setTextColor(32, 55, 78);
+      const lines = pdf.splitTextToSize(section.body, width) as string[];
+      const needed = lines.length * 5;
+      if (y + needed > 274) {
+        window.alert("The website information is too long for one A4 page. Please shorten the description or competition rules before exporting.");
+        return;
+      }
+      pdf.text(lines, margin, y);
+      y += needed;
+    }
+    if (y > 278) {
+      window.alert("The website information exceeds one A4 page. Please shorten the details before exporting.");
+      return;
+    }
+    pdf.setDrawColor(190, 215, 236);
+    pdf.line(margin, 282, 193, 282);
+    pdf.setFontSize(8);
+    pdf.setTextColor(111, 130, 148);
+    pdf.text("Prepared by Ramsdale Seniors Event Desk", margin, 288);
+    const filename = (event.eventName || "Competition").replace(/[^a-z0-9_-]+/gi, "_");
+    pdf.save(`${filename}_Website_Notification.pdf`);
+  };
   useEffect(() => {
 
     try {
@@ -2686,6 +2801,13 @@ export default function NewEvent({
 
       />
 
+       <ActionTile
+         icon={Mail}
+         title="Website Notification"
+         subtitle="Preview & Export PDF"
+         onClick={() => setShowWebsiteNotification(true)}
+       />
+
       <ActionTile
 
         icon={Eye}
@@ -3265,6 +3387,46 @@ export default function NewEvent({
           </div>
 
         </div>
+
+      {showWebsiteNotification && (
+        <div role="presentation" style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(20,40,65,.55)", display: "flex", justifyContent: "center", alignItems: "center", padding: 20 }}>
+          <div role="dialog" aria-modal="true" aria-label="Website Notification Pro Forma" style={{ width: "min(760px, 100%)", maxHeight: "90vh", overflowY: "auto", background: "white", borderRadius: 14, padding: 24, boxShadow: "0 14px 45px rgba(0,0,0,.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <h2 style={{ margin: 0, color: "#205b9f" }}>Website Notification — A4 Pro Forma</h2>
+              <button type="button" onClick={() => setShowWebsiteNotification(false)}>Close</button>
+            </div>
+            <p style={{ color: "#586779" }}>Review the information below, then export a single-page PDF to attach to your own email alongside the event poster.</p>
+            <div style={{ background: "white", border: "1px solid #d7e6f7", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ padding: 18, background: "#deeffa", color: "#205b9f" }}>
+                <strong>RAMSDALE PARK GOLF CLUB</strong>
+                <div style={{ fontSize: 12, marginTop: 4 }}>SENIORS EVENT DESK · WEBSITE PUBLICATION</div>
+              </div>
+              <div style={{ padding: 20 }}>
+                <h3 style={{ marginTop: 0, color: "#205b9f" }}>Competition Notification</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(125px, 32%) 1fr", gap: "9px 14px" }}>
+                  {websiteDetails.map(({ label, value }) => (
+                    <div key={label} style={{ display: "contents" }}>
+                      <strong style={{ color: "#4b6179" }}>{label}</strong>
+                      <span style={{ overflowWrap: "anywhere" }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+                {websiteSections.map(section => (
+                  <section key={section.heading} style={{ marginTop: 19 }}>
+                    <h4 style={{ color: "#205b9f", margin: "0 0 6px" }}>{section.heading}</h4>
+                    <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{section.body}</div>
+                  </section>
+                ))}
+                <p style={{ marginTop: 25, borderTop: "1px solid #d7e6f7", paddingTop: 9, color: "#6b7d90", fontSize: 11 }}>Prepared by Ramsdale Seniors Event Desk</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+              <button type="button" onClick={() => setShowWebsiteNotification(false)}>Close</button>
+              <button type="button" className="primary-button" onClick={exportWebsitePdf}>Export PDF — A4</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       </PageLayout>
 
