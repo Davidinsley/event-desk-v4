@@ -382,7 +382,7 @@ export default function CourseMarkers({
       .competition { margin-top: 1.6mm; color: #111; font-size: 12.5pt; line-height: 1; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .marker-caption { margin-top: 2.6mm; color: #174b91; font-size: 9pt; line-height: 1; font-weight: 900; letter-spacing: 0.45pt; }
       .marker-summary { margin-top: 1.2mm; color: #111; font-size: 11pt; line-height: 1.1; font-weight: 900; overflow: hidden; max-height: 12mm; }
-      .divider { position: absolute; left: 76mm; top: 2mm; width: 1mm; height: 25mm; background: #111; }
+      .divider { display: block; position: absolute; left: 76mm; top: 2mm; width: 1mm; height: 25mm; object-fit: fill; }
       .right-content { position: absolute; left: 77.5mm; top: 2.2mm; width: 40mm; height: 24.5mm; text-align: center; overflow: hidden; }
       .right-heading { color: #174b91; font-size: 12pt; line-height: 1; font-weight: 900; letter-spacing: 0.7pt; }
       .right-holes { margin-top: 2.6mm; color: #174b91; font-size: 13pt; line-height: 1.1; font-weight: 900; overflow-wrap: anywhere; }
@@ -392,7 +392,7 @@ export default function CourseMarkers({
       <div class="flag-wrap"><img class="flag-image" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMjEwIj4KPHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIyMTAiIGZpbGw9IndoaXRlIi8+CjxlbGxpcHNlIGN4PSI5MCIgY3k9IjE3NCIgcng9Ijc2IiByeT0iMjciIGZpbGw9IiM2OWFkM2IiLz4KPGVsbGlwc2UgY3g9IjkwIiBjeT0iMTc0IiByeD0iMTciIHJ5PSI1IiBmaWxsPSIjMjIyIi8+CjxyZWN0IHg9Ijg0IiB5PSIyNCIgd2lkdGg9IjgiIGhlaWdodD0iMTUxIiByeD0iNCIgZmlsbD0iIzIyMiIvPgo8cGF0aCBkPSJNOTIgMzEgTDE2NSA0OSBMMTM3IDcwIEwxNjUgOTEgTDkyIDEwNiBaIiBmaWxsPSIjZTEyNjFjIi8+Cjwvc3ZnPg==" alt="" /></div>
       <div class="left-content"><div class="seniors">RAMSDALE SENIORS</div><div class="competition">${name}</div>
       </div>
-      <div class="divider"></div><div class="right-content"><div class="right-heading">HOLES</div>
+      <img class="divider" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMiIgaGVpZ2h0PSIzMDAiIHZpZXdCb3g9IjAgMCAxMiAzMDAiPjxyZWN0IHdpZHRoPSIxMiIgaGVpZ2h0PSIzMDAiIGZpbGw9IiMxMTExMTEiLz48L3N2Zz4=" alt="" /><div class="right-content"><div class="right-heading">HOLES</div>
       <div class="right-holes">${groups}</div></div>
       </div></section>
       <script>window.addEventListener('load',()=>{window.setTimeout(()=>window.print(),250);});<\/script>
