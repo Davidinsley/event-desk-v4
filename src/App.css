@@ -19,7 +19,7 @@ body,
   height: 100%;
   overflow: hidden;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  background: #eef3f8;
+  background: #fbf5ef;
   color: #2f2f2f;
 }
 
@@ -67,8 +67,8 @@ body,
   width: 100%;
   min-width: 0;
   padding: 0 34px;
-  background: linear-gradient(90deg, #b8d9f3, #dcecf9);
-  border-bottom: 1px solid #ccd7e2;
+  background: linear-gradient(90deg, #f2c9a6, #fff0df);
+  border-bottom: 1px solid #e7cbb4;
 }
 
 .logo {
@@ -136,16 +136,16 @@ body,
 }
 
 .sidebar li:hover {
-  background: #edf5fc;
-  color: #0d5ea8;
+  background: #fff0e2;
+  color: #a65c28;
   padding-left: 24px;
 }
 
 .sidebar li.active {
-  background: #d9ebfb;
-  color: #0d5ea8;
+  background: #f9e1cd;
+  color: #a65c28;
   font-weight: 600;
-  border-left: 5px solid #4d9fe8;
+  border-left: 5px solid #cb844c;
   padding-left: 19px;
 }
 
@@ -158,7 +158,7 @@ body,
   width: 100%;
   min-width: 0;
   min-height: 0;
-  background: #f5f8fb;
+  background: #fcf7f2;
   padding: 24px;
   overflow: hidden;
 }
@@ -216,7 +216,7 @@ body,
 
 .dashboard-card {
   background: linear-gradient(to bottom,#ffffff,#f8fafc);
-  border: 1px solid #d6dde5;
+  border: 1px solid #e9d5c3;
   border-radius: 16px;
   min-height: 180px;
   padding: 30px;
@@ -230,7 +230,7 @@ body,
 
 .dashboard-card:hover {
   transform: translateY(-6px);
-  border-color: #7fb4e6;
+  border-color: #d9a17a;
   box-shadow:
     0 8px 18px rgba(0,0,0,.08),
     0 20px 40px rgba(0,0,0,.10);
@@ -311,7 +311,7 @@ body,
   height: 46px;
   padding: 0 14px;
   font-size: 16px;
-  border: 1px solid #cfd7df;
+  border: 1px solid #decbb9;
   border-radius: 10px;
   background: white;
   transition: .2s;
@@ -320,8 +320,8 @@ body,
 .field input:focus,
 .field select:focus {
   outline: none;
-  border-color: #5da9e9;
-  box-shadow: 0 0 0 3px rgba(93,169,233,.15);
+  border-color: #cf925e;
+  box-shadow: 0 0 0 3px rgba(207,146,94,.15);
 }
 
 .button-bar {
@@ -330,7 +330,7 @@ body,
 }
 
 .primary-button {
-  background: #4d9fe8;
+  background: #cb844c;
   color: white;
   border: none;
   border-radius: 10px;
@@ -342,7 +342,7 @@ body,
 }
 
 .primary-button:hover {
-  background: #2f86d6;
+  background: #b36d36;
 }
 
 /* ======================================================
@@ -360,7 +360,7 @@ body,
   min-width: 0;
   min-height: 38px;
   padding: 0 22px;
-  background: #edf1f5;
+  background: #f7ede4;
   border-top: 1px solid #d8d8d8;
   color: #666;
   font-size: 13px;
@@ -383,7 +383,7 @@ body,
   width: 100%;
   min-width: 0;
   min-height: 0;
-  background: #dde5ef;
+  background: #f2e3d5;
   padding: 0;
   overflow: hidden;
 }
@@ -435,45 +435,93 @@ table {
 /* ======================================================
    REGULAR COMPETITION THEME
    Applies only to MC-numbered regular competition records.
-   Special Events retain the existing blue Event Desk theme.
+   Social Fairways uses the same warm palette for all event types.
 ====================================================== */
 
 .regular-comp-mode .header {
-  background: linear-gradient(90deg, #d7ead6, #eef6ec);
-  border-bottom-color: #c8d9c6;
+  background: linear-gradient(90deg, #f2c9a6, #fff0df);
+  border-bottom-color: #e7cbb4;
 }
 
 .regular-comp-mode .main {
-  background: #f3f7f1;
+  background: #fcf7f2;
 }
 
 .regular-comp-mode .sidebar {
-  background: #fbfdfb;
-  border-right-color: #d6e1d4;
+  background: #fffaf6;
+  border-right-color: #e9d5c3;
 }
 
 .regular-comp-mode .sidebar li:hover {
-  background: #edf5eb;
-  color: #3f6844;
+  background: #fff0e2;
+  color: #a65c28;
 }
 
 .regular-comp-mode .sidebar li.active {
-  background: #e2f0df;
-  color: #3f6844;
-  border-left-color: #6f956f;
+  background: #f9e1cd;
+  color: #a65c28;
+  border-left-color: #cb844c;
 }
 
 .regular-comp-mode .field input:focus,
 .regular-comp-mode .field select:focus {
-  border-color: #7fa17f;
-  box-shadow: 0 0 0 3px rgba(111, 149, 111, 0.15);
+  border-color: #cf925e;
+  box-shadow: 0 0 0 3px rgba(207, 146, 94, 0.15);
 }
 
 .regular-comp-mode .primary-button {
-  background: #668b6b;
+  background: #cb844c;
 }
 
 .regular-comp-mode .primary-button:hover {
-  background: #527657;
+  background: #b36d36;
 }
 
+
+/* ======================================================
+   SOCIAL FAIRWAYS — SHARED WARM THEME
+   Cosmetic overrides only; no layout or application logic.
+   Scoped to Event Desk workspaces and navigation.
+====================================================== */
+:root {
+  --sfs-peach: #f2c9a6;
+  --sfs-cream: #fff0df;
+  --sfs-accent: #cb844c;
+  --sfs-accent-dark: #a65c28;
+  --sfs-border: #e9d5c3;
+}
+
+.app .sidebar {
+  background: #fffaf6;
+  border-right-color: var(--sfs-border);
+}
+
+.app .workspace h1,
+.app .workspace h2,
+.app .workspace h3,
+.app .page-header h1 {
+  color: #49382d;
+}
+
+.app .workspace input:focus-visible,
+.app .workspace select:focus-visible,
+.app .workspace textarea:focus-visible {
+  outline-color: var(--sfs-accent);
+  border-color: var(--sfs-accent);
+}
+
+.app .workspace button:focus-visible,
+.app .sidebar li:focus-visible {
+  outline: 3px solid #e8b78e;
+  outline-offset: 2px;
+}
+
+.app .primary-button,
+.app .regular-comp-mode .primary-button {
+  background: var(--sfs-accent);
+  color: white;
+}
+
+.app .primary-button:hover {
+  background: var(--sfs-accent-dark);
+}

@@ -1,7 +1,7 @@
 /**
  * ============================================================
  * Catering.css
- * Ramsdale Seniors Event Desk
+ * Social Fairways Society Event Desk
  * Catering Module — Simplified V4
  * ============================================================
  */
@@ -21,10 +21,10 @@
   min-height: 72px;
   box-sizing: border-box;
   padding: 9px 6px;
-  border: 1px solid #dce8f4;
+  border: 1px solid #f2d9c8;
   border-radius: 12px;
   background: #ffffff;
-  box-shadow: 0 3px 10px rgba(31, 79, 129, 0.05);
+  box-shadow: 0 3px 10px rgba(135, 73, 40, 0.05);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -33,7 +33,7 @@
 }
 
 .catering-summary .summary-card-title {
-  color: #687789;
+  color: #77675f;
   font-size: 12px;
   line-height: 1.15;
   font-weight: 800;
@@ -42,7 +42,7 @@
 
 .catering-summary .summary-card-value {
   margin-top: 4px;
-  color: #2464aa;
+  color: #c45f2c;
   font-size: 25px;
   line-height: 1;
   font-weight: 800;
@@ -74,10 +74,10 @@
   min-height: 78px;
   box-sizing: border-box;
   padding: 8px 6px;
-  border: 1px solid #dce8f4;
+  border: 1px solid #f2d9c8;
   border-radius: 12px;
   background: #ffffff;
-  color: #2464aa;
+  color: #c45f2c;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -92,15 +92,15 @@
 }
 
 .catering-action:hover {
-  border-color: #76a9dc;
-  background: #f8fbff;
-  box-shadow: 0 3px 10px rgba(34, 82, 132, 0.08);
+  border-color: #df956d;
+  background: #fff7f0;
+  box-shadow: 0 3px 10px rgba(135, 73, 40, 0.08);
 }
 
 .catering-action.selected {
-  border: 2px solid #5c9bd7;
-  background: #eef6ff;
-  box-shadow: 0 3px 10px rgba(34, 82, 132, 0.08);
+  border: 2px solid #d87947;
+  background: #fff0e4;
+  box-shadow: 0 3px 10px rgba(135, 73, 40, 0.08);
 }
 
 .catering-action-name {
@@ -117,10 +117,10 @@
 .catering-input-panel {
   margin-bottom: 12px;
   padding: 13px 16px 11px;
-  border: 1px solid #dce8f4;
+  border: 1px solid #f2d9c8;
   border-radius: 12px;
   background: #ffffff;
-  box-shadow: 0 3px 10px rgba(34, 82, 132, 0.05);
+  box-shadow: 0 3px 10px rgba(135, 73, 40, 0.05);
 }
 
 .catering-input-grid {
@@ -138,7 +138,7 @@
 
 .catering-input-grid label > span,
 .price-control > span {
-  color: #536679;
+  color: #715c50;
   font-size: 11px;
   font-weight: 800;
 }
@@ -149,10 +149,10 @@
   min-height: 38px;
   box-sizing: border-box;
   padding: 7px 10px;
-  border: 1px solid #d4e2ef;
+  border: 1px solid #efd7c7;
   border-radius: 9px;
   background: #ffffff;
-  color: #23384d;
+  color: #513b30;
   font: inherit;
   font-size: 14px;
 }
@@ -160,13 +160,13 @@
 .catering-input-grid input:focus,
 .price-input-wrap input:focus {
   outline: none;
-  border-color: #72a6dc;
-  box-shadow: 0 0 0 3px rgba(114, 166, 220, 0.12);
+  border-color: #d87947;
+  box-shadow: 0 0 0 3px rgba(216, 121, 71, 0.12);
 }
 
 .catering-input-panel p {
   margin: 8px 0 0;
-  color: #687789;
+  color: #77675f;
   font-size: 11px;
   line-height: 1.35;
 }
@@ -178,10 +178,10 @@
 .package-calculator {
   margin-bottom: 12px;
   padding: 14px 16px;
-  border: 1px solid #dce8f4;
+  border: 1px solid #f2d9c8;
   border-radius: 12px;
   background: #ffffff;
-  box-shadow: 0 3px 10px rgba(34, 82, 132, 0.05);
+  box-shadow: 0 3px 10px rgba(135, 73, 40, 0.05);
 }
 
 .package-calculator-heading {
@@ -194,7 +194,7 @@
 .package-calculator-label {
   display: block;
   margin-bottom: 2px;
-  color: #687789;
+  color: #77675f;
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
@@ -203,7 +203,7 @@
 
 .package-calculator h2 {
   margin: 0;
-  color: #20589a;
+  color: #a94f25;
   font-size: 18px;
   line-height: 1.2;
 }
@@ -214,8 +214,8 @@
   gap: 5px;
   padding: 5px 9px;
   border-radius: 14px;
-  background: #eef6ff;
-  color: #2467ad;
+  background: #fff0e4;
+  color: #b85a2c;
   font-size: 10px;
   font-weight: 800;
   white-space: nowrap;
@@ -243,7 +243,7 @@
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: #687789;
+  color: #77675f;
   pointer-events: none;
 }
 
@@ -255,9 +255,9 @@
   min-height: 38px;
   box-sizing: border-box;
   padding: 7px 12px;
-  border: 1px solid #dce8f4;
+  border: 1px solid #f2d9c8;
   border-radius: 9px;
-  background: #f7fbff;
+  background: #fff8f2;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -265,13 +265,13 @@
 }
 
 .package-total span {
-  color: #687789;
+  color: #77675f;
   font-size: 11px;
   font-weight: 700;
 }
 
 .package-total strong {
-  color: #2464aa;
+  color: #c45f2c;
   font-size: 20px;
   line-height: 1;
   white-space: nowrap;
@@ -279,7 +279,7 @@
 
 .package-hint {
   margin-top: 8px;
-  color: #687789;
+  color: #77675f;
   font-size: 10px;
   line-height: 1.35;
 }
@@ -408,7 +408,7 @@
    ============================================================ */
 
 .bespoke-menu-panel {
-  border: 1px solid #dce9f6;
+  border: 1px solid #f2d9c8;
   border-radius: 16px;
   background: #fff;
   padding: 16px 18px;
@@ -425,13 +425,13 @@
 
 .bespoke-menu-heading h2 {
   margin: 2px 0 4px;
-  color: #16579b;
+  color: #a94f25;
   font-size: 1.05rem;
 }
 
 .bespoke-menu-heading p {
   margin: 0;
-  color: #66778a;
+  color: #77675f;
   font-size: 0.84rem;
 }
 
@@ -441,16 +441,16 @@
   gap: 7px;
   flex: 0 0 auto;
   padding: 9px 14px;
-  border: 1px solid #9ec8ef;
+  border: 1px solid #e6aa88;
   border-radius: 10px;
-  background: #eef7ff;
-  color: #16579b;
+  background: #fff1e6;
+  color: #a94f25;
   font-weight: 700;
   cursor: pointer;
 }
 
 .menu-pdf-upload:hover {
-  background: #e4f2ff;
+  background: #ffe9d9;
 }
 
 .menu-pdf-upload input {
@@ -459,9 +459,9 @@
 
 .menu-pdf-empty {
   padding: 12px 14px;
-  border: 1px dashed #cbdbea;
+  border: 1px dashed #eacbb7;
   border-radius: 10px;
-  color: #6c7d90;
+  color: #77675f;
   font-size: 0.85rem;
 }
 
@@ -478,8 +478,8 @@
 }
 
 .menu-pdf-row.selected .menu-pdf-select {
-  border-color: #6ba9e7;
-  background: #eef7ff;
+  border-color: #d87947;
+  background: #fff1e6;
 }
 
 .menu-pdf-select {
@@ -489,10 +489,10 @@
   flex: 1;
   min-width: 0;
   padding: 9px 11px;
-  border: 1px solid #dce9f6;
+  border: 1px solid #f2d9c8;
   border-radius: 9px;
   background: #fff;
-  color: #245b91;
+  color: #a94f25;
   text-align: left;
   cursor: pointer;
 }
@@ -537,10 +537,10 @@
   align-items: center;
   gap: 7px;
   padding: 8px 12px;
-  border: 1px solid #d2e3f2;
+  border: 1px solid #efd7c7;
   border-radius: 9px;
-  background: #f7fbff;
-  color: #16579b;
+  background: #fff8f2;
+  color: #a94f25;
   font-weight: 700;
   cursor: pointer;
 }
@@ -555,7 +555,7 @@
 
 .menu-pdf-selected-note {
   margin: 8px 0 0;
-  color: #6b7c8f;
+  color: #77675f;
   font-size: 0.78rem;
 }
 

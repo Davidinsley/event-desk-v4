@@ -1,7 +1,7 @@
 /*
  * ============================================================
  * Financials.css
- * Ramsdale Seniors Event Desk
+ * Social Fairways Society Event Desk
  * Financials Module — V1
  * ============================================================
  */
@@ -16,22 +16,22 @@
 .financial-summary-card {
   min-width: 0;
   padding: 12px 14px;
-  border: 1px solid #dce8f4;
+  border: 1px solid #e9d5c3;
   border-radius: 12px;
   background: #ffffff;
-  box-shadow: 0 2px 8px rgba(30, 90, 150, 0.06);
+  box-shadow: 0 2px 8px rgba(166, 92, 40, 0.06);
   text-align: center;
 }
 
 .financial-summary-title {
   margin-bottom: 5px;
-  color: #6b7d91;
+  color: #79685c;
   font-size: 12px;
   font-weight: 700;
 }
 
 .financial-summary-value {
-  color: #245f9f;
+  color: #a65c28;
   font-size: 22px;
   font-weight: 800;
   line-height: 1.1;
@@ -49,10 +49,10 @@
 .financial-card {
   margin-bottom: 18px;
   padding: 20px;
-  border: 1px solid #dce8f4;
+  border: 1px solid #e9d5c3;
   border-radius: 14px;
   background: #ffffff;
-  box-shadow: 0 3px 12px rgba(30, 90, 150, 0.06);
+  box-shadow: 0 3px 12px rgba(166, 92, 40, 0.06);
 }
 
 .financial-card:last-child {
@@ -65,19 +65,19 @@
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
-  color: #245f9f;
+  color: #a65c28;
 }
 
 .financial-card-header h2 {
   margin: 0 0 4px;
-  color: #245f9f;
+  color: #a65c28;
   font-size: 20px;
   font-weight: 800;
 }
 
 .financial-card-header p {
   margin: 0;
-  color: #718195;
+  color: #79685c;
   font-size: 13px;
 }
 
@@ -99,9 +99,9 @@
   flex-direction: column;
   justify-content: center;
   padding: 16px;
-  border: 1px solid #e0eaf3;
+  border: 1px solid #ead9c9;
   border-radius: 11px;
-  background: #f8fbfe;
+  background: #fffaf6;
   box-sizing: border-box;
 }
 
@@ -110,19 +110,19 @@
 }
 
 .financial-entry.editable:focus-within {
-  border-color: #6aa9df;
-  box-shadow: 0 0 0 2px rgba(72, 147, 211, 0.12);
+  border-color: #cf925e;
+  box-shadow: 0 0 0 2px rgba(207, 146, 94, 0.15);
 }
 
 .financial-entry-label {
   margin-bottom: 8px;
-  color: #52677d;
+  color: #655347;
   font-size: 13px;
   font-weight: 700;
 }
 
 .financial-entry-value {
-  color: #245f9f;
+  color: #a65c28;
   font-size: 24px;
   font-weight: 800;
   line-height: 1.1;
@@ -130,7 +130,7 @@
 
 .financial-entry-note {
   margin-top: 6px;
-  color: #8291a1;
+  color: #89786a;
   font-size: 11px;
 }
 
@@ -143,7 +143,7 @@
   display: flex;
   align-items: center;
   height: 42px;
-  border: 1px solid #d6e3ef;
+  border: 1px solid #e7cbb4;
   border-radius: 8px;
   background: #ffffff;
   overflow: hidden;
@@ -154,9 +154,9 @@
   align-items: center;
   align-self: stretch;
   padding: 0 11px;
-  border-right: 1px solid #d6e3ef;
-  background: #f4f8fb;
-  color: #52677d;
+  border-right: 1px solid #e7cbb4;
+  background: #fff0df;
+  color: #655347;
   font-size: 16px;
   font-weight: 700;
 }
@@ -169,7 +169,7 @@
   border: 0;
   outline: none;
   background: transparent;
-  color: #245f9f;
+  color: #a65c28;
   font-family: inherit;
   font-size: 17px;
   font-weight: 700;
@@ -186,7 +186,7 @@
    ------------------------------------------------------------ */
 
 .financial-final-card {
-  border-color: #d8e6f2;
+  border-color: #e9d5c3;
 }
 
 .financial-final-grid {
@@ -201,9 +201,9 @@
   flex-direction: column;
   justify-content: center;
   padding: 8px 18px;
-  border: 1px solid #e0eaf3;
+  border: 1px solid #ead9c9;
   border-radius: 11px;
-  background: #f8fbfe;
+  background: #fffaf6;
 }
 
 .financial-calculation > div {
@@ -212,23 +212,23 @@
   justify-content: space-between;
   gap: 20px;
   padding: 9px 0;
-  color: #607286;
+  color: #766355;
   font-size: 13px;
 }
 
 .financial-calculation > div + div {
-  border-top: 1px solid #e5edf4;
+  border-top: 1px solid #ead9c9;
 }
 
 .financial-calculation strong {
-  color: #40566d;
+  color: #59483c;
   font-size: 14px;
 }
 
 .financial-calculation-total {
   margin-top: 5px;
   padding-top: 13px !important;
-  color: #245f9f !important;
+  color: #a65c28 !important;
   font-size: 15px !important;
   font-weight: 800;
 }
@@ -237,7 +237,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #245f9f;
+  color: #a65c28;
   font-size: 20px;
   font-weight: 800;
 }

@@ -2,7 +2,7 @@
 // Revision: Core Event Details report reads live Catering V4 data
 // NewEvent.tsx
 
-// Ramsdale Seniors Event Desk
+// Social Fairways Society Event Desk
 
 // Revision: Add Meeting-Ready Event Preview
 
@@ -490,6 +490,7 @@ export default function NewEvent({
   const [showAddVenue, setShowAddVenue] = useState(false);
   const [newVenueName, setNewVenueName] = useState("");
   const [showWebsiteNotification, setShowWebsiteNotification] = useState(false);
+  const [showWebsitePublicationDetails, setShowWebsitePublicationDetails] = useState(false);
 
 
   const currentStatus: EventStatus =
@@ -563,6 +564,7 @@ export default function NewEvent({
   const websiteDetails = [
     { label: "Competition", value: event.eventName?.trim() || "Not entered" },
     { label: "Date", value: event.eventDate?.trim() || "Not entered" },
+    { label: "1st Tee Time", value: event.firstTeeTime?.trim() || "Not entered" },
     { label: "Venue", value: event.venue?.trim() || DEFAULT_VENUE },
     { label: "Entries open", value: formatWebsiteDate(event.websiteEntriesOpen) },
     { label: "Entries close", value: formatWebsiteDate(event.websiteEntriesClose) },
@@ -609,19 +611,19 @@ export default function NewEvent({
     const margin = 17;
     const width = 176;
     let y = 20;
-    pdf.setFillColor(222, 239, 250);
+    pdf.setFillColor(249, 225, 205);
     pdf.rect(0, 0, 210, 38, "F");
-    pdf.setTextColor(32, 91, 159);
+    pdf.setTextColor(166, 92, 40);
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(15);
-    pdf.text("RAMSDALE PARK GOLF CLUB", margin, 17);
+    pdf.text("SOCIAL FAIRWAYS SOCIETY", margin, 17);
     pdf.setFontSize(10);
-    pdf.text("SENIORS EVENT DESK  |  WEBSITE PUBLICATION", margin, 25);
+    pdf.text("SOCIETY EVENT DESK  |  WEBSITE PUBLICATION", margin, 25);
     y = 49;
     pdf.setFontSize(17);
     pdf.text("Competition Notification", margin, y);
     y += 11;
-    pdf.setDrawColor(190, 215, 236);
+    pdf.setDrawColor(233, 213, 195);
     pdf.line(margin, y - 4, 193, y - 4);
     pdf.setFontSize(10);
     for (const { label, value } of websiteDetails) {
@@ -638,7 +640,7 @@ export default function NewEvent({
       y += 5;
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(11);
-      pdf.setTextColor(32, 91, 159);
+      pdf.setTextColor(166, 92, 40);
       pdf.text(section.heading, margin, y);
       y += 7;
       pdf.setFont("helvetica", "normal");
@@ -657,11 +659,11 @@ export default function NewEvent({
       window.alert("The website information exceeds one A4 page. Please shorten the details before exporting.");
       return;
     }
-    pdf.setDrawColor(190, 215, 236);
+    pdf.setDrawColor(233, 213, 195);
     pdf.line(margin, 282, 193, 282);
     pdf.setFontSize(8);
     pdf.setTextColor(111, 130, 148);
-    pdf.text("Prepared by Ramsdale Seniors Event Desk", margin, 288);
+    pdf.text("Prepared by Social Fairways Society Event Desk", margin, 288);
     const filename = (event.eventName || "Competition").replace(/[^a-z0-9_-]+/gi, "_");
     pdf.save(`${filename}_Website_Notification.pdf`);
   };
@@ -1220,7 +1222,7 @@ export default function NewEvent({
 
             background: #e9eef4;
 
-            color: #24364b;
+            color: #4b3b32;
 
             font-family:
 
@@ -1258,7 +1260,7 @@ export default function NewEvent({
 
           .preview-controls button {
 
-            border: 1px solid #2f6db5;
+            border: 1px solid #cb844c;
 
             border-radius: 9px;
 
@@ -1266,7 +1268,7 @@ export default function NewEvent({
 
             background: white;
 
-            color: #205b9f;
+            color: #a65c28;
 
             font-size: 14px;
 
@@ -1278,11 +1280,11 @@ export default function NewEvent({
 
           .preview-controls button.primary {
 
-            background: #2f80d0;
+            background: #cb844c;
 
             color: white;
 
-            border-color: #2f80d0;
+            border-color: #cb844c;
 
           }
 
@@ -1324,7 +1326,7 @@ export default function NewEvent({
 
             text-align: center;
 
-            border-bottom: 3px solid #2f6db5;
+            border-bottom: 3px solid #cb844c;
 
             padding-bottom: 12px;
 
@@ -1340,7 +1342,7 @@ export default function NewEvent({
 
             letter-spacing: 1.5px;
 
-            color: #65748b;
+            color: #76685e;
 
             text-transform: uppercase;
 
@@ -1354,7 +1356,7 @@ export default function NewEvent({
 
             line-height: 1.15;
 
-            color: #1e4f9b;
+            color: #884a24;
 
           }
 
@@ -1364,7 +1366,7 @@ export default function NewEvent({
 
             font-weight: 700;
 
-            color: #65748b;
+            color: #76685e;
 
             letter-spacing: 0.8px;
 
@@ -1388,9 +1390,9 @@ export default function NewEvent({
 
           .event-number {
 
-            background: #eef5ff;
+            background: #fff0e2;
 
-            border: 1px solid #c9dcf2;
+            border: 1px solid #e9d5c3;
 
             border-radius: 9px;
 
@@ -1408,7 +1410,7 @@ export default function NewEvent({
 
             font-weight: 800;
 
-            color: #65748b;
+            color: #76685e;
 
             letter-spacing: 1px;
 
@@ -1422,7 +1424,7 @@ export default function NewEvent({
 
             font-size: 21px;
 
-            color: #205b9f;
+            color: #a65c28;
 
           }
 
@@ -1434,7 +1436,7 @@ export default function NewEvent({
 
             line-height: 1.2;
 
-            color: #1e4f89;
+            color: #884a24;
 
           }
 
@@ -1444,7 +1446,7 @@ export default function NewEvent({
 
             font-size: 13px;
 
-            color: #65748b;
+            color: #76685e;
 
           }
 
@@ -1502,11 +1504,11 @@ export default function NewEvent({
 
             padding: 6px 10px;
 
-            background: #eef5fb;
+            background: #fff0e2;
 
-            border-left: 4px solid #4d9fe8;
+            border-left: 4px solid #d9a17a;
 
-            color: #205b9f;
+            color: #a65c28;
 
             font-size: 13px;
 
@@ -1627,7 +1629,7 @@ export default function NewEvent({
           .surplus-row .detail-label,
           .surplus-row .detail-value {
 
-            color: #205b9f;
+            color: #a65c28;
 
             font-weight: 800;
 
@@ -1635,7 +1637,7 @@ export default function NewEvent({
 
           .surplus-row {
 
-            background: #eef5fb;
+            background: #fff0e2;
 
           }
 
@@ -1645,7 +1647,7 @@ export default function NewEvent({
 
             grid-template-columns: 1fr 1fr;
 
-            border: 1px solid #dbe5ef;
+            border: 1px solid #e9d5c3;
 
             border-radius: 7px;
 
@@ -1661,13 +1663,13 @@ export default function NewEvent({
 
             min-height: 30px;
 
-            border-bottom: 1px solid #e8eef4;
+            border-bottom: 1px solid #f1e3d6;
 
           }
 
           .detail\:nth-child(odd) {
 
-            border-right: 1px solid #e8eef4;
+            border-right: 1px solid #f1e3d6;
 
           }
 
@@ -1681,13 +1683,13 @@ export default function NewEvent({
 
             padding: 7px 9px;
 
-            background: #f7fafd;
+            background: #fffaf6;
 
             font-size: 11px;
 
             font-weight: 700;
 
-            color: #65748b;
+            color: #76685e;
 
           }
 
@@ -1699,13 +1701,13 @@ export default function NewEvent({
 
             font-weight: 600;
 
-            color: #24364b;
+            color: #4b3b32;
 
           }
 
           .rules-box {
 
-            border: 1px solid #dbe5ef;
+            border: 1px solid #e9d5c3;
 
             border-radius: 7px;
 
@@ -1717,13 +1719,13 @@ export default function NewEvent({
 
             line-height: 1.45;
 
-            color: #34495e;
+            color: #5f5148;
 
           }
 
           .media-status {
 
-            border: 1px solid #dbe5ef;
+            border: 1px solid #e9d5c3;
 
             border-radius: 7px;
 
@@ -1733,7 +1735,7 @@ export default function NewEvent({
 
             font-weight: 600;
 
-            color: #34495e;
+            color: #5f5148;
 
           }
 
@@ -1743,7 +1745,7 @@ export default function NewEvent({
 
             padding-top: 9px;
 
-            border-top: 1px solid #dbe5ef;
+            border-top: 1px solid #e9d5c3;
 
             display: flex;
 
@@ -1924,13 +1926,13 @@ export default function NewEvent({
 
             <div class="organisation">
 
-              Ramsdale Seniors
+              Social Fairways Society
 
             </div>
 
             <h1>
 
-              Ramsdale Park Golf Club
+              Social Fairways Society
 
             </h1>
 
@@ -2056,6 +2058,11 @@ export default function NewEvent({
 
                 </div>
 
+              </div>
+
+              <div class="detail">
+                <div class="detail-label">1st Tee Time</div>
+                <div class="detail-value">${escapeHtml(event.firstTeeTime?.trim() || "Not entered")}</div>
               </div>
 
               <div class="detail">
@@ -2532,7 +2539,7 @@ export default function NewEvent({
 
             <span>
 
-              Ramsdale Seniors Event Desk
+              Social Fairways Society Event Desk
 
             </span>
 
@@ -2838,7 +2845,7 @@ export default function NewEvent({
 
         title="Event Details"
 
-        subtitle="Create and configure a new Ramsdale Seniors event."
+        subtitle="Create and configure a new Social Fairways Society event."
 
         summary={summary}
 
@@ -2933,6 +2940,17 @@ export default function NewEvent({
             </div>
 
             <div className="field">
+              <label htmlFor="first-tee-time">1st Tee Time</label>
+              <input
+                id="first-tee-time"
+                type="time"
+                value={event.firstTeeTime ?? ""}
+                onChange={(e) => updateEvent({ firstTeeTime: e.target.value })}
+              />
+              <div className="field-help">First scheduled tee time (24-hour clock).</div>
+            </div>
+
+            <div className="field">
 
               <label>
 
@@ -3020,13 +3038,13 @@ export default function NewEvent({
 
                   padding: "8px 14px",
 
-                  border: "1px solid #2f80d0",
+                  border: "1px solid #cb844c",
 
                   borderRadius: "7px",
 
                   background: "#ffffff",
 
-                  color: "#205b9f",
+                  color: "#a65c28",
 
                   fontSize: "14px",
 
@@ -3191,7 +3209,7 @@ export default function NewEvent({
                   gap: "10px",
                   minHeight: "44px",
                   padding: "0 12px",
-                  border: "1px solid #d7e2ef",
+                  border: "1px solid #e9d5c3",
                   borderRadius: "7px",
                   background: event.priority ? "#fff9e8" : "#ffffff",
                   cursor: "pointer",
@@ -3210,7 +3228,7 @@ export default function NewEvent({
                     margin: 0,
                   }}
                 />
-                <span style={{ fontWeight: 700, color: "#34495e" }}>
+                <span style={{ fontWeight: 700, color: "#5f5148" }}>
                   Make this the Priority event
                 </span>
               </label>
@@ -3224,6 +3242,13 @@ export default function NewEvent({
           </div>
 
           <section className="event-poster-section" aria-label="Website Publication Details">
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontWeight: 700, color: "#a65c28" }}>
+              <input type="checkbox" checked={showWebsitePublicationDetails}
+                onChange={(e) => setShowWebsitePublicationDetails(e.target.checked)}
+                style={{ width: 18, height: 18, margin: 0 }} />
+              Show Website Publication Details
+            </label>
+            {showWebsitePublicationDetails && <div style={{ marginTop: 14 }}>
             <h2>Website Publication Details</h2>
             <p className="field-help">For the WordPress administrator only. These dates do not control player entries.</p>
             <div className="form-grid">
@@ -3248,6 +3273,7 @@ export default function NewEvent({
                   style={{ width: "100%", boxSizing: "border-box", resize: "vertical" }} />
               </div>
             </div>
+            </div>}
           </section>
 
           <div className="event-poster-section">
@@ -3259,9 +3285,9 @@ export default function NewEvent({
               className="poster-attachment-box"
               style={{
                 minHeight: "260px",
-                border: "2px dashed #cfe0f5",
+                border: "2px dashed #e9d5c3",
                 borderRadius: "14px",
-                background: "#f8fbff",
+                background: "#fffaf6",
                 padding: "24px",
                 marginTop: "12px",
               }}
@@ -3285,7 +3311,7 @@ export default function NewEvent({
                         key={poster.id}
                         style={{
                           background: "white",
-                          border: "1px solid #d7e6f7",
+                          border: "1px solid #e9d5c3",
                           borderRadius: "10px",
                           padding: "10px",
                           boxShadow:
@@ -3299,7 +3325,7 @@ export default function NewEvent({
                         <div
                           style={{
                             marginTop: "8px",
-                            color: "#225ca8",
+                            color: "#a65c28",
                             fontSize: "13px",
                             fontWeight: 700,
                             textAlign: "center",
@@ -3340,8 +3366,8 @@ export default function NewEvent({
                       width: "96px",
                       height: "96px",
                       borderRadius: "10px",
-                      background: "#eef5fd",
-                      border: "1px solid #d7e6f7",
+                      background: "#fff0e2",
+                      border: "1px solid #e9d5c3",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -3354,7 +3380,7 @@ export default function NewEvent({
                   <h3
                     style={{
                       margin: "0 0 8px 0",
-                      color: "#225ca8",
+                      color: "#a65c28",
                       fontSize: "21px",
                     }}
                   >
@@ -3392,32 +3418,32 @@ export default function NewEvent({
         <div role="presentation" style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(20,40,65,.55)", display: "flex", justifyContent: "center", alignItems: "center", padding: 20 }}>
           <div role="dialog" aria-modal="true" aria-label="Website Notification Pro Forma" style={{ width: "min(760px, 100%)", maxHeight: "90vh", overflowY: "auto", background: "white", borderRadius: 14, padding: 24, boxShadow: "0 14px 45px rgba(0,0,0,.2)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <h2 style={{ margin: 0, color: "#205b9f" }}>Website Notification — A4 Pro Forma</h2>
+              <h2 style={{ margin: 0, color: "#a65c28" }}>Website Notification — A4 Pro Forma</h2>
               <button type="button" onClick={() => setShowWebsiteNotification(false)}>Close</button>
             </div>
-            <p style={{ color: "#586779" }}>Review the information below, then export a single-page PDF to attach to your own email alongside the event poster.</p>
-            <div style={{ background: "white", border: "1px solid #d7e6f7", borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ padding: 18, background: "#deeffa", color: "#205b9f" }}>
-                <strong>RAMSDALE PARK GOLF CLUB</strong>
-                <div style={{ fontSize: 12, marginTop: 4 }}>SENIORS EVENT DESK · WEBSITE PUBLICATION</div>
+            <p style={{ color: "#76685e" }}>Review the information below, then export a single-page PDF to attach to your own email alongside the event poster.</p>
+            <div style={{ background: "white", border: "1px solid #e9d5c3", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ padding: 18, background: "#f9e1cd", color: "#a65c28" }}>
+                <strong>SOCIAL FAIRWAYS SOCIETY</strong>
+                <div style={{ fontSize: 12, marginTop: 4 }}>SOCIETY EVENT DESK · WEBSITE PUBLICATION</div>
               </div>
               <div style={{ padding: 20 }}>
-                <h3 style={{ marginTop: 0, color: "#205b9f" }}>Competition Notification</h3>
+                <h3 style={{ marginTop: 0, color: "#a65c28" }}>Competition Notification</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(125px, 32%) 1fr", gap: "9px 14px" }}>
                   {websiteDetails.map(({ label, value }) => (
                     <div key={label} style={{ display: "contents" }}>
-                      <strong style={{ color: "#4b6179" }}>{label}</strong>
+                      <strong style={{ color: "#76685e" }}>{label}</strong>
                       <span style={{ overflowWrap: "anywhere" }}>{value}</span>
                     </div>
                   ))}
                 </div>
                 {websiteSections.map(section => (
                   <section key={section.heading} style={{ marginTop: 19 }}>
-                    <h4 style={{ color: "#205b9f", margin: "0 0 6px" }}>{section.heading}</h4>
+                    <h4 style={{ color: "#a65c28", margin: "0 0 6px" }}>{section.heading}</h4>
                     <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{section.body}</div>
                   </section>
                 ))}
-                <p style={{ marginTop: 25, borderTop: "1px solid #d7e6f7", paddingTop: 9, color: "#6b7d90", fontSize: 11 }}>Prepared by Ramsdale Seniors Event Desk</p>
+                <p style={{ marginTop: 25, borderTop: "1px solid #e9d5c3", paddingTop: 9, color: "#76685e", fontSize: 11 }}>Prepared by Social Fairways Society Event Desk</p>
               </div>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
@@ -3478,7 +3504,7 @@ export default function NewEvent({
                 boxSizing: "border-box",
                 marginTop: "8px",
                 padding: "10px 12px",
-                border: "1px solid #b9cce3",
+                border: "1px solid #e9d5c3",
                 borderRadius: "7px",
                 fontSize: "15px",
               }}
@@ -3617,9 +3643,9 @@ export default function NewEvent({
                 gap: "12px",
                 padding: "16px",
                 margin: "14px 0 20px",
-                border: "1px solid #dbe5ef",
+                border: "1px solid #e9d5c3",
                 borderRadius: "10px",
-                background: "#f7fafd",
+                background: "#fffaf6",
               }}
             >
               {[
@@ -3628,6 +3654,7 @@ export default function NewEvent({
                   label: "Date",
                   value: `${event.eventDate}${weekday ? ` — ${weekday}` : ""}`,
                 },
+                { label: "1st Tee Time", value: event.firstTeeTime || "Not entered" },
                 { label: "Venue", value: event.venue || DEFAULT_VENUE },
                 {
                   label: "Competition",
@@ -3643,13 +3670,13 @@ export default function NewEvent({
                     padding: "10px 12px",
                     borderRadius: "8px",
                     background: "#fff",
-                    border: "1px solid #e0e9f2",
+                    border: "1px solid #e9d5c3",
                   }}
                 >
-                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#61758a", marginBottom: "5px" }}>
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#76685e", marginBottom: "5px" }}>
                     {label}
                   </div>
-                  <div style={{ fontSize: "15px", fontWeight: 650, color: "#24476d", overflowWrap: "anywhere" }}>
+                  <div style={{ fontSize: "15px", fontWeight: 650, color: "#884a24", overflowWrap: "anywhere" }}>
                     {value}
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 {
-  "name": "event-desk-v4",
+  "name": "social-fairways-event-desk-v4",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -39,8 +39,8 @@
     "vite": "^8.1.1"
   },
   "build": {
-    "appId": "uk.co.ramsdale-seniors.eventdesk",
-    "productName": "Event Desk",
+    "appId": "uk.co.social-fairways.eventdesk",
+    "productName": "Social Fairways Event Desk",
     "directories": {
       "output": "release"
     },

@@ -1,5 +1,5 @@
 /* Dashboard.css */
-/* Ramsdale Seniors Event Desk */
+/* Social Fairways Society Event Desk */
 /* Revision: Four uniform dashboard tiles with Diary and Past Events buttons */
 
 .dashboard-screen {
@@ -16,7 +16,7 @@
   width: 100%;
   max-width: 1320px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 28px;
 }
 
@@ -25,31 +25,31 @@
   height: 400px;
   min-width: 0;
   padding: 34px 34px;
-  border: 2px solid #a9cef0;
+  border: 2px solid #edc4a4;
   border-radius: 24px;
-  background: linear-gradient(to bottom, #ffffff, #fbfdff);
-  color: #123f78;
+  background: linear-gradient(to bottom, #ffffff, #fffaf5);
+  color: #84471f;
   font: inherit;
   text-align: center;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 8px rgba(40, 90, 140, 0.05),
-    0 12px 28px rgba(40, 90, 140, 0.06);
+  box-shadow: 0 3px 8px rgba(139, 83, 43, 0.05),
+    0 12px 28px rgba(139, 83, 43, 0.06);
   transition: transform 0.18s ease, border-color 0.18s ease,
     box-shadow 0.18s ease;
 }
 
 .dashboard-card:hover {
   transform: translateY(-4px);
-  border-color: #7eb5e8;
-  box-shadow: 0 8px 18px rgba(40, 90, 140, 0.09),
-    0 18px 36px rgba(40, 90, 140, 0.08);
+  border-color: #d99c70;
+  box-shadow: 0 8px 18px rgba(139, 83, 43, 0.09),
+    0 18px 36px rgba(139, 83, 43, 0.08);
 }
 
 .dashboard-card:focus-visible {
-  outline: 3px solid rgba(77, 159, 232, 0.35);
+  outline: 3px solid rgba(201, 125, 69, 0.35);
   outline-offset: 4px;
 }
 
@@ -66,7 +66,7 @@
   width: 96px;
   height: 76px;
   fill: none;
-  stroke: #1456a6;
+  stroke: #ba6b34;
   stroke-width: 4.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -79,7 +79,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  color: #123f78;
+  color: #84471f;
   font-size: 30px;
   line-height: 1.15;
   font-weight: 700;
@@ -88,7 +88,7 @@
 .dashboard-card-description {
   display: block;
   max-width: 300px;
-  color: #4d5966;
+  color: #66584e;
   font-size: 18px;
   line-height: 1.4;
   font-weight: 400;
@@ -110,10 +110,10 @@
   min-width: 250px;
   min-height: 56px;
   padding: 12px 28px;
-  border: 2px solid #a9cef0;
+  border: 2px solid #edc4a4;
   border-radius: 16px;
   background: #ffffff;
-  color: #174f91;
+  color: #a85d27;
   font: inherit;
   font-size: 16px;
   font-weight: 700;
@@ -122,7 +122,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  box-shadow: 0 3px 8px rgba(40, 90, 140, 0.05);
+  box-shadow: 0 3px 8px rgba(139, 83, 43, 0.05);
   transition: transform 0.18s ease, border-color 0.18s ease,
     box-shadow 0.18s ease;
 }
@@ -141,12 +141,12 @@
 
 .dashboard-secondary-button:hover {
   transform: translateY(-2px);
-  border-color: #7eb5e8;
-  box-shadow: 0 6px 14px rgba(40, 90, 140, 0.09);
+  border-color: #d99c70;
+  box-shadow: 0 6px 14px rgba(139, 83, 43, 0.09);
 }
 
 .dashboard-secondary-button:focus-visible {
-  outline: 3px solid rgba(77, 159, 232, 0.35);
+  outline: 3px solid rgba(201, 125, 69, 0.35);
   outline-offset: 4px;
 }
 

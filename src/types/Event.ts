@@ -34,6 +34,8 @@ export interface Event {
   eventNumber: string;
   eventName: string;
   eventDate: string;
+  // Optional to preserve all previously saved events.
+  firstTeeTime?: string;
   venue: string;
   competition: string;
   entryFee: number;

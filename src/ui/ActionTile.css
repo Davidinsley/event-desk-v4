@@ -1,6 +1,6 @@
 /* ======================================================
    ActionTile.css
-   Ramsdale Seniors Event Desk
+   Social Fairways Society Event Desk
    Revision: Save-Matched Hover
    ====================================================== */
 
@@ -12,7 +12,7 @@
     padding: 14px 10px;
     box-sizing: border-box;
 
-    border: 1px solid #dbe6f3;
+    border: 1px solid #f0d1bf;
     border-radius: 14px;
 
     background: #ffffff;
@@ -25,7 +25,7 @@
 
     text-align: center;
 
-    color: #3f4d63;
+    color: #714b3a;
 
     cursor: pointer;
 
@@ -42,9 +42,9 @@
 
 .action-tile:hover {
     transform: translateY(-3px);
-    border-color: #3f86d3;
-    background: #f5f9ff;
-    box-shadow: 0 8px 20px rgba(31, 95, 191, 0.18);
+    border-color: #cf7444;
+    background: #fff4ed;
+    box-shadow: 0 8px 20px rgba(183, 94, 47, 0.18);
 }
 
 /* ------------------------------------------------------
@@ -53,7 +53,7 @@
 
 .action-tile:active {
     transform: translateY(0);
-    box-shadow: 0 3px 8px rgba(31, 95, 191, 0.12);
+    box-shadow: 0 3px 8px rgba(183, 94, 47, 0.12);
 }
 
 /* ------------------------------------------------------
@@ -62,20 +62,20 @@
    ------------------------------------------------------ */
 
 .action-tile.primary {
-    border: 2px solid #6b9cda;
-    background: #eef5ff;
+    border: 2px solid #d68a60;
+    background: #fff0e5;
 }
 
 /* ------------------------------------------------------
    Primary Hover
-   Light blue → clearly darker blue
+   Light peach → deeper peach
    ------------------------------------------------------ */
 
 .action-tile.primary:hover {
     transform: translateY(-3px);
-    border-color: #3f86d3;
-    background: #dcecff;
-    box-shadow: 0 8px 20px rgba(31, 95, 191, 0.22);
+    border-color: #cf7444;
+    background: #f9ddca;
+    box-shadow: 0 8px 20px rgba(183, 94, 47, 0.22);
 }
 
 /* ------------------------------------------------------
@@ -88,7 +88,7 @@
 
     flex-shrink: 0;
 
-    color: #1f5fbf;
+    color: #b85d32;
 }
 
 /* ------------------------------------------------------
@@ -102,7 +102,7 @@
     line-height: 1.15;
     font-weight: 600;
 
-    color: #3f4d63;
+    color: #714b3a;
 
     white-space: normal;
     text-align: center;

@@ -1,6 +1,6 @@
 /*=========================================================
   SummaryCard.css
-  Ramsdale Seniors Event Desk
+  Social Fairways Society Event Desk
   Revision: Venue Card Wrapping Fix
 ==========================================================*/
 
@@ -9,7 +9,7 @@
     height: 112px;
 
     background: #ffffff;
-    border: 1px solid #dbe6f3;
+    border: 1px solid #f0d3bd;
     border-radius: 16px;
 
     display: flex;
@@ -61,7 +61,7 @@
 
     font-weight: 700;
 
-    color: #1f5fbf;
+    color: #b85b27;
 }
 
 
@@ -76,7 +76,7 @@
 
     font-weight: 600;
 
-    color: #3f4d63;
+    color: #675247;
 
     line-height: 1.1;
 }
@@ -124,13 +124,13 @@
 }
 
 .summary-card.warning strong {
-    color: #f57c00;
+    color: #df720d;
 }
 
 .summary-card.danger strong {
     color: #c62828;
 }
-/* MC REGULAR COMPETITION THEME */
+/* Existing regular-competition override retained */
 .regular-comp-mode .summary-card { border-color: #d6e1d4; }
 .regular-comp-mode .summary-card.default strong,
 .regular-comp-mode .summary-card.venue strong,

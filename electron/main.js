@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Keep Society app data separate from Ramsdale Seniors Event Desk.
+app.setPath('userData', path.join(app.getPath('appData'), 'Social Fairways Event Desk'));
+
 let mainWindow = null;
 
 function createWindow() {
@@ -13,7 +16,7 @@ function createWindow() {
     height: 950,
     minWidth: 1100,
     minHeight: 700,
-    title: 'Ramsdale Seniors Event Desk',
+    title: 'Social Fairways Event Desk',
     backgroundColor: '#f4f7fb',
     webPreferences: {
       contextIsolation: true,

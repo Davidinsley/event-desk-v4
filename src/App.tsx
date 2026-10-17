@@ -4,8 +4,8 @@
 import { useEffect, useState } from "react";
 
 import "./App.css";
-import logo from "./assets/Emblem.png";
-import splashImage from "./assets/EventDeskSplash.png";
+import logo from "../build/icon-master.png";
+
 
 import type { Player } from "./types/Player";
 import type { Event } from "./types/Event";
@@ -57,10 +57,10 @@ const ARCHIVED_EVENT_KEY =
 const defaultEvent: Event = {
   eventNumber: "0001",
   eventName:
-    "Monday Club Home & Away Championship",
+    "",
   eventDate: "",
-  venue: "Ramsdale Park Golf Club",
-  competition: "Pairs Championship",
+  venue: "",
+  competition: "",
   entryFee: 15,
   playerLimit: 76,
   competitionCategory: "",
@@ -1985,8 +1985,8 @@ export default function App() {
         }}
       >
         <img
-          src={splashImage}
-          alt="Ramsdale Seniors Event Desk"
+          src={logo}
+          alt="Social Fairways Society Event Desk"
           style={{
             width: "100%",
             height: "100%",
@@ -2013,14 +2013,14 @@ export default function App() {
 
         <img
           src={logo}
-          alt="Ramsdale Park Golf Club"
+          alt="Social Fairways Society"
           className="logo"
         />
 
         <div className="header-title">
 
           <h1>
-            Ramsdale Seniors Event Desk
+            Social Fairways Society Event Desk
           </h1>
 
           <p>
@@ -2549,7 +2549,7 @@ export default function App() {
                   <h1
                     style={{
                       margin: 0,
-                      color: "#205b9f",
+                      color: "#b95725",
                       fontSize: "38px",
                     }}
                   >
@@ -2560,13 +2560,13 @@ export default function App() {
                   <p
                     style={{
                       margin: "8px 0 0",
-                      color: "#64748b",
+                      color: "#75675f",
                       fontSize: "18px",
                     }}
                   >
                     {recentEventsOnly
-                      ? "Past and completed Ramsdale Seniors events."
-                      : "Create, open and manage your Ramsdale Seniors events."}
+                      ? "Past and completed Social Fairways Society events."
+                      : "Create, open and manage your Social Fairways Society events."}
                   </p>
                 </div>
 
@@ -2582,11 +2582,11 @@ export default function App() {
                       type="button"
                       onClick={() => handleNavigate("dashboard")}
                       style={{
-                        border: "1px solid #2468b3",
+                        border: "1px solid #c96532",
                         borderRadius: "10px",
                         padding: "13px 20px",
                         background: "white",
-                        color: "#205b9f",
+                        color: "#b95725",
                         fontSize: "16px",
                         fontWeight: 700,
                         cursor: "pointer",
@@ -2607,12 +2607,12 @@ export default function App() {
                       border: "none",
                       borderRadius: "10px",
                       padding: "14px 22px",
-                      background: "#2468b3",
+                      background: "#c96532",
                       color: "white",
                       fontSize: "16px",
                       fontWeight: 700,
                       cursor: "pointer",
-                      boxShadow: "0 3px 8px rgba(36,104,179,0.25)",
+                      boxShadow: "0 3px 8px rgba(169,79,34,0.22)",
                     }}
                   >
                     {recentEventsOnly
@@ -2713,20 +2713,20 @@ export default function App() {
                           background: record.event.priority ? "#fffaf0" : "white",
                           border: record.event.priority
                             ? "1px solid #ead8a6"
-                            : "1px solid #dbe7f3",
+                            : "1px solid #f1d6c5",
                           borderRadius: "14px",
                           padding: "20px 24px",
                           display: "grid",
                           gridTemplateColumns: "90px 90px 1fr auto",
                           alignItems: "center",
                           gap: "22px",
-                          boxShadow: "0 2px 8px rgba(31,91,159,0.06)",
+                          boxShadow: "0 2px 8px rgba(154,83,46,0.08)",
                         }}
                       >
                         <div
                           style={{
-                            background: "#eef6ff",
-                            color: "#205b9f",
+                            background: "#fff0e5",
+                            color: "#b95725",
                             borderRadius: "10px",
                             padding: "12px 8px",
                             textAlign: "center",
@@ -2741,8 +2741,8 @@ export default function App() {
 
                         <div
                           style={{
-                            background: "#eef6ff",
-                            color: "#205b9f",
+                            background: "#fff0e5",
+                            color: "#b95725",
                             borderRadius: "10px",
                             padding: "12px 8px",
                             textAlign: "center",
@@ -2761,7 +2761,7 @@ export default function App() {
                           <h2
                             style={{
                               margin: 0,
-                              color: "#1e4f89",
+                              color: "#a84d22",
                               fontSize: "22px",
                             }}
                           >
@@ -2770,7 +2770,7 @@ export default function App() {
                           <p
                             style={{
                               margin: "6px 0 0",
-                              color: "#64748b",
+                              color: "#75675f",
                             }}
                           >
                             {record.event.eventDate || "Date not yet entered"}
@@ -2819,11 +2819,11 @@ export default function App() {
                             type="button"
                             onClick={() => handleOpenEvent(record)}
                             style={{
-                              border: "1px solid #2f6db5",
+                              border: "1px solid #d27a49",
                               borderRadius: "9px",
                               padding: "9px 15px",
                               background: "white",
-                              color: "#205b9f",
+                              color: "#b95725",
                               fontWeight: 700,
                               cursor: "pointer",
                             }}
@@ -2858,11 +2858,11 @@ export default function App() {
                     <div
                       style={{
                         padding: "36px 24px",
-                        border: "1px solid #dbe7f3",
+                        border: "1px solid #f1d6c5",
                         borderRadius: "14px",
                         background: "white",
                         textAlign: "center",
-                        color: "#64748b",
+                        color: "#75675f",
                         fontSize: "17px",
                       }}
                     >
