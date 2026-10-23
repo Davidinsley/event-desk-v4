@@ -311,6 +311,10 @@ export default function CourseMarkers({
     (_, index) => index + 1
   );
 
+  // Display and print markers in ascending hole order without changing saved data.
+  // JavaScript stable sorting preserves the existing order for duplicate holes.
+  const sortedMarkers = [...markers].sort((a, b) => a.hole - b.hole);
+
   const previewSheets: CourseMarker[][] =
     [];
 
@@ -320,7 +324,7 @@ export default function CourseMarkers({
     i += MARKERS_PER_SHEET
   ) {
     previewSheets.push(
-      markers.slice(
+      sortedMarkers.slice(
         i,
         i + MARKERS_PER_SHEET
       )
@@ -1999,7 +2003,7 @@ export default function CourseMarkers({
             </div>
           )}
 
-          {markers.map(
+          {sortedMarkers.map(
             (marker, index) => (
               <div
                 key={marker.id}
