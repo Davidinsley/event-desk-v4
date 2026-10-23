@@ -59,6 +59,21 @@ const createPrizeId = () =>
 
 export default function Prizes({ event, setEvent }: PrizesProps) {
   const prizes = event.prizes ?? [];
+
+  // Sort on-course prizes by their actual hole, without changing stored prize order.
+  const sortedEntries = (stream: PrizeStream) => {
+    const entries = prizes.filter((prize) => prize.stream === stream);
+    if (stream !== "onCourse") return entries;
+    return [...entries].sort((a, b) => {
+      const holeNumber = (hole: string | number | undefined) => {
+        const number = Number(hole);
+        return hole == null || String(hole).trim() === "" || !Number.isFinite(number)
+          ? Number.POSITIVE_INFINITY
+          : number;
+      };
+      return holeNumber(a.hole) - holeNumber(b.hole);
+    });
+  };
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const updatePrizes = (next: EventPrize[]) => {
@@ -159,7 +174,7 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
 
       <div className="prizes-grid">
         {sections.map((section) => {
-          const entries = prizes.filter((prize) => prize.stream === section.stream);
+          const entries = sortedEntries(section.stream);
 
           return (
             <section
@@ -198,6 +213,9 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
 
                           <div className="prize-summary-main">
                             <strong>
+                              {section.stream === "onCourse" && prize.hole?.trim()
+                                ? `Hole ${prize.hole} — `
+                                : ""}
                               {prize.title.trim() || "New prize"}
                             </strong>
                             <span>
@@ -538,7 +556,7 @@ export default function Prizes({ event, setEvent }: PrizesProps) {
             const eventDate = (event as Event & { date?: string }).date?.trim() || "";
 
             const sectionHtml = sections.map((section) => {
-              const entries = prizes.filter((prize) => prize.stream === section.stream);
+              const entries = sortedEntries(section.stream);
               const subtotal = prizeTotal(entries);
 
               const rows = entries.length === 0
