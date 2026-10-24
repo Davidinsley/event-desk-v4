@@ -490,6 +490,7 @@ export default function NewEvent({
   const [showAddVenue, setShowAddVenue] = useState(false);
   const [newVenueName, setNewVenueName] = useState("");
   const [showWebsiteNotification, setShowWebsiteNotification] = useState(false);
+  const [showWebsitePublicationDetails, setShowWebsitePublicationDetails] = useState(false);
 
 
   const currentStatus: EventStatus =
@@ -499,6 +500,32 @@ export default function NewEvent({
       : published
       ? "published"
       : "draft";
+
+  // Tee schedule settings are retained separately for each event.
+  const teeScheduleKey = `eventDeskTeeSchedule:${event.eventNumber}`;
+  const [teeSchedule, setTeeSchedule] = useState<{ groups: number; interval: 8 | 10 }>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(teeScheduleKey) || "null");
+      if (saved && Number.isInteger(saved.groups) && saved.groups > 0 &&
+          (saved.interval === 8 || saved.interval === 10)) return saved;
+    } catch { /* Use defaults. */ }
+    return { groups: Math.max(1, Math.ceil((Number(event.playerLimit) || 4) / 4)), interval: 8 };
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(teeScheduleKey, JSON.stringify(teeSchedule)); }
+    catch { /* Storage is optional. */ }
+  }, [teeScheduleKey, teeSchedule]);
+
+  const lastTeeTime = useMemo(() => {
+    const match = (event.firstTeeTime || "").match(/^(\d{1,2}):(\d{2})$/);
+    if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) return "";
+    const minutes = Number(match[1]) * 60 + Number(match[2]) +
+      (teeSchedule.groups - 1) * teeSchedule.interval;
+    const hh = Math.floor(minutes / 60) % 24;
+    const mm = minutes % 60;
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+  }, [event.firstTeeTime, teeSchedule]);
 
   const weekday = useMemo(
 
@@ -563,6 +590,8 @@ export default function NewEvent({
   const websiteDetails = [
     { label: "Competition", value: event.eventName?.trim() || "Not entered" },
     { label: "Date", value: event.eventDate?.trim() || "Not entered" },
+    { label: "1st Tee Time", value: event.firstTeeTime?.trim() || "Not entered" },
+    { label: "Last Tee Time", value: lastTeeTime || "Not calculated" },
     { label: "Venue", value: event.venue?.trim() || DEFAULT_VENUE },
     { label: "Entries open", value: formatWebsiteDate(event.websiteEntriesOpen) },
     { label: "Entries close", value: formatWebsiteDate(event.websiteEntriesClose) },
@@ -2059,6 +2088,15 @@ export default function NewEvent({
               </div>
 
               <div class="detail">
+                <div class="detail-label">1st Tee Time</div>
+                <div class="detail-value">${escapeHtml(event.firstTeeTime?.trim() || "Not entered")}</div>
+              </div>
+              <div class="detail">
+                <div class="detail-label">Last Tee Time</div>
+                <div class="detail-value">${escapeHtml(lastTeeTime || "Not calculated")}</div>
+              </div>
+
+              <div class="detail">
 
                 <div class="detail-label">
 
@@ -2933,6 +2971,50 @@ export default function NewEvent({
             </div>
 
             <div className="field">
+              <label htmlFor="first-tee-time">1st Tee Time</label>
+              <input
+                id="first-tee-time"
+                type="time"
+                value={event.firstTeeTime ?? ""}
+                onChange={(e) => updateEvent({ firstTeeTime: e.target.value })}
+              />
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginTop: 10 }}>
+                <div>
+                  <label htmlFor="tee-group-count">Number of tee times</label>
+                  <input id="tee-group-count" type="number" min="1" max="100"
+                    style={{ width: 110, display: "block" }}
+                    value={teeSchedule.groups}
+                    onChange={(e) => setTeeSchedule(current => ({
+                      ...current, groups: Math.max(1, Math.min(100, Number(e.target.value) || 1))
+                    }))} />
+                </div>
+                <div>
+                  <label htmlFor="tee-time-interval">Interval (minutes)</label>
+                  <select id="tee-time-interval" style={{ display: "block", width: 130 }}
+                    value={teeSchedule.interval}
+                    onChange={(e) => setTeeSchedule(current => ({
+                      ...current, interval: Number(e.target.value) as 8 | 10
+                    }))}>
+                    <option value={8}>8 minutes</option>
+                    <option value={10}>10 minutes</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="last-tee-time">Last Tee Time</label>
+                  <output id="last-tee-time" style={{
+                    display: "flex", alignItems: "center", minHeight: 44,
+                    padding: "0 14px", border: "1px solid #a9c8ec",
+                    borderRadius: 8, background: "#edf5ff", color: "#1759a0",
+                    fontSize: 18, fontWeight: 700, minWidth: 110,
+                    boxSizing: "border-box"
+                  }}>
+                    {lastTeeTime || "—"}
+                  </output>
+                </div>
+              </div>
+            </div>
+
+            <div className="field">
 
               <label>
 
@@ -3224,6 +3306,13 @@ export default function NewEvent({
           </div>
 
           <section className="event-poster-section" aria-label="Website Publication Details">
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontWeight: 700, color: "#205b9f" }}>
+              <input type="checkbox" checked={showWebsitePublicationDetails}
+                onChange={(e) => setShowWebsitePublicationDetails(e.target.checked)}
+                style={{ width: 18, height: 18, margin: 0 }} />
+              Show Website Publication Details
+            </label>
+            {showWebsitePublicationDetails && <div style={{ marginTop: 14 }}>
             <h2>Website Publication Details</h2>
             <p className="field-help">For the WordPress administrator only. These dates do not control player entries.</p>
             <div className="form-grid">
@@ -3248,6 +3337,7 @@ export default function NewEvent({
                   style={{ width: "100%", boxSizing: "border-box", resize: "vertical" }} />
               </div>
             </div>
+            </div>}
           </section>
 
           <div className="event-poster-section">
@@ -3628,6 +3718,8 @@ export default function NewEvent({
                   label: "Date",
                   value: `${event.eventDate}${weekday ? ` — ${weekday}` : ""}`,
                 },
+                { label: "1st Tee Time", value: event.firstTeeTime || "Not entered" },
+                { label: "Last Tee Time", value: lastTeeTime || "Not calculated" },
                 { label: "Venue", value: event.venue || DEFAULT_VENUE },
                 {
                   label: "Competition",
