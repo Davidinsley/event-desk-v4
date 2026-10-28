@@ -75,8 +75,65 @@ export default function PrizeBank({ onBack }: { onBack: () => void }) {
     setPrizes(prev => prev.filter(x => x.id !== p.id)); setMessage("Prize deleted.");
   }
   return <section style={{ maxWidth: 1160, margin: "0 auto", padding: "28px 24px 50px", color: "#334155" }}>
-    <style>{`@media print { @page { size: A4 landscape; margin: 12mm; } body * { visibility: hidden !important; } .prize-bank-print, .prize-bank-print * { visibility: visible !important; } .prize-bank-print { display: block !important; position: absolute; top: 0; left: 0; width: 100%; background: white; font: 11px Arial; } .prize-bank-print table { width: 100%; border-collapse: collapse; } .prize-bank-print th, .prize-bank-print td { border: 1px solid #ccd7e5; padding: 7px; text-align: left; } .prize-bank-print th { background: #eaf2fb; } } @media screen { .prize-bank-print { display: none; } }`}</style>
-    <div className="prize-bank-print"><h1>RAMSDALE SENIORS — PRIZE BANK</h1><p>{view === "Archive" ? "Issued Archive" : "Current Prize Bank"} · {new Date().toLocaleDateString("en-GB")} · {visible.length} records</p><table><thead><tr><th>Prize</th><th>Source</th><th>Donor / Supplier</th><th>Received</th><th>Status</th><th>Recipient</th><th>Event</th><th>Awarded / Issued</th><th>Value</th><th>Cost</th></tr></thead><tbody>{visible.map(p => <tr key={p.id}><td>{p.description}</td><td>{p.source}</td><td>{p.donorSupplier}</td><td>{p.dateReceived}</td><td>{p.status}</td><td>{p.recipient}</td><td>{p.eventName}</td><td>{p.dateAwarded}{p.dateIssued ? ` / ${p.dateIssued}` : ""}</td><td>{gbp(p.estimatedValue)}</td><td>{gbp(p.purchaseCost)}</td></tr>)}</tbody></table></div>
+    <style>{`@media print {
+      @page { size: A4 portrait; margin: 13mm 12mm 14mm; }
+      body * { visibility: hidden !important; }
+      .prize-bank-print, .prize-bank-print * { visibility: visible !important; }
+      .prize-bank-print { display: block !important; position: absolute; inset: 0 auto auto 0; width: 100%; box-sizing: border-box; background: white; color: #23364d; font-family: Arial, Helvetica, sans-serif; font-size: 9pt; }
+      .prize-bank-print .print-header { border-bottom: 3px solid #205b9f; padding: 0 0 10px; margin-bottom: 12px; }
+      .prize-bank-print .print-eyebrow { font-size: 8pt; font-weight: bold; color: #4775a5; letter-spacing: 1.2px; }
+      .prize-bank-print h1 { margin: 5px 0; font-size: 20pt; color: #174b86; letter-spacing: .2px; }
+      .prize-bank-print .print-subtitle { color: #52677f; font-size: 9pt; }
+      .prize-bank-print .print-summary { display: flex; gap: 8px; margin: 0 0 14px; }
+      .prize-bank-print .print-stat { flex: 1; border: 1px solid #cddded; border-radius: 5px; padding: 8px 7px; background: #f4f8fc; }
+      .prize-bank-print .print-stat span { display: block; color: #536a82; font-size: 7pt; margin-bottom: 3px; }
+      .prize-bank-print .print-stat strong { display: block; color: #174b86; font-size: 12pt; }
+      .prize-bank-print .print-section { color: #174b86; font-size: 11pt; font-weight: bold; margin: 0 0 7px; }
+      .prize-bank-print table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      .prize-bank-print thead { display: table-header-group; }
+      .prize-bank-print tr { break-inside: avoid; page-break-inside: avoid; }
+      .prize-bank-print th { text-align: left; background: #205b9f !important; color: white !important; font-size: 8pt; padding: 8px 6px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .prize-bank-print td { vertical-align: top; border-bottom: 1px solid #dbe5ef; padding: 7px 6px; overflow-wrap: anywhere; }
+      .prize-bank-print tbody tr:nth-child(even) { background: #f5f8fc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .prize-bank-print .print-prize { font-weight: bold; color: #203e63; }
+      .prize-bank-print .print-detail { font-size: 7.3pt; color: #60748a; margin-top: 3px; line-height: 1.35; }
+      .prize-bank-print .print-status { display: inline-block; font-size: 7.5pt; font-weight: bold; border-radius: 3px; padding: 3px 5px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .prize-bank-print .print-available { color: #166534 !important; background: #dcfce7 !important; }
+      .prize-bank-print .print-allocated { color: #92400e !important; background: #fef3c7 !important; }
+      .prize-bank-print .print-awarded { color: #991b1b !important; background: #fee2e2 !important; }
+      .prize-bank-print .print-issued { color: #475569 !important; background: #e2e8f0 !important; }
+      .prize-bank-print .print-money { text-align: right; white-space: nowrap; font-weight: bold; }
+      .prize-bank-print .print-footer { border-top: 1px solid #cddded; margin-top: 12px; padding-top: 7px; font-size: 7.5pt; color: #64748b; }
+    }
+    @media screen { .prize-bank-print { display: none; } }`}</style>
+    <div className="prize-bank-print">
+      <div className="print-header">
+        <div className="print-eyebrow">RAMSDALE PARK GOLF CLUB · SENIORS SECTION</div>
+        <h1>Prize Bank</h1>
+        <div className="print-subtitle">{view === "Archive" ? "Issued Prize Archive" : "Current Physical Prize Register"} · Report date: {new Date().toLocaleDateString("en-GB")} · {visible.length} records shown</div>
+      </div>
+      <div className="print-summary">
+        <div className="print-stat"><span>Prizes held</span><strong>{current.length}</strong></div>
+        <div className="print-stat"><span>Available</span><strong>{current.filter(p => p.status === "Available").length}</strong></div>
+        <div className="print-stat"><span>Allocated</span><strong>{current.filter(p => p.status === "Allocated").length}</strong></div>
+        <div className="print-stat"><span>Awarded, not issued</span><strong>{current.filter(p => p.status === "Awarded").length}</strong></div>
+        <div className="print-stat"><span>Held prize value</span><strong>{gbp(heldValue)}</strong></div>
+      </div>
+      <div className="print-section">{view === "Archive" ? "Issued prizes" : "Prizes currently held"}</div>
+      <table>
+        <colgroup><col style={{ width: "30%" }} /><col style={{ width: "20%" }} /><col style={{ width: "28%" }} /><col style={{ width: "12%" }} /><col style={{ width: "10%" }} /></colgroup>
+        <thead><tr><th>Prize / source</th><th>Donor / received</th><th>Event / recipient</th><th>Status</th><th style={{ textAlign: "right" }}>Value</th></tr></thead>
+        <tbody>{visible.map(p => <tr key={p.id}>
+          <td><div className="print-prize">{p.description}</div><div className="print-detail">{p.source}{p.source === "Section Purchased" ? ` · Cost ${gbp(p.purchaseCost)}` : ""}</div></td>
+          <td>{p.donorSupplier || "—"}<div className="print-detail">Received: {p.dateReceived || "—"}</div></td>
+          <td>{p.eventName || "—"}{p.recipient && <div className="print-detail">Winner: {p.recipient}</div>}{p.dateAwarded && <div className="print-detail">Awarded: {p.dateAwarded}</div>}{p.dateIssued && <div className="print-detail">Issued: {p.dateIssued}</div>}</td>
+          <td><span className={`print-status print-${p.status.toLowerCase()}`}>{p.status}</span></td>
+          <td className="print-money">{gbp(p.estimatedValue)}</td>
+        </tr>)}</tbody>
+      </table>
+      {visible.length === 0 && <p>No prizes match the current view or filters.</p>}
+      <div className="print-footer">Ramsdale Seniors Event Desk · Physical prizes only · {view === "Archive" ? "Issued prizes have been handed over" : "Awarded prizes remain held until physically issued"}</div>
+    </div>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 22 }}><div><h1 style={{ margin: 0, color: "#205b9f" }}>Prize Bank</h1><p style={{ margin: "6px 0 0" }}>Physical prizes — donated or section purchased</p></div><div style={{ display: "flex", gap: 8 }}><button style={button} onClick={() => { setEditing(blank()); setMessage(""); }}>+ Add Prize</button><button style={{ ...button, background: "white", color: "#205b9f" }} onClick={() => window.print()}>Print / PDF</button><button style={{ ...button, background: "white", color: "#205b9f" }} onClick={onBack}>Main Menu</button></div></div>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 18 }}>{([ ["Prizes Held", current.length], ["Available", current.filter(p => p.status === "Available").length], ["Allocated", current.filter(p => p.status === "Allocated").length], ["Awarded, Not Issued", current.filter(p => p.status === "Awarded").length], ["Held Prize Value", gbp(heldValue)], ["Section Purchase Cost", gbp(totalCost)] ] as [string, string | number][]).map(([label, value]) => <div style={panel} key={label}><div style={{ fontSize: 13, color: "#64748b" }}>{label}</div><strong style={{ display: "block", marginTop: 6, fontSize: 22, color: "#205b9f" }}>{value}</strong></div>)}</div>
     {message && <p role="status" style={{ color: "#205b9f", fontWeight: 600 }}>{message}</p>}
