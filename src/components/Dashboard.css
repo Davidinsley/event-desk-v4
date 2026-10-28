@@ -100,28 +100,33 @@
 .dashboard-secondary-row {
   width: 100%;
   max-width: 1320px;
-  display: flex;
-  justify-content: center;
-  gap: 18px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
   margin-top: 28px;
 }
 
 .dashboard-secondary-button {
-  min-width: 250px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   min-height: 56px;
-  padding: 12px 28px;
+  padding: 10px 7px;
   border: 2px solid #a9cef0;
   border-radius: 16px;
   background: #ffffff;
   color: #174f91;
   font: inherit;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 6px;
+  white-space: normal;
+  text-align: center;
   box-shadow: 0 3px 8px rgba(40, 90, 140, 0.05);
   transition: transform 0.18s ease, border-color 0.18s ease,
     box-shadow 0.18s ease;
@@ -206,4 +211,11 @@
   .dashboard-secondary-button {
     width: 100%;
   }
+}
+
+/* Keep all six secondary controls on one horizontal row without resizing primary tiles. */
+.dashboard-secondary-button span:last-child { overflow-wrap: anywhere; }
+@media (max-width: 680px) {
+  .dashboard-secondary-row { max-width: 100%; flex-direction: unset; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+  .dashboard-secondary-button { width: 100%; padding: 6px 2px; font-size: 10px; flex-direction: column; }
 }
