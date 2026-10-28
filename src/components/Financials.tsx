@@ -189,9 +189,9 @@ const saveFinancials = (data: FinancialData) => {
 const formatCurrency = (value: number) =>
   `£${Math.round(value).toLocaleString("en-GB")}`;
 
-const loadCateringCharge = (eventId?: string): number => {
+const loadCateringDetails = (eventId?: string): { charge: number; pricePerMeal: number } => {
   if (!eventId) {
-    return 0;
+    return { charge: 0, pricePerMeal: 0 };
   }
 
   try {
@@ -200,7 +200,7 @@ const loadCateringCharge = (eventId?: string): number => {
     );
 
     if (!saved) {
-      return 0;
+      return { charge: 0, pricePerMeal: 0 };
     }
 
     const catering = JSON.parse(saved) as Partial<CateringDataLike>;
@@ -229,15 +229,16 @@ const loadCateringCharge = (eventId?: string): number => {
         ? Math.max(0, selectedPackage.price)
         : 0;
 
-    return eating * price;
+    return { charge: eating * price, pricePerMeal: price };
   } catch {
-    return 0;
+    return { charge: 0, pricePerMeal: 0 };
   }
 };
 
 export default function Financials({ players = [] }: FinancialsProps) {
   const [data, setData] = useState<FinancialData>(loadFinancials);
-  const [cateringCharge, setCateringCharge] = useState(0);
+  const [cateringDetails, setCateringDetails] = useState({ charge: 0, pricePerMeal: 0 });
+  const cateringCharge = cateringDetails.charge;
   // Forecast is a separate planning input; it never changes player payments.
   const [forecastPlayers, setForecastPlayers] = useState<number | null>(null);
   const [showForecast, setShowForecast] = useState(false);
@@ -246,7 +247,7 @@ export default function Financials({ players = [] }: FinancialsProps) {
 
   useEffect(() => {
     setData(loadFinancials());
-    setCateringCharge(loadCateringCharge(activeEvent?.id));
+    setCateringDetails(loadCateringDetails(activeEvent?.id));
     try {
       const saved = localStorage.getItem(`eventDeskFinancialForecast:${activeEvent?.id || "default"}`);
       const parsed: unknown = saved === null ? null : JSON.parse(saved);
@@ -294,7 +295,13 @@ export default function Financials({ players = [] }: FinancialsProps) {
 
   const projectedPlayerCount = forecastPlayers ?? playerCount;
   const forecastIncome = projectedPlayerCount * entryFee + data.sponsorship + data.sectionSupport;
-  const forecastSurplus = forecastIncome - basicOutgoings - data.charity;
+  // Forecast only: model one selected meal per virtual player without
+  // changing the actual number eating or the recorded catering expenditure.
+  const forecastCateringCharge = forecastPlayers === null
+    ? cateringCharge
+    : projectedPlayerCount * cateringDetails.pricePerMeal;
+  const forecastOutgoings = basicOutgoings - cateringCharge + forecastCateringCharge;
+  const forecastSurplus = forecastIncome - forecastOutgoings - data.charity;
 
   const updateForecastPlayers = (value: number | null) => {
     const next = value === null ? null : Math.max(0, Math.floor(value));
@@ -500,11 +507,22 @@ export default function Financials({ players = [] }: FinancialsProps) {
             <div className="financial-entry-value">{formatCurrency(forecastIncome)}</div>
           </div>
           <div className="financial-entry">
+            <div className="financial-entry-label">Projected Catering Cost</div>
+            <div className="financial-entry-value">{formatCurrency(forecastCateringCharge)}</div>
+            <div className="financial-entry-note">{forecastPlayers === null
+              ? "Current Catering figures"
+              : `${projectedPlayerCount} × ${formatCurrency(cateringDetails.pricePerMeal)} per meal`}</div>
+          </div>
+          <div className="financial-entry">
+            <div className="financial-entry-label">Projected Basic Outgoings</div>
+            <div className="financial-entry-value">{formatCurrency(forecastOutgoings)}</div>
+          </div>
+          <div className="financial-entry">
             <div className="financial-entry-label">Projected Surplus / Deficit</div>
             <div className="financial-entry-value" style={{ color: forecastSurplus < 0 ? "#b42318" : "#176b43" }}>
               {forecastSurplus < 0 ? "−" : ""}{formatCurrency(Math.abs(forecastSurplus))}
             </div>
-            <div className="financial-entry-note">Includes current recorded outgoings and charity.</div>
+            <div className="financial-entry-note">Includes forecast catering, other recorded outgoings and charity.</div>
           </div>
         </div>
         <div style={{ marginTop: "14px", display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
@@ -513,7 +531,7 @@ export default function Financials({ players = [] }: FinancialsProps) {
             Reset Forecast
           </button>
           <span style={{ color: "#64748b", fontSize: "13px" }}>
-            Forecast only. Food charge stays linked to Catering and is not recalculated from virtual players.
+            Forecast only. Catering cost adjusts with virtual players; actual Catering records remain unchanged.
           </span>
         </div>
       </section>
