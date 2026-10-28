@@ -71,6 +71,7 @@ export default function VoucherRegister({ onBack, initialVoucherId }: Props) {
   const [vouchers, setVouchers] = useState<VoucherRecord[]>(loadVouchers);
   const [editing, setEditing] = useState<VoucherRecord | null>(null);
   const [filter, setFilter] = useState<"All" | VoucherDirection>("All");
+  const [registerView, setRegisterView] = useState<"Current" | "Archive">("Current");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialVoucherId || null);
   const [message, setMessage] = useState("");
@@ -82,15 +83,17 @@ export default function VoucherRegister({ onBack, initialVoucherId }: Props) {
     if (!match) return;
     setSelectedId(match.id);
     setFilter("All");
+    setRegisterView(match.direction === "Out" && match.status === "Issued" ? "Archive" : "Current");
     setSearch("");
     setEditing({ ...match });
     setMessage("");
   }, [initialVoucherId]);
 
   const selected = vouchers.find(v => v.id === selectedId);
-  const visible = useMemo(() => vouchers.filter(v => (filter === "All" || v.direction === filter) &&
+  const visible = useMemo(() => vouchers.filter(v => (registerView === "Archive" ? v.direction === "Out" && v.status === "Issued" : !(v.direction === "Out" && v.status === "Issued")) &&
+    (filter === "All" || v.direction === filter) &&
     [v.description, v.club, v.reference, v.recipient, v.fundraisingEvent, v.type].join(" ").toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => (a.expiryDate || "9999").localeCompare(b.expiryDate || "9999")), [vouchers, filter, search]);
+    .sort((a, b) => (a.expiryDate || "9999").localeCompare(b.expiryDate || "9999")), [vouchers, registerView, filter, search]);
   const totals = useMemo(() => ({
     incoming: vouchers.filter(v => v.direction === "In").length,
     outgoing: vouchers.filter(v => v.direction === "Out").length,
@@ -117,7 +120,7 @@ export default function VoucherRegister({ onBack, initialVoucherId }: Props) {
     if (editing.estimatedValue < 0 || editing.actualProceeds < 0) { setMessage("Values cannot be negative."); return; }
     const updated = { ...editing, id: editing.id || (crypto.randomUUID?.() ?? `voucher-${Date.now()}`) };
     setVouchers(previous => previous.some(v => v.id === updated.id) ? previous.map(v => v.id === updated.id ? updated : v) : [...previous, updated]);
-    setSelectedId(updated.id); setEditing(null); setMessage("Voucher saved.");
+    setSelectedId(updated.id); setEditing(null); setMessage(updated.direction === "Out" && updated.status === "Issued" ? "Voucher saved to Issued Archive." : "Voucher saved.");
   }
   function removeVoucher(v: VoucherRecord) {
     if (!window.confirm(`Delete voucher from ${v.club}? This cannot be undone.`)) return;
@@ -180,7 +183,7 @@ export default function VoucherRegister({ onBack, initialVoucherId }: Props) {
         <div className="report-subtitle">VOUCHER REGISTER</div>
       </header>
       <div className="report-meta">
-        <span>Report date: {new Date().toLocaleDateString("en-GB")} · {filter === "All" ? "All vouchers" : `Vouchers ${filter}`} · {visible.length} records</span>
+        <span>Report date: {new Date().toLocaleDateString("en-GB")} · {filter === "All" ? "All vouchers" : `Vouchers ${filter}`} · {registerView} · {visible.length} records</span>
         <span>{search.trim() ? `Search: ${search.trim()}` : "Complete selected register"}</span>
       </div>
       <div className="report-section">VOUCHER SUMMARY — SELECTED RECORDS</div>
@@ -243,12 +246,16 @@ export default function VoucherRegister({ onBack, initialVoucherId }: Props) {
       <p style={{ fontSize: 13, color: "#64748b" }}>For a bundle, give all vouchers the same bundle reference. Record the total charity proceeds against just one voucher in the bundle.</p>
       <div style={{ display: "flex", gap: 10 }}><button style={button} onClick={saveVoucher}>Save Voucher</button><button style={{ ...button, background: "white", color: "#205b9f" }} onClick={() => { setEditing(null); setMessage(""); }}>Cancel</button></div>
     </div>}
+    <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+      <button style={{ ...button, background: registerView === "Current" ? "#205b9f" : "white", color: registerView === "Current" ? "white" : "#205b9f" }} onClick={() => { setRegisterView("Current"); setMessage(""); }}>Current Register ({vouchers.filter(v => !(v.direction === "Out" && v.status === "Issued")).length})</button>
+      <button style={{ ...button, background: registerView === "Archive" ? "#205b9f" : "white", color: registerView === "Archive" ? "white" : "#205b9f" }} onClick={() => { setRegisterView("Archive"); setMessage(""); }}>Issued Archive ({vouchers.filter(v => v.direction === "Out" && v.status === "Issued").length})</button>
+    </div>
     <div style={{ ...panel, marginBottom: 14, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
       <label>Show <select style={{ ...field, width: "auto" }} value={filter} onChange={e => setFilter(e.target.value as typeof filter)}><option>All</option><option>In</option><option>Out</option></select></label>
       <input style={{ ...field, flex: "1 1 230px" }} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search club, voucher, winner or event" aria-label="Search vouchers" />
     </div>
     <div style={{ display: "grid", gap: 9 }}>
-      {visible.length === 0 && <div style={panel}>No vouchers found. Select “Add Voucher” to begin.</div>}
+      {visible.length === 0 && <div style={panel}>{registerView === "Archive" ? "No issued vouchers archived yet." : "No vouchers found. Select ‘Add Voucher’ to begin."}</div>}
       {visible.map(v => { const warning = voucherWarning(v); const days = daysUntilVoucherExpiry(v.expiryDate); return <div key={v.id} style={{ ...panel, borderColor: warning === "red" ? "#ef4444" : warning === "amber" ? "#f59e0b" : "#dbe7f3", background: selectedId === v.id ? "#f1f7ff" : "white" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
           <div><strong style={{ color: "#205b9f", fontSize: 17 }}>{v.direction === "In" ? "↓ In" : "↑ Out"} · {v.type} · {v.club}</strong>
